@@ -1,0 +1,153 @@
+{
+  "name": "anemona-vault",
+  "displayName": "Anemona Vault",
+  "description": "Manage notes, passwords, API keys, tasks, commands and snippets from a unified sidebar inside Visual Studio Code.",
+  "version": "0.1.0",
+  "publisher": "anemona",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other",
+    "Productivity",
+    "Snippets"
+  ],
+  "keywords": [
+    "vault",
+    "notes",
+    "markdown",
+    "secrets",
+    "password-manager",
+    "passwords",
+    "apikeys",
+    "tokens",
+    "tasks",
+    "todo",
+    "commands",
+    "snippets",
+    "developer-tools",
+    "productivity",
+    "knowledge-base",
+    "workspace",
+    "documentation",
+    "developer",
+    "sidebar",
+    "organizer"
+  ],
+  "activationEvents": [
+    "onView:anemonaVault.view"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "anemonaVault",
+          "title": "AV",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "anemonaVault": [
+        {
+          "type": "webview",
+          "id": "anemonaVault.view",
+          "name": "Anemona Vault"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "anemonaVault.selectStorageFolder",
+        "title": "Vault: Select Storage Folder",
+        "icon": {
+          "light": "media/folder-light.svg",
+          "dark": "media/folder-dark.svg"
+        }
+      },
+      {
+        "command": "anemonaVault.createNote",
+        "title": "Vault: Create Note"
+      },
+      {
+        "command": "anemonaVault.createCategory",
+        "title": "Vault: Create Category"
+      },
+      {
+        "command": "anemonaVault.refresh",
+        "title": "Vault: Refresh",
+        "icon": {
+          "light": "media/refresh-light.svg",
+          "dark": "media/refresh-dark.svg"
+        }
+      },
+      {
+        "command": "anemonaVault.moreActions",
+        "title": "Vault: More Actions",
+        "icon": {
+          "light": "media/more-light.svg",
+          "dark": "media/more-dark.svg"
+        }
+      },
+      {
+        "command": "anemonaVault.deleteNote",
+        "title": "Vault: Delete Note"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "anemonaVault.moreActions",
+          "when": "view == anemonaVault.view",
+          "group": "navigation@99"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Anemona Vault",
+      "properties": {
+        "anemona-vault.storagePath": {
+          "type": "string",
+          "default": "",
+          "description": "Path where notes and vault data will be stored"
+        },
+        "anemona-vault.defaultCategories": {
+          "type": "array",
+          "default": [
+            "Onboarding",
+            "Administration",
+            "Meetings",
+            "Product Ideas",
+            "Email List",
+            "Customers",
+            "Website",
+            "Schedules",
+            "Resources",
+            "Inventory"
+          ],
+          "description": "Default note categories"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run build:webview && npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "build:webview": "vite build --config webview/vite.config.ts",
+    "dev:webview": "vite --config webview/vite.config.ts",
+    "lint": "eslint src --ext ts"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^3.1.0",
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "svelte": "^4.2.0",
+    "svelte-check": "^3.6.0",
+    "tslib": "^2.6.0",
+    "typescript": "^5.3.0",
+    "vite": "^5.1.0"
+  }
+}
