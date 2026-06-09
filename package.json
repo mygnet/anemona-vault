@@ -2,15 +2,23 @@
   "name": "anemona-vault",
   "displayName": "Anemona Vault",
   "description": "Manage notes, passwords, API keys, tasks, commands and snippets from a unified sidebar inside Visual Studio Code.",
-  "version": "0.1.0",
-  "publisher": "anemona",
+  "version": "0.1.",
+  "publisher": "mygnet",
   "license": "MIT",
   "engines": {
     "vscode": "^1.85.0"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mygnet/anemona-vault.git"
+  },
+  "homepage": "https://github.com/mygnet/anemona-vault",
+  "bugs": {
+    "url": "https://github.com/mygnet/anemona-vault/issues"
+  },
   "categories": [
     "Other",
-    "Productivity",
+    "Visualization",
     "Snippets"
   ],
   "keywords": [
@@ -39,6 +47,7 @@
     "onView:anemonaVault.view"
   ],
   "main": "./out/extension.js",
+  "icon": "media/anemona-vault.png",
   "contributes": {
     "viewsContainers": {
       "activitybar": [
