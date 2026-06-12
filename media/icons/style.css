@@ -20,6 +20,51 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 }
+.icon-file-input:before {
+    content: "\f3e8";
+}
+.icon-move:before {
+    content: "\f474";
+}
+.icon-home-solid:before {
+    content: "\f5b8";
+}
+.icon-home:before {
+    content: "\f2bd";
+}
+.icon-code-xml:before {
+    content: "\f095";
+}
+.icon-token-security:before {
+    content: "\f10a";
+}
+.icon-code-insert:before {
+    content: "\f5c2";
+}
+.icon-bulb:before {
+    content: "\f2d8";
+}
+.icon-sort-a-z:before {
+    content: "\f153";
+}
+.icon-sort-z-a:before {
+    content: "\f189";
+}
+.icon-qr-code:before {
+    content: "\f437";
+}
+.icon-share:before {
+    content: "\f319";
+}
+.icon-book-lock:before {
+    content: "\f1fa";
+}
+.icon-file-code:before {
+    content: "\f0d9";
+}
+.icon-file-spreadsheet:before {
+    content: "\f3f4";
+}
 .icon-chevron-right:before {
     content: "\f1d4";
 }
@@ -37,9 +82,6 @@
 }
 .icon-import:before {
     content: "\fd0f";
-}
-.icon-file-script:before {
-    content: "\f168";
 }
 .icon-checked:before {
     content: "\f480";
@@ -59,9 +101,6 @@
 .icon-sidebar-collapse:before {
     content: "\f23b";
 }
-.icon-file-todo:before {
-    content: "\f13c";
-}
 .icon-list-todo:before {
     content: "\f403";
 }
@@ -76,6 +115,9 @@
 }
 .icon-file-text:before {
     content: "\f459";
+}
+.icon-file-snippet:before {
+    content: "\f0d9";
 }
 .icon-file-key:before {
     content: "\f595";

@@ -8,7 +8,8 @@ const KEY_LENGTH = 32
 const IV_LENGTH = 16
 const AUTH_TAG_LENGTH = 16
 const SALT_LENGTH = 32
-const CONFIG_FILE = '.env-anemona'
+const CONFIG_FILE = '.config.json'
+const LEGACY_CONFIG_FILE = '.env-anemona'
 const LEGACY_ENV_KEY_FILE = '.env-key'
 
 type VaultConfig =
@@ -46,6 +47,10 @@ export class CryptoService {
 
   get legacyEnvKeyPath(): string {
     return path.join(this.storagePath, LEGACY_ENV_KEY_FILE)
+  }
+
+  get legacyConfigPath(): string {
+    return path.join(this.storagePath, LEGACY_CONFIG_FILE)
   }
 
   isVaultUnlocked(): boolean {
@@ -109,7 +114,7 @@ export class CryptoService {
   ): AnemonaFolderConfig {
     if ('key' in vault) {
       if (!this.isValidBase64Key(vault.key)) {
-        throw new Error('Invalid vault key in .env-anemona')
+        throw new Error('Invalid vault key in .config.json')
       }
 
       return {
@@ -208,13 +213,13 @@ export class CryptoService {
 
   private normalizeConfig(data: unknown): AnemonaFolderConfig {
     if (!data || typeof data !== 'object') {
-      throw new Error('Invalid .env-anemona config')
+      throw new Error('Invalid .config.json config')
     }
 
     const candidate = data as Record<string, unknown>
     const vault = candidate.vault as Record<string, unknown> | undefined
     if (!vault || typeof vault !== 'object') {
-      throw new Error('Missing vault config in .env-anemona')
+      throw new Error('Missing vault config in .config.json')
     }
 
     if (vault.mode === 'plain' && typeof vault.key === 'string') {
@@ -237,22 +242,30 @@ export class CryptoService {
       )
     }
 
-    throw new Error('Unsupported vault config in .env-anemona')
+    throw new Error('Unsupported vault config in .config.json')
   }
 
-  private migrateLegacyConfig(): AnemonaFolderConfig | null {
-    if (!fs.existsSync(this.legacyEnvKeyPath)) return null
+  private migrateLegacyFile(legacyPath: string, label: string): AnemonaFolderConfig | null {
+    if (!fs.existsSync(legacyPath)) return null
 
-    const raw = fs.readFileSync(this.legacyEnvKeyPath, 'utf-8').trim()
+    const raw = fs.readFileSync(legacyPath, 'utf-8').trim()
     const config = this.parseConfigRaw(raw)
 
     if (!config) {
-      throw new Error('Legacy .env-key could not be migrated')
+      throw new Error(`Legacy ${label} could not be migrated`)
     }
 
     this.saveConfig(config)
-    fs.unlinkSync(this.legacyEnvKeyPath)
+    fs.unlinkSync(legacyPath)
     return config
+  }
+
+  private migrateLegacyConfigFile(): AnemonaFolderConfig | null {
+    return this.migrateLegacyFile(this.legacyConfigPath, '.env-anemona')
+  }
+
+  private migrateLegacyConfig(): AnemonaFolderConfig | null {
+    return this.migrateLegacyFile(this.legacyEnvKeyPath, '.env-key')
   }
 
   private loadConfig(): AnemonaFolderConfig {
@@ -264,13 +277,13 @@ export class CryptoService {
         return parsed
       }
 
-      const migrated = this.migrateLegacyConfig()
+      const migrated = this.migrateLegacyConfigFile() ?? this.migrateLegacyConfig()
       if (migrated) return migrated
 
-      throw new Error('Invalid .env-anemona config')
+      throw new Error('Invalid .config.json config')
     }
 
-    const migrated = this.migrateLegacyConfig()
+    const migrated = this.migrateLegacyConfigFile() ?? this.migrateLegacyConfig()
     if (migrated) return migrated
 
     const config = this.createDefaultConfig()

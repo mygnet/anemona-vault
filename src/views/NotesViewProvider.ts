@@ -1,8 +1,9 @@
+import * as fs from 'fs'
 import * as path from 'path'
 import * as vscode from 'vscode'
 import { NotesService } from '../services/NotesService'
 import { ConfigService } from './../services/ConfigService'
-import type { FileType, WebviewMessage } from '../types/notes'
+import type { FileType, WebviewMessage, FolderBrief, FolderTreeNode, RecentFolderData, CategoryConfig } from '../types/notes'
 
 export class NotesViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = 'anemonaVault.view'
@@ -10,12 +11,17 @@ export class NotesViewProvider implements vscode.WebviewViewProvider {
   private _view?: vscode.WebviewView
   private _notesService: NotesService
   private _currentNotePath: string | null = null
+  private _currentCategory: string | null = null
+  private _currentFolderPath: string = ''
+  private _globalState: vscode.Memento | null = null
 
   constructor(
     private readonly _extensionUri: vscode.Uri,
     notesService: NotesService,
+    globalState?: vscode.Memento,
   ) {
     this._notesService = notesService
+    this._globalState = globalState ?? null
   }
 
   resolveWebviewView(
@@ -49,7 +55,9 @@ export class NotesViewProvider implements vscode.WebviewViewProvider {
         break
 
       case 'selectCategory':
-        this._loadNotes(message.category as string)
+        this._currentCategory = message.category as string
+        this._currentFolderPath = (message.folderPath as string) || ''
+        await this._loadNotes(this._currentCategory, this._currentFolderPath)
         break
 
       case 'selectNote':
@@ -60,6 +68,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider {
         break
 
       case 'createNote':
+        this._currentFolderPath = (message.folderPath as string) || this._currentFolderPath
         await this._createNote(
           message.category as string,
           message.title as string,
@@ -82,6 +91,50 @@ export class NotesViewProvider implements vscode.WebviewViewProvider {
         await this._renameNote(
           message.notePath as string,
           message.title as string,
+        )
+        break
+
+      case 'moveNote':
+        await this._moveNote(
+          message.notePath as string,
+          message.targetCategory as string,
+          message.targetFolderPath as string | undefined,
+        )
+        break
+
+      case 'openFolder':
+        this._currentFolderPath = message.folderPath as string
+        await this._loadNotes(this._currentCategory || (message.category as string), this._currentFolderPath)
+        break
+
+      case 'createFolder':
+        await this._createFolder(message.parentPath as string, message.name as string)
+        break
+
+      case 'deleteFolder':
+        await this._deleteFolder(message.folderPath as string)
+        break
+
+      case 'renameFolder':
+        await this._renameFolder(message.folderPath as string, message.name as string)
+        break
+
+      case 'moveFolder':
+        await this._moveFolder(message.sourcePath as string, message.targetDir as string)
+        break
+
+      case 'updateFolderColor':
+        await this._updateFolderColor(message.folderPath as string, message.color as string)
+        break
+
+      case 'getFolderTree':
+        await this._sendFolderTree(message.categoryName as string)
+        break
+
+      case 'exportNote':
+        await this._exportNote(
+          message.notePath as string,
+          message.format as string,
         )
         break
 
@@ -144,6 +197,25 @@ export class NotesViewProvider implements vscode.WebviewViewProvider {
           message.entries as any[],
         )
         break
+
+      case 'saveSnippetEntries':
+        await this._saveSnippetEntries(
+          message.notePath as string,
+          message.entries as any[],
+        )
+        break
+
+      case 'searchGlobal':
+        await this._searchGlobal(String(message.query || ''))
+        break
+
+      case 'openRecentFolder':
+        await this._openRecentFolder(message.folderPath as string)
+        break
+
+      case 'getRecentFolders':
+        await this._sendRecentFolders()
+        break
     }
   }
 
@@ -151,7 +223,10 @@ export class NotesViewProvider implements vscode.WebviewViewProvider {
     const storagePath = this._notesService.getStoragePath()
     if (!storagePath) {
       this._updateViewTitle()
-      this._postMessage({ command: 'storagePathRequired' })
+      this._postMessage({
+        command: 'storagePathRequired',
+        recentFolders: this._getRecentFolders(),
+      })
       return
     }
 
@@ -168,17 +243,108 @@ export class NotesViewProvider implements vscode.WebviewViewProvider {
     })
   }
 
-  private _loadNotes(categoryName: string): void {
-    const notes = this._notesService.getNotesForCategory(categoryName)
+  private _getRecentFolders(): RecentFolderData[] {
+    if (!this._globalState) return []
+    const stored = this._globalState.get<RecentFolderData[]>('recentFolders', [])
+    return stored
+      .filter((f) => fs.existsSync(f.path))
+      .sort((a, b) => b.lastOpened.localeCompare(a.lastOpened))
+      .slice(0, 8)
+  }
+
+  private _addRecentFolder(folderPath: string): void {
+    if (!this._globalState) return
+
+    const stored = this._globalState.get<RecentFolderData[]>('recentFolders', [])
+    const name = path.basename(path.normalize(folderPath))
+
+    let icon: string | undefined
+
+    const rootConfigPath = path.join(folderPath, '.config.json')
+    if (fs.existsSync(rootConfigPath)) {
+      try {
+        const config = JSON.parse(fs.readFileSync(rootConfigPath, 'utf-8')) as CategoryConfig
+        icon = config.icon
+      } catch {
+        // ignore invalid config
+      }
+    }
+
+    const entry: RecentFolderData = {
+      path: folderPath,
+      name,
+      icon,
+      lastOpened: new Date().toISOString(),
+    }
+
+    const filtered = stored.filter((f) => f.path !== folderPath)
+    filtered.unshift(entry)
+    this._globalState.update('recentFolders', filtered.slice(0, 16))
+  }
+
+  private _removeRecentFolder(folderPath: string): void {
+    if (!this._globalState) return
+    const stored = this._globalState.get<RecentFolderData[]>('recentFolders', [])
+    this._globalState.update(
+      'recentFolders',
+      stored.filter((f) => f.path !== folderPath),
+    )
+  }
+
+  private async _openRecentFolder(folderPath: string): Promise<void> {
+    if (!fs.existsSync(folderPath)) {
+      this._removeRecentFolder(folderPath)
+      this._postMessage({
+        command: 'error',
+        message: `Folder "${folderPath}" no longer exists`,
+      })
+      this._loadCategories()
+      return
+    }
+
+    await ConfigService.setStoragePath(folderPath)
+    this._notesService.setStoragePath(folderPath)
+    this._addRecentFolder(folderPath)
+    this._updateViewTitle()
+    this._loadCategories()
+  }
+
+  private async _sendRecentFolders(): Promise<void> {
+    this._postMessage({
+      command: 'recentFolders',
+      recentFolders: this._getRecentFolders(),
+    })
+  }
+
+  private async _loadNotes(categoryName: string, folderPath?: string): Promise<void> {
+    const contents = this._notesService.getFolderContents(categoryName, folderPath)
+    const effectiveConfig = this._notesService.getMergedConfig(categoryName, folderPath)
+    const fileCache = effectiveConfig?.file ?? {}
+
+    const relativeFolderPath = folderPath || ''
+    const parentFolder = relativeFolderPath
+      ? relativeFolderPath.split('/').slice(0, -1).join('/')
+      : null
+
     this._postMessage({
       command: 'notesLoaded',
       category: categoryName,
-      notes: notes.map((n) => ({
+      currentFolder: relativeFolderPath,
+      parentFolder: parentFolder || null,
+      effectiveConfig,
+      folders: contents.folders.map((f) => ({
+        name: f.name,
+        path: f.path,
+        color: f.color,
+        isEmpty: f.isEmpty,
+      })),
+      notes: contents.notes.map((n) => ({
         name: n.name,
         filePath: n.filePath,
         fileType: n.fileType,
         displayName: this._notesService.getDisplayName(n.name),
         icon: this._notesService.getFileIcon(n.name),
+        progress: n.fileType === 'todo' ? fileCache[n.name]?.progress : undefined,
       })),
     })
   }
@@ -188,19 +354,29 @@ export class NotesViewProvider implements vscode.WebviewViewProvider {
     noteName: string,
   ): Promise<void> {
     try {
-      const notes = this._notesService.getNotesForCategory(categoryName)
-      const note = notes.find((n) => n.name === noteName)
+      const categoryPath = path.join(this._notesService.getStoragePath() || '', categoryName)
+      const allNotes = this._notesService.getNotesRecursive(categoryPath)
+      const note = allNotes.find((n) => n.name === noteName)
 
       if (!note) return
 
       this._currentNotePath = note.filePath
       const fileType = note.fileType
+      const noteRelativeFolder = path.relative(categoryPath, path.dirname(note.filePath))
+      const effectiveConfig = this._notesService.getMergedConfig(categoryName, noteRelativeFolder || undefined)
+
+      const postNoteContent = (extra: Record<string, unknown> = {}) => {
+        this._postMessage({
+          command: 'noteContent',
+          note: { name: note.name, filePath: note.filePath, fileType },
+          effectiveConfig,
+          ...extra,
+        })
+      }
 
       if (fileType === 'key') {
         if (this._notesService.isLockedFile(note.name)) {
-          this._postMessage({
-            command: 'noteContent',
-            note: { name: note.name, filePath: note.filePath, fileType },
+          postNoteContent({
             fileType: 'key',
             entries: [],
             locked: true,
@@ -209,18 +385,14 @@ export class NotesViewProvider implements vscode.WebviewViewProvider {
           const { entries, locked } = await this._notesService.readKeyEntries(note.filePath)
 
           if (locked) {
-            this._postMessage({
-              command: 'noteContent',
-              note: { name: note.name, filePath: note.filePath, fileType },
+            postNoteContent({
               fileType: 'key',
               entries: entries,
               locked: true,
             })
           } else {
             const decrypted = await this._notesService.readDecryptedKeyEntries(note.filePath)
-            this._postMessage({
-              command: 'noteContent',
-              note: { name: note.name, filePath: note.filePath, fileType },
+            postNoteContent({
               fileType: 'key',
               entries: decrypted,
               locked: false,
@@ -229,25 +401,25 @@ export class NotesViewProvider implements vscode.WebviewViewProvider {
         }
       } else if (fileType === 'command') {
         const entries = await this._notesService.readCommandEntries(note.filePath)
-        this._postMessage({
-          command: 'noteContent',
-          note: { name: note.name, filePath: note.filePath, fileType },
+        postNoteContent({
           fileType: 'command',
           entries,
         })
       } else if (fileType === 'todo') {
         const entries = await this._notesService.readTodoEntries(note.filePath)
-        this._postMessage({
-          command: 'noteContent',
-          note: { name: note.name, filePath: note.filePath, fileType },
+        postNoteContent({
           fileType: 'todo',
+          entries,
+        })
+      } else if (fileType === 'snippet') {
+        const entries = await this._notesService.readSnippetEntries(note.filePath)
+        postNoteContent({
+          fileType: 'snippet',
           entries,
         })
       } else {
         const content = await this._notesService.readNote(note.filePath)
-        this._postMessage({
-          command: 'noteContent',
-          note: { name: note.name, filePath: note.filePath, fileType },
+        postNoteContent({
           fileType: 'md',
           content,
         })
@@ -266,7 +438,10 @@ export class NotesViewProvider implements vscode.WebviewViewProvider {
     fileType: FileType,
   ): Promise<void> {
     try {
-      const note = await this._notesService.createNote(category, title, fileType)
+      const parentFolderPath = this._currentFolderPath
+        ? path.join(this._notesService.getStoragePath() || '', category, this._currentFolderPath)
+        : undefined
+      const note = await this._notesService.createNote(category, title, fileType, parentFolderPath)
       this._postMessage({
         command: 'noteCreated',
         note: {
@@ -276,7 +451,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider {
         },
       })
       this._loadCategories()
-      this._loadNotes(category)
+      this._loadNotes(this._currentCategory || category, this._currentFolderPath)
     } catch (err) {
       this._postMessage({
         command: 'error',
@@ -309,7 +484,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider {
       const message =
         err instanceof Error &&
           err.message === 'Vault is locked. Enter your password to unlock.'
-          ? 'This folder still has an old `.env-anemona` password format. Create a new empty key file or reset that folder config before saving.'
+          ? 'This folder still has a password-protected `.config.json`. Copy that file with the folder or reset the folder config before saving.'
           : err instanceof Error
             ? err.message
             : 'Failed to save entries'
@@ -342,11 +517,58 @@ export class NotesViewProvider implements vscode.WebviewViewProvider {
   ): Promise<void> {
     try {
       await this._notesService.saveTodoEntries(notePath, entries)
+      const activeEntries = (entries as any[]).filter(
+        (e: any) => e.status !== 'cancelled',
+      )
+      const progress = activeEntries.length === 0
+        ? 0
+        : Math.round(
+            activeEntries.reduce(
+              (sum: number, e: any) =>
+                sum + Math.max(0, Math.min(100, Number(e.progress) || 0)),
+              0,
+            ) / activeEntries.length,
+          )
+      const categoryName = path.basename(path.dirname(notePath))
+      const fileName = path.basename(notePath)
+      await this._notesService.updateCategoryFileProgress(categoryName, fileName, progress)
       this._postMessage({ command: 'noteSaved' })
+      this._loadNotes(categoryName, this._currentFolderPath)
     } catch (err) {
       this._postMessage({
         command: 'error',
         message: err instanceof Error ? err.message : 'Failed to save todo entries',
+      })
+    }
+  }
+
+  private async _saveSnippetEntries(
+    notePath: string,
+    entries: any[],
+  ): Promise<void> {
+    try {
+      await this._notesService.saveSnippetEntries(notePath, entries)
+      this._postMessage({ command: 'noteSaved' })
+    } catch (err) {
+      this._postMessage({
+        command: 'error',
+        message: err instanceof Error ? err.message : 'Failed to save snippet entries',
+      })
+    }
+  }
+
+  private async _searchGlobal(query: string): Promise<void> {
+    try {
+      const results = await this._notesService.searchAll(query)
+      this._postMessage({
+        command: 'globalSearchResults',
+        query,
+        results,
+      })
+    } catch (err) {
+      this._postMessage({
+        command: 'error',
+        message: err instanceof Error ? err.message : 'Failed to search vault',
       })
     }
   }
@@ -359,7 +581,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider {
       }
       const category = this._getCategoryFromNotePath(notePath)
       if (category) {
-        this._loadNotes(category)
+        this._loadNotes(category, this._currentFolderPath)
       }
       this._loadCategories()
       this._postMessage({ command: 'noteDeleted' })
@@ -382,13 +604,152 @@ export class NotesViewProvider implements vscode.WebviewViewProvider {
 
       this._postMessage({ command: 'noteRenamed', notePath, newPath })
       if (category) {
-        this._loadNotes(category)
+        this._loadNotes(category, this._currentFolderPath)
       }
       this._loadCategories()
     } catch (err) {
       this._postMessage({
         command: 'error',
         message: err instanceof Error ? err.message : 'Failed to rename note',
+      })
+    }
+  }
+
+  private async _moveNote(notePath: string, targetCategory: string, targetFolderPath?: string): Promise<void> {
+    try {
+      const sourceCategory = this._getCategoryFromNotePath(notePath)
+      if (targetFolderPath) {
+        const rootPath = this._notesService.getStoragePath()
+        const storagePath = rootPath || ''
+        const targetDir = path.join(storagePath, targetCategory, targetFolderPath)
+        await this._notesService.moveItem(notePath, targetDir)
+      } else {
+        await this._notesService.moveNote(notePath, targetCategory)
+      }
+      this._postMessage({ command: 'noteMoved', notePath, targetCategory })
+      if (sourceCategory) {
+        this._loadNotes(sourceCategory, this._currentFolderPath)
+      }
+      this._loadCategories()
+    } catch (err) {
+      this._postMessage({
+        command: 'error',
+        message: err instanceof Error ? err.message : 'Failed to move note',
+      })
+    }
+  }
+
+  private async _createFolder(parentPath: string, name: string): Promise<void> {
+    try {
+      await this._notesService.createFolder(parentPath, name)
+      const category = this._getCategoryFromNotePath(parentPath) || this._currentCategory
+      if (category) {
+        this._loadNotes(category, this._currentFolderPath)
+      }
+    } catch (err) {
+      this._postMessage({
+        command: 'error',
+        message: err instanceof Error ? err.message : 'Failed to create folder',
+      })
+    }
+  }
+
+  private async _deleteFolder(folderPath: string): Promise<void> {
+    try {
+      await this._notesService.deleteFolder(folderPath)
+      const category = this._getCategoryFromNotePath(folderPath) || this._currentCategory
+      if (category) {
+        this._loadNotes(category, this._currentFolderPath)
+      }
+      this._loadCategories()
+      this._postMessage({ command: 'folderDeleted' })
+    } catch (err) {
+      this._postMessage({
+        command: 'error',
+        message: err instanceof Error ? err.message : 'Failed to delete folder',
+      })
+    }
+  }
+
+  private async _renameFolder(folderPath: string, name: string): Promise<void> {
+    try {
+      await this._notesService.renameFolder(folderPath, name)
+      const category = this._getCategoryFromNotePath(folderPath) || this._currentCategory
+      if (category) {
+        this._loadNotes(category, this._currentFolderPath)
+      }
+      this._loadCategories()
+    } catch (err) {
+      this._postMessage({
+        command: 'error',
+        message: err instanceof Error ? err.message : 'Failed to rename folder',
+      })
+    }
+  }
+
+  private async _moveFolder(sourcePath: string, targetDir: string): Promise<void> {
+    try {
+      await this._notesService.moveItem(sourcePath, targetDir)
+      const sourceCategory = this._getCategoryFromNotePath(sourcePath) || this._currentCategory
+      this._postMessage({ command: 'folderMoved', sourcePath, targetDir })
+      if (sourceCategory) {
+        this._loadNotes(sourceCategory, this._currentFolderPath)
+        this._loadCategories()
+      }
+    } catch (err) {
+      this._postMessage({
+        command: 'error',
+        message: err instanceof Error ? err.message : 'Failed to move item',
+      })
+    }
+  }
+
+  private async _updateFolderColor(folderPath: string, color: string): Promise<void> {
+    try {
+      await this._notesService.updateFolderColor(folderPath, color)
+      const category = this._getCategoryFromNotePath(folderPath) || this._currentCategory
+      if (category) {
+        this._loadNotes(category, this._currentFolderPath)
+      }
+    } catch (err) {
+      this._postMessage({
+        command: 'error',
+        message: err instanceof Error ? err.message : 'Failed to update folder color',
+      })
+    }
+  }
+
+  private async _sendFolderTree(categoryName: string): Promise<void> {
+    try {
+      const rootPath = this._notesService.getStoragePath()
+      if (!rootPath) return
+      const categoryPath = path.join(rootPath, categoryName)
+      const tree = this._notesService.getFolderTree(categoryPath)
+      this._postMessage({
+        command: 'folderTree',
+        categoryName,
+        tree,
+      })
+    } catch (err) {
+      this._postMessage({
+        command: 'error',
+        message: err instanceof Error ? err.message : 'Failed to get folder tree',
+      })
+    }
+  }
+
+  private async _exportNote(notePath: string, format: string): Promise<void> {
+    try {
+      const { content, language } = await this._notesService.exportNote(notePath, format)
+      const doc = await vscode.workspace.openTextDocument({
+        content,
+        language,
+      })
+      await vscode.window.showTextDocument(doc, { preview: true })
+    } catch (err) {
+      this._postMessage({
+        command: 'error',
+        message: err instanceof Error ? err.message : 'Failed to export note',
       })
     }
   }
@@ -430,7 +791,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider {
       this._currentNotePath = null
       this._postMessage({ command: 'categoryRenamed', category: categoryName, newName })
       this._loadCategories()
-      this._loadNotes(newName)
+      this._loadNotes(newName, this._currentFolderPath)
     } catch (err) {
       this._postMessage({
         command: 'error',
@@ -447,7 +808,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider {
     try {
       await this._notesService.updateCategoryColor(categoryName, color)
       this._loadCategories()
-      this._loadNotes(categoryName)
+      this._loadNotes(categoryName, this._currentFolderPath)
     } catch (err) {
       this._postMessage({
         command: 'error',
@@ -466,7 +827,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider {
         this._currentNotePath = newPath
         const noteName = path.basename(newPath)
         const category = this._getCategoryFromNotePath(newPath)
-        this._loadNotes(category || '')
+        this._loadNotes(category || '', this._currentFolderPath)
         await this._loadNoteContent(category || '', noteName)
       } else {
         this._postMessage({ command: 'error', message: 'Incorrect password' })
@@ -493,7 +854,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider {
         this._currentNotePath = newPath
         const noteName = path.basename(newPath)
         const category = this._getCategoryFromNotePath(newPath)
-        this._loadNotes(category || '')
+        this._loadNotes(category || '', this._currentFolderPath)
         this._postMessage({
           command: 'noteContent',
           note: { name: noteName, filePath: newPath, fileType: 'key' },
@@ -563,6 +924,45 @@ export class NotesViewProvider implements vscode.WebviewViewProvider {
 
   refresh(): void {
     this._loadCategories()
+    if (this._currentCategory) {
+      this._loadNotes(this._currentCategory, this._currentFolderPath)
+    }
+  }
+
+  postSearchCommand(): void {
+    this._postMessage({ command: 'activateSearch' })
+  }
+
+  handleRecentFoldersCommand(): void {
+    const folders = this._getRecentFolders()
+    if (folders.length === 0) {
+      vscode.window.showInformationMessage('No recent folders found')
+      return
+    }
+
+    const picks = folders.map((f) => ({
+      label: f.name,
+      description: f.path,
+      detail: f.icon ? `Icon: ${f.icon}` : undefined,
+      path: f.path,
+    }))
+
+    vscode.window.showQuickPick(picks, {
+      title: 'Recent Folders',
+      placeHolder: 'Select a folder to open',
+    }).then((selection) => {
+      if (selection) {
+        this._openRecentFolder(selection.path)
+      }
+    })
+  }
+
+  async handleExportCommand(): Promise<void> {
+    await this._exportVault()
+  }
+
+  async handleImportCommand(): Promise<void> {
+    await this._importVault()
   }
 
   private _updateViewTitle(): void {
@@ -585,8 +985,106 @@ export class NotesViewProvider implements vscode.WebviewViewProvider {
       const folderPath = selected[0].fsPath
       await ConfigService.setStoragePath(folderPath)
       this._notesService.setStoragePath(folderPath)
+      this._addRecentFolder(folderPath)
       this._updateViewTitle()
       this._loadCategories()
+    }
+  }
+
+  private async _exportVault(): Promise<void> {
+    try {
+      const storagePath = this._notesService.getStoragePath()
+      if (!storagePath) {
+        vscode.window.showErrorMessage('No storage folder configured')
+        return
+      }
+
+      const defaultName = `${path.basename(storagePath)}-backup-${new Date().toISOString().slice(0, 10)}.zip`
+      const uri = await vscode.window.showSaveDialog({
+        defaultUri: vscode.Uri.file(path.join(storagePath, '..', defaultName)),
+        filters: { 'Zip Archive': ['zip'] },
+      })
+
+      if (!uri) return
+
+      await this._notesService.exportVault(uri.fsPath)
+      vscode.window.showInformationMessage(`Vault exported to ${uri.fsPath}`)
+      this._postMessage({ command: 'vaultExported' })
+    } catch (err) {
+      this._postMessage({
+        command: 'error',
+        message: err instanceof Error ? err.message : 'Failed to export vault',
+      })
+    }
+  }
+
+  private async _importVault(): Promise<void> {
+    try {
+      const storagePath = this._notesService.getStoragePath()
+      if (!storagePath) {
+        vscode.window.showErrorMessage('No storage folder configured')
+        return
+      }
+
+      const uri = await vscode.window.showOpenDialog({
+        canSelectFiles: true,
+        canSelectFolders: false,
+        canSelectMany: false,
+        filters: { 'Zip Archive': ['zip'] },
+        openLabel: 'Import Zip Archive',
+      })
+
+      if (!uri || uri.length === 0) return
+
+      const zipPath = uri[0].fsPath
+      const entries = await this._notesService.scanZipContents(zipPath)
+
+      const conflicting = entries.filter((e) => {
+        const fullPath = path.join(storagePath, e)
+        return fs.existsSync(fullPath)
+      })
+
+      if (conflicting.length > 0) {
+        const preview = conflicting.slice(0, 10).map((e) => `  • ${e}`).join('\n')
+        const more = conflicting.length > 10 ? `\n  … and ${conflicting.length - 10} more` : ''
+        const message = `"${path.basename(storagePath)}" already contains ${conflicting.length} file(s) from the archive:\n${preview}${more}`
+
+        const choice = await vscode.window.showWarningMessage(
+          message,
+          { modal: true },
+          'Overwrite all',
+          'Skip existing',
+        )
+
+        if (!choice) return
+
+        const mode = choice === 'Overwrite all' ? 'overwrite' : 'skip'
+        await this._notesService.importVault(zipPath, mode)
+
+        if (mode === 'skip') {
+          const skipped = conflicting.length
+          const imported = entries.length - skipped
+          vscode.window.showInformationMessage(
+            `${imported} file(s) imported (${skipped} skipped — already exist)`
+          )
+        } else {
+          vscode.window.showInformationMessage(
+            `${entries.length} file(s) imported (overwritten existing)`
+          )
+        }
+      } else {
+        await this._notesService.importVault(zipPath, 'overwrite')
+        vscode.window.showInformationMessage(
+          `${entries.length} file(s) imported successfully`
+        )
+      }
+
+      this._loadCategories()
+    } catch (err) {
+      this._postMessage({
+        command: 'error',
+        message: err instanceof Error ? err.message : 'Failed to import vault',
+      })
     }
   }
 }

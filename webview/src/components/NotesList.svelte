@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from "svelte";
   import { smartPopover } from "../utils/smartPopover";
 
   export let notes: {
@@ -7,8 +8,12 @@
     fileType?: string;
     displayName?: string;
     icon?: string;
+    progress?: number;
   }[] = [];
+  export let folders: { name: string; path: string; color?: string; isEmpty?: boolean }[] = [];
   export let selectedCategory = "";
+  export let parentFolderPath: string | null = null;
+  export let folderBreadcrumb: string[] = [];
   export let selectedCategoryConfig: { color?: string; icon?: string } = {};
   export let canDeleteCategory = false;
   export let onSelect: (note: { name: string; filePath: string }) => void;
@@ -16,14 +21,37 @@
   export let onDelete: (note: { name: string; filePath: string }) => void;
   export let onDeleteCategory: (category: string) => void;
   export let onRename: (note: { name: string; filePath: string }) => void;
+  export let onMove: (note: { name: string; filePath: string }) => void;
+  export let onExport: (note: { name: string; filePath: string }) => void;
   export let onRenameCategory: (category: string) => void;
   export let onUpdateCategoryColor: (category: string, color: string) => void;
+  export let onOpenFolder: (folder: { name: string; path: string }) => void;
+  export let onFolderBack: () => void;
+  export let onBreadcrumbClick: (index: number) => void;
+  export let onDeleteFolder: (folder: { name: string; path: string }) => void;
+  export let onRenameFolder: (
+    folder: { name: string; path: string },
+    newName: string,
+  ) => void;
+  export let onMoveFolder: (folder: { name: string; path: string }) => void;
+  export let onUpdateFolderColor: (
+    folder: { name: string; path: string },
+    color: string,
+  ) => void;
 
   let newNoteName = "";
   let showInput = false;
+  let addTitleInput: HTMLInputElement;
   let selectedType: string = "md";
   let isCategoryMenuOpen = false;
   let activeNoteMenu: string | null = null;
+  let activeFolderMenu: string | null = null;
+  let folderRenamePrompt: {
+    folder: { name: string; path: string };
+    value: string;
+  } | null = null;
+  let folderRenameInput = "";
+  let folderColorPicker: string | null = null;
 
   const categoryColors = [
     {
@@ -67,6 +95,17 @@
   const systemCategoryColors = categoryColors.slice(0, 3);
   const customCategoryColors = categoryColors.slice(3);
 
+  function resolveFolderAccent(color?: string): string | undefined {
+    if (
+      !color ||
+      color === "vscode-default" ||
+      color === "vscode-muted" ||
+      color === "vscode-soft"
+    )
+      return undefined;
+    return color;
+  }
+
   function select(note: { name: string; filePath: string }) {
     activeNoteMenu = null;
     onSelect(note);
@@ -80,17 +119,13 @@
     }
   }
 
-  function toggleInput() {
+  async function toggleInput() {
     showInput = !showInput;
     isCategoryMenuOpen = false;
     activeNoteMenu = null;
     if (showInput) {
-      setTimeout(() => {
-        const input = document.querySelector(
-          ".new-note-input",
-        ) as HTMLInputElement;
-        input?.focus();
-      }, 50);
+      await tick();
+      addTitleInput?.focus();
     }
   }
 
@@ -129,11 +164,22 @@
     onDelete(note);
   }
 
+  function requestMoveFromMenu(note: { name: string; filePath: string }) {
+    activeNoteMenu = null;
+    onMove(note);
+  }
+
+  function requestExportFromMenu(note: { name: string; filePath: string }) {
+    activeNoteMenu = null;
+    onExport(note);
+  }
+
   function getIconClass(note: { fileType?: string; name?: string }): string {
     if (note.name?.endsWith(".anemona-lock")) return "icon-file-lock";
     if (note.fileType === "key") return "icon-file-key";
     if (note.fileType === "command") return "icon-file-terminal";
     if (note.fileType === "todo") return "icon-list-todo";
+    if (note.fileType === "snippet") return "icon-file-snippet";
     return "icon-file-text";
   }
 
@@ -144,25 +190,95 @@
   function closeNoteMenu() {
     activeNoteMenu = null;
   }
+
+  function openFolder(folder: { name: string; path: string }) {
+    activeFolderMenu = null;
+    onOpenFolder(folder);
+  }
+
+  function toggleFolderMenu(folderPath: string) {
+    activeFolderMenu = activeFolderMenu === folderPath ? null : folderPath;
+    activeNoteMenu = null;
+    isCategoryMenuOpen = false;
+    folderColorPicker = null;
+  }
+
+  function closeFolderMenu() {
+    activeFolderMenu = null;
+  }
+
+  function requestFolderRename(folder: { name: string; path: string }) {
+    activeFolderMenu = null;
+    folderRenamePrompt = { folder, value: folder.name };
+    folderRenameInput = folder.name;
+  }
+
+  function confirmFolderRename() {
+    if (folderRenamePrompt && folderRenameInput.trim()) {
+      onRenameFolder(folderRenamePrompt.folder, folderRenameInput.trim());
+      folderRenamePrompt = null;
+      folderRenameInput = "";
+    }
+  }
+
+  function cancelFolderRename() {
+    folderRenamePrompt = null;
+    folderRenameInput = "";
+  }
+
+  function requestFolderDelete(folder: { name: string; path: string }) {
+    activeFolderMenu = null;
+    onDeleteFolder(folder);
+  }
+
+  function requestFolderMove(folder: { name: string; path: string }) {
+    activeFolderMenu = null;
+    onMoveFolder(folder);
+  }
+
+  function toggleFolderColorPicker(folderPath: string) {
+    activeFolderMenu = null;
+    folderColorPicker = folderColorPicker === folderPath ? null : folderPath;
+  }
+
+  function closeFolderColorPicker() {
+    folderColorPicker = null;
+  }
+
+  function updateFolderColor(
+    folder: { name: string; path: string },
+    color: string,
+  ) {
+    onUpdateFolderColor(folder, color);
+    folderColorPicker = null;
+  }
 </script>
 
 <div class="notes-list">
   <div class="header">
     <div class="title-row">
+      {#if parentFolderPath !== null}
+        <button
+          class="icon-btn back-btn"
+          on:click={onFolderBack}
+          title="Back to parent folder"
+          ><span class="anemona icon-chevron-left"></span></button
+        >
+      {/if}
       <span class="title">{selectedCategory}</span>
     </div>
     <div class="header-actions">
       <button
         class="icon-btn primary-action"
         on:click={toggleInput}
-        title="New note"><span class="anemona icon-plus"></span></button
+        title="Add file"><span class="anemona icon-plus"></span></button
       >
       <div class="menu-wrap" class:menu-open={isCategoryMenuOpen}>
         <button
           class="icon-btn menu-trigger"
           on:click={toggleCategoryMenu}
           title="Category options"
-          ><span class="anemona icon-menu"></span></button
+          ><span class="anemona icon-cog"></span></button
         >
         {#if isCategoryMenuOpen}
           <div
@@ -182,7 +298,6 @@
                 ></button
               >
             {/if}
-            <!-- <div class="menu-section-label">Color</div> -->
             <div class="menu-section-label"></div>
             <div class="color-grid system-colors">
               {#each systemCategoryColors as color}
@@ -213,79 +328,246 @@
     </div>
   </div>
 
-  {#if showInput}
-    <div class="new-note">
-      <input
-        class="new-note-input"
-        type="text"
-        placeholder="Title"
-        bind:value={newNoteName}
-        on:keydown={(e) => e.key === "Enter" && create()}
-      />
-      <select class="type-select" bind:value={selectedType}>
-        <option value="md">Text</option>
-        <option value="key">Key</option>
-        <option value="command">Cmd</option>
-        <option value="todo">Todo</option>
-      </select>
-      <button class="icon-btn" on:click={create} title="Create"
-        ><span class="anemona icon-check"></span></button
+  {#if folderBreadcrumb.length > 0}
+    <div class="breadcrumb">
+      <button
+        class="breadcrumb-item icon-btn"
+        aria-label="Root"
+        on:click={() => onBreadcrumbClick(-1)}
+        ><span class="anemona icon-home"></span></button
       >
-      <button class="icon-btn" on:click={toggleInput} title="Cancel"
-        ><span class="anemona icon-x"></span></button
-      >
+      {#each folderBreadcrumb as segment, i}
+        <span class="breadcrumb-sep">/</span>
+        <button
+          class="breadcrumb-item"
+          class:active={i === folderBreadcrumb.length - 1}
+          on:click={() => onBreadcrumbClick(i)}
+        >
+          {segment}
+        </button>
+      {/each}
     </div>
   {/if}
 
-  {#if notes.length === 0}
-    <p class="empty-msg">No notes yet</p>
-  {:else}
-    {#each notes as note}
-      <div class="note-item">
-        <button class="note-btn" on:click={() => select(note)}>
-          <span class={`note-icon anemona ${getIconClass(note)}`}></span>
-          <span class="note-name">{note.displayName || note.name}</span>
-        </button>
-        <div class="note-actions">
-          <div
-            class="menu-wrap"
-            class:menu-open={activeNoteMenu === note.filePath}
+  {#each folders as folder}
+    <div
+      class="note-item folder-item"
+      style={resolveFolderAccent(folder.color)
+        ? `background: color-mix(in srgb, ${resolveFolderAccent(folder.color)} 10%, var(--vscode-editor-background))`
+        : ""}
+    >
+      <button class="note-btn" on:click={() => openFolder(folder)}>
+        <span
+          class="note-icon anemona icon-folder"
+          style={resolveFolderAccent(folder.color)
+            ? `color: ${resolveFolderAccent(folder.color)}`
+            : ""}
+        ></span>
+        <span class="note-name">{folder.name}</span>
+      </button>
+      <div class="note-actions">
+        <div
+          class="menu-wrap"
+          class:menu-open={activeFolderMenu === folder.path}
+        >
+          <button
+            class="icon-btn note-action-btn"
+            on:click|stopPropagation={() => toggleFolderMenu(folder.path)}
+            title="Folder options"
+            ><span class="anemona icon-dots-vertical"></span></button
           >
-            <button
-              class="icon-btn note-action-btn"
-              on:click|stopPropagation={() => toggleNoteMenu(note.filePath)}
-              title="File options"
-              ><span class="anemona icon-dots-vertical"></span></button
+          {#if activeFolderMenu === folder.path}
+            <div
+              class="menu-popover folder-menu"
+              use:smartPopover={{
+                open: activeFolderMenu === folder.path,
+                onClose: closeFolderMenu,
+              }}
             >
-            {#if activeNoteMenu === note.filePath}
-              <div
-                class="menu-popover note-menu"
-                use:smartPopover={{
-                  open: activeNoteMenu === note.filePath,
-                  onClose: closeNoteMenu,
-                }}
+              <button
+                class="menu-item"
+                on:click|stopPropagation={() => requestFolderRename(folder)}
+                ><span class="anemona icon-edit-alt"></span><span>Rename</span
+                ></button
               >
-                <button
-                  class="menu-item"
-                  on:click|stopPropagation={() => requestRenameFromMenu(note)}
-                  ><span class="anemona icon-edit-alt"></span><span>Rename</span
-                  ></button
-                >
+              <button
+                class="menu-item"
+                on:click|stopPropagation={() => requestFolderMove(folder)}
+                ><span class="anemona icon-move"></span><span>Move to</span
+                ></button
+              >
+              <button
+                class="menu-item"
+                on:click|stopPropagation={() =>
+                  toggleFolderColorPicker(folder.path)}
+                ><span class="anemona icon-color-fill"></span><span>Color</span
+                ></button
+              >
+              {#if folder.isEmpty !== false}
                 <button
                   class="menu-item danger"
-                  on:click|stopPropagation={() => requestDeleteFromMenu(note)}
-                  ><span class="anemona icon-trash-alt"></span><span
-                    >Delete</span
+                  on:click|stopPropagation={() => requestFolderDelete(folder)}
+                  ><span class="anemona icon-trash-alt"></span><span>Delete</span
                   ></button
                 >
-              </div>
-            {/if}
-          </div>
+              {/if}
+            </div>
+          {/if}
         </div>
       </div>
-    {/each}
-  {/if}
+      {#if folderColorPicker === folder.path}
+        <div class="folder-color-popover">
+          <div class="color-grid system-colors">
+            {#each systemCategoryColors as color}
+              <button
+                class="color-swatch"
+                class:active={folder.color === color.value}
+                style={`--swatch:${color.swatch}`}
+                on:click|stopPropagation={() =>
+                  updateFolderColor(folder, color.value)}
+                title={color.title}
+              ></button>
+            {/each}
+          </div>
+          <div class="color-divider"></div>
+          <div class="color-grid custom-colors">
+            {#each customCategoryColors as color}
+              <button
+                class="color-swatch"
+                class:active={folder.color === color.value}
+                style={`--swatch:${color.swatch}`}
+                on:click|stopPropagation={() =>
+                  updateFolderColor(folder, color.value)}
+                title={color.title}
+              ></button>
+            {/each}
+          </div>
+          <button
+            class="color-picker-cancel"
+            on:click|stopPropagation={closeFolderColorPicker}
+            title="Close color picker">Cancel</button
+          >
+        </div>
+      {/if}
+    </div>
+  {/each}
+
+  {#each notes as note}
+    <div class="note-item">
+      <button class="note-btn" on:click={() => select(note)}>
+        <span class={`note-icon anemona ${getIconClass(note)}`}></span>
+        <span class="note-name">{note.displayName || note.name}</span>
+      </button>
+      <div class="note-actions">
+        <div
+          class="menu-wrap"
+          class:menu-open={activeNoteMenu === note.filePath}
+        >
+          <button
+            class="icon-btn note-action-btn"
+            on:click|stopPropagation={() => toggleNoteMenu(note.filePath)}
+            title="File options"
+            ><span class="anemona icon-dots-vertical"></span></button
+          >
+          {#if activeNoteMenu === note.filePath}
+            <div
+              class="menu-popover note-menu"
+              use:smartPopover={{
+                open: activeNoteMenu === note.filePath,
+                onClose: closeNoteMenu,
+              }}
+            >
+              <button
+                class="menu-item"
+                on:click|stopPropagation={() => requestRenameFromMenu(note)}
+                ><span class="anemona icon-edit-alt"></span><span>Rename</span
+                ></button
+              >
+              <button
+                class="menu-item"
+                on:click|stopPropagation={() => requestMoveFromMenu(note)}
+                ><span class="anemona icon-move"></span><span>Move to</span
+                ></button
+              >
+              <button
+                class="menu-item"
+                on:click|stopPropagation={() => requestExportFromMenu(note)}
+                ><span class="anemona icon-export"></span><span>Export</span
+                ></button
+              >
+              <button
+                class="menu-item danger"
+                on:click|stopPropagation={() => requestDeleteFromMenu(note)}
+                ><span class="anemona icon-trash-alt"></span><span>Delete</span
+                ></button
+              >
+            </div>
+          {/if}
+        </div>
+      </div>
+      {#if note.fileType === "todo" && note.progress}
+        <div class="todo-progress-bar">
+          <span class="todo-progress-fill" style="width:{note.progress}%"
+          ></span>
+        </div>
+      {/if}
+    </div>
+  {/each}
+
+  <button class="add-entry-btn" on:click={toggleInput}
+    ><span class="anemona icon-plus"></span> Add entry</button
+  >
 </div>
+
+{#if showInput}
+  <button class="modal-backdrop" on:click={toggleInput} aria-label="Close"
+  ></button>
+  <div class="add-modal">
+    <h3>Add entry</h3>
+    <input
+      class="modal-field"
+      type="text"
+      placeholder="Name"
+      bind:this={addTitleInput}
+      bind:value={newNoteName}
+      on:keydown={(e) => e.key === "Enter" && create()}
+    />
+    <select class="modal-field" bind:value={selectedType}>
+      <option value="md">Text</option>
+      <option value="key">Key</option>
+      <option value="command">Cmd</option>
+      <option value="todo">Todo</option>
+      <option value="snippet">Snip</option>
+      <option value="folder">Folder</option>
+    </select>
+    <div class="modal-actions">
+      <button class="btn" on:click={toggleInput}>Cancel</button>
+      <button class="btn primary" on:click={create}>Add</button>
+    </div>
+  </div>
+{/if}
+
+{#if folderRenamePrompt}
+  <button
+    class="modal-backdrop"
+    on:click={cancelFolderRename}
+    aria-label="Close"
+  ></button>
+  <div class="add-modal">
+    <h3>Rename folder</h3>
+    <input
+      class="modal-field"
+      type="text"
+      placeholder="New name"
+      bind:value={folderRenameInput}
+      on:keydown={(e) => e.key === "Enter" && confirmFolderRename()}
+    />
+    <div class="modal-actions">
+      <button class="btn" on:click={cancelFolderRename}>Cancel</button>
+      <button class="btn primary" on:click={confirmFolderRename}>Save</button>
+    </div>
+  </div>
+{/if}
 
 <style>
   .notes-list {
@@ -322,7 +604,7 @@
   }
 
   .title {
-    font-size: 0.68rem;
+    font-size: var(--ui-font-title);
     font-weight: 400;
     color: var(--vscode-sideBarTitle-foreground);
     opacity: 0.95;
@@ -348,82 +630,34 @@
     z-index: 20;
   }
 
-  .new-note {
-    display: flex;
-    gap: 0.14rem;
-    padding: 0 0 0.24rem;
-    align-items: center;
-    flex-shrink: 0;
-    flex-wrap: wrap;
-  }
-
-  .new-note-input {
-    flex: 1;
-    min-width: 60px;
+  .add-entry-btn {
+    width: 100%;
     background: color-mix(
       in srgb,
-      var(--accent-color) 3%,
-      var(--vscode-input-background)
+      var(--accent-color) 5%,
+      var(--vscode-editor-background)
     );
-    color: var(--vscode-input-foreground);
-    border: 1px solid
-      color-mix(in srgb, var(--accent-color) 12%, var(--vscode-input-border));
-    padding: 0.24rem 0.32rem;
-    font-size: var(--ui-font-sm);
-    outline: none;
-    border-radius: var(--ui-radius-sm);
-  }
-
-  .new-note-input:focus {
-    border-color: color-mix(
-      in srgb,
-      var(--accent-color) 38%,
-      var(--vscode-focusBorder)
-    );
-    box-shadow: inset 0 0 0 1px
-      color-mix(in srgb, var(--accent-color) 12%, transparent);
-  }
-
-  .type-select {
-    background: color-mix(
-      in srgb,
-      var(--accent-color) 3%,
-      var(--vscode-dropdown-background)
-    );
-    color: var(--vscode-dropdown-foreground);
-    border: 1px solid
-      color-mix(in srgb, var(--accent-color) 12%, var(--vscode-dropdown-border));
-    padding: 0.22rem 0.28rem;
-    font-size: var(--ui-font-xs);
-    outline: none;
-    cursor: pointer;
-    border-radius: var(--ui-radius-sm);
-  }
-
-  .type-select:focus {
-    border-color: color-mix(
-      in srgb,
-      var(--accent-color) 38%,
-      var(--vscode-focusBorder)
-    );
-  }
-
-  .empty-msg {
-    padding: 0.54rem 0.38rem;
-    text-align: center;
-    color: var(--ui-muted);
-    font-size: var(--ui-font-sm);
-    border: 1px dashed var(--ui-border);
+    border: 1px dashed var(--ui-border-strong);
     border-radius: var(--ui-radius-md);
-    background: color-mix(
-      in srgb,
-      var(--vscode-editor-background) 72%,
-      transparent
-    );
+    color: var(--vscode-sideBarTitle-foreground);
+    cursor: pointer;
+    min-height: var(--ui-control-height);
+    padding: 0.26rem 0.38rem;
+    font-size: var(--ui-font-control);
+    font-weight: 400;
+    margin-bottom: 0.24rem;
+    opacity: 0.84;
+  }
+
+  .add-entry-btn:hover {
+    opacity: 1;
+    border-color: color-mix(in srgb, var(--accent-color) 30%, transparent);
+    background: color-mix(in srgb, var(--accent-color) 8%, transparent);
   }
 
   .note-item {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
     padding: 0;
@@ -433,6 +667,7 @@
       background 0.14s,
       border-color 0.14s,
       border-color 0.14s;
+    min-height: calc(var(--ui-control-height) + 0.04rem);
   }
 
   .note-item:hover {
@@ -449,8 +684,8 @@
     border: none;
     color: var(--vscode-sideBarTitle-foreground);
     cursor: pointer;
-    font-size: var(--ui-font-sm);
-    padding: 0.2rem 0.26rem;
+    font-size: var(--ui-font-entry);
+    padding: var(--ui-card-pad-y) var(--ui-card-pad-x);
     text-align: left;
     white-space: nowrap;
     overflow: hidden;
@@ -488,6 +723,24 @@
     font-size: 1em;
   }
 
+  .todo-progress-bar {
+    width: 100%;
+    height: 2px;
+    background: color-mix(in srgb, var(--accent-color) 12%, transparent);
+    border-radius: 1px;
+    margin: 0 0.34rem 0.1rem;
+    overflow: hidden;
+    flex: 0 0 100%;
+  }
+
+  .todo-progress-fill {
+    display: block;
+    height: 100%;
+    background: color-mix(in srgb, var(--accent-color) 60%, white 40%);
+    border-radius: 1px;
+    transition: width 0.3s ease;
+  }
+
   .icon-btn {
     background: color-mix(
       in srgb,
@@ -498,8 +751,8 @@
     color: var(--vscode-sideBarTitle-foreground);
     cursor: pointer;
     font-size: 0.72em;
-    width: 1.2rem;
-    height: 1.2rem;
+    width: var(--ui-icon-btn-size);
+    height: var(--ui-icon-btn-size);
     border-radius: 5px;
     padding: 0;
     line-height: 1;
@@ -528,9 +781,9 @@
       white 3%
     );
     border: 1px solid var(--ui-border-strong);
-    border-radius: 6px;
+    border-radius: var(--ui-radius-md);
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
-    padding: 0.12rem;
+    padding: 0.14rem;
     z-index: 12;
   }
 
@@ -561,9 +814,9 @@
     background: transparent;
     color: var(--vscode-foreground);
     border-radius: 0;
-    padding: 0.22rem 0.28rem;
+    padding: var(--ui-menu-pad-y) var(--ui-menu-pad-x);
     cursor: pointer;
-    font-size: 0.64rem;
+    font-size: var(--ui-menu-font);
     text-align: left;
   }
 
@@ -627,5 +880,203 @@
     outline: 2px solid
       color-mix(in srgb, var(--vscode-focusBorder) 78%, white 22%);
     outline-offset: -2px;
+  }
+
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 30;
+  }
+
+  .add-modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: min(300px, calc(100vw - 2rem));
+    background: var(--vscode-editor-background);
+    color: var(--vscode-editor-foreground);
+    border: 1px solid var(--ui-border-strong);
+    border-radius: var(--ui-radius-lg);
+    padding: 1rem;
+    z-index: 31;
+    box-sizing: border-box;
+    box-shadow: var(--ui-shadow);
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .add-modal h3 {
+    margin: 0;
+    font-size: var(--ui-font-lg);
+    font-weight: 600;
+  }
+
+  .modal-field {
+    width: 100%;
+    box-sizing: border-box;
+    background: var(--vscode-input-background);
+    color: var(--vscode-input-foreground);
+    border: 1px solid var(--ui-border-strong);
+    border-radius: var(--ui-radius-sm);
+    min-height: var(--ui-control-height);
+    padding: var(--ui-control-pad-y) calc(var(--ui-control-pad-x) + 0.08rem);
+    font-size: var(--ui-font-control);
+  }
+
+  .modal-field:focus {
+    outline: none;
+    border-color: var(--vscode-focusBorder);
+  }
+
+  .modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--ui-gap-2);
+    margin-top: 0.2rem;
+  }
+
+  .btn {
+    padding: 0.3rem 0.62rem;
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius-sm);
+    cursor: pointer;
+    font-size: var(--ui-font-control);
+    font-weight: 500;
+    background: var(--ui-soft);
+    color: var(--vscode-foreground);
+  }
+
+  .btn:hover {
+    background: var(--ui-soft-2);
+  }
+
+  .btn.primary {
+    background: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+    border-color: color-mix(
+      in srgb,
+      var(--vscode-button-background) 60%,
+      transparent
+    );
+  }
+
+  .btn.primary:hover {
+    background: var(--vscode-button-hoverBackground);
+  }
+
+  .back-btn {
+    font-size: 0.78em;
+    flex-shrink: 0;
+  }
+
+  .breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 0.08rem;
+    padding: 0.12rem 0.18rem;
+    font-size: var(--ui-font-xs);
+    color: var(--ui-muted);
+    border-bottom: 1px solid
+      color-mix(in srgb, var(--accent-color) 8%, var(--ui-border));
+    flex-shrink: 0;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  .breadcrumb-item {
+    background: none;
+    border: none;
+    color: var(--vscode-textLink-foreground);
+    cursor: pointer;
+    font-size: var(--ui-font-xs);
+    padding: 0.06rem 0.1rem;
+    border-radius: var(--ui-radius-sm);
+    opacity: 0.75;
+  }
+
+  .breadcrumb-item:hover {
+    opacity: 1;
+    background: color-mix(in srgb, var(--accent-color) 8%, transparent);
+  }
+
+  .breadcrumb-item.active {
+    opacity: 1;
+    color: var(--vscode-sideBarTitle-foreground);
+    cursor: default;
+    font-weight: 500;
+  }
+
+  .breadcrumb-sep {
+    opacity: 0.4;
+  }
+
+  .folder-item .note-btn {
+    opacity: 0.92;
+  }
+
+  .folder-item .note-btn:hover {
+    opacity: 1;
+  }
+
+  .folder-menu {
+    min-width: 6.9rem;
+  }
+
+  .folder-color-popover {
+    width: 100%;
+    padding: 0.24rem 0.34rem 0.1rem;
+    box-sizing: border-box;
+    flex: 0 0 100%;
+    border-top: 1px solid
+      color-mix(in srgb, var(--accent-color) 8%, var(--ui-border));
+    margin-top: 0.08rem;
+  }
+
+  .folder-color-popover .color-grid {
+    gap: 0.04rem;
+  }
+
+  .folder-color-popover .color-swatch {
+    aspect-ratio: 1;
+    width: 100%;
+    height: auto;
+    border-radius: 0;
+    border: 1px solid color-mix(in srgb, var(--swatch) 70%, white 30%);
+    background: var(--swatch);
+    cursor: pointer;
+  }
+
+  .folder-color-popover .color-swatch:hover {
+    filter: brightness(1.08);
+  }
+
+  .folder-color-popover .color-swatch.active {
+    outline: 2px solid
+      color-mix(in srgb, var(--vscode-focusBorder) 78%, white 22%);
+    outline-offset: -2px;
+  }
+
+  .folder-color-popover .color-divider {
+    display: none;
+  }
+
+  .color-picker-cancel {
+    width: 100%;
+    margin-top: 0.24rem;
+    padding: 0.2rem 0;
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius-sm);
+    cursor: pointer;
+    font-size: var(--ui-font-control);
+    background: var(--ui-soft);
+    color: var(--vscode-foreground);
+    text-align: center;
+  }
+
+  .color-picker-cancel:hover {
+    background: var(--ui-soft-2);
   }
 </style>

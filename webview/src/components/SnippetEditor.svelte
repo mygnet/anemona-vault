@@ -2,7 +2,14 @@
   import { createEventDispatcher, tick } from 'svelte'
   import { smartPopover } from '../utils/smartPopover'
 
-export let entries: { title: string; command: string }[] = []
+  const SUPPORTED_LANGUAGES = [
+    'text', 'typescript', 'javascript', 'python', 'rust', 'go', 'java', 'kotlin',
+    'swift', 'ruby', 'php', 'c', 'cpp', 'csharp', 'sql', 'bash', 'zsh',
+    'yaml', 'json', 'xml', 'html', 'css', 'scss', 'less', 'markdown',
+    'dockerfile', 'graphql', 'svelte', 'vue', 'lua', 'perl', 'r',
+  ]
+
+export let entries: { title: string; language: string; code: string }[] = []
 export let selectedNote: { name: string; filePath: string }
 export let initialFilterText = ''
 
@@ -14,11 +21,12 @@ export let initialFilterText = ''
   let localEntries = entries.map((e) => ({ ...e }))
   let copiedIndex: number | null = null
   let openMenuIndex: number | null = null
-  let cmdModalMode: 'add' | 'edit' | null = null
+  let modalMode: 'add' | 'edit' | null = null
   let modalTitle = ''
-  let modalCommand = ''
+  let modalLanguage = 'text'
+  let modalCode = ''
   let modalTitleInput: HTMLInputElement
-  let editingCmdIndex: number | null = null
+  let editingIndex: number | null = null
   let deletePrompt: { index: number; title: string; code: string } | null = null
   let deleteCodeInput = ''
   let sortDirection: 'asc' | 'desc' | null = null
@@ -39,10 +47,10 @@ $: filteredEntries = sortDirection !== null
         const cmp = a.title.localeCompare(b.title)
         return sortDirection === 'asc' ? cmp : -cmp
       }).filter(e =>
-        !normalizedFilterText || [e.title, e.command].some(value => value.toLowerCase().includes(normalizedFilterText))
+        !normalizedFilterText || [e.title, e.language, e.code].some(value => value.toLowerCase().includes(normalizedFilterText))
       )
     : localEntries.filter(e =>
-        !normalizedFilterText || [e.title, e.command].some(value => value.toLowerCase().includes(normalizedFilterText))
+        !normalizedFilterText || [e.title, e.language, e.code].some(value => value.toLowerCase().includes(normalizedFilterText))
       )
 
 $: if (entries !== localEntries) {
@@ -68,29 +76,31 @@ $: if (entries !== localEntries) {
   }
 
   async function openAddModal() {
-    cmdModalMode = 'add'
+    modalMode = 'add'
     modalTitle = ''
-    modalCommand = ''
+    modalLanguage = 'text'
+    modalCode = ''
     await tick()
     modalTitleInput?.focus()
   }
 
   function openEditModal(index: number) {
-    cmdModalMode = 'edit'
-    editingCmdIndex = index
+    modalMode = 'edit'
+    editingIndex = index
     modalTitle = localEntries[index].title
-    modalCommand = localEntries[index].command
+    modalLanguage = localEntries[index].language
+    modalCode = localEntries[index].code
   }
 
   function saveModal() {
-    if (!modalTitle.trim() || !modalCommand.trim()) return
-    if (cmdModalMode === 'add') {
-      localEntries = [...localEntries, { title: modalTitle.trim(), command: modalCommand.trim() }]
+    if (!modalTitle.trim() || !modalCode.trim()) return
+    if (modalMode === 'add') {
+      localEntries = [...localEntries, { title: modalTitle.trim(), language: modalLanguage, code: modalCode }]
       tick().then(() => {
         if (entriesContainerElem) entriesContainerElem.scrollTop = entriesContainerElem.scrollHeight
       })
-    } else if (editingCmdIndex !== null) {
-      localEntries[editingCmdIndex] = { title: modalTitle.trim(), command: modalCommand.trim() }
+    } else if (editingIndex !== null) {
+      localEntries[editingIndex] = { title: modalTitle.trim(), language: modalLanguage, code: modalCode }
       localEntries = localEntries
     }
     cancelModal()
@@ -98,14 +108,15 @@ $: if (entries !== localEntries) {
   }
 
   function cancelModal() {
-    cmdModalMode = null
-    editingCmdIndex = null
+    modalMode = null
+    editingIndex = null
     modalTitle = ''
-    modalCommand = ''
+    modalLanguage = 'text'
+    modalCode = ''
   }
 
   function deleteEntry(index: number) {
-    if (editingCmdIndex === index) {
+    if (editingIndex === index) {
       cancelModal()
     }
     localEntries = localEntries.filter((_, i) => i !== index)
@@ -151,8 +162,8 @@ $: if (entries !== localEntries) {
     dispatch('save', localEntries)
   }
 
-  function copyCommand(index: number) {
-    navigator.clipboard.writeText(localEntries[index].command)
+  function copyCode(index: number) {
+    navigator.clipboard.writeText(localEntries[index].code)
     copiedIndex = index
     setTimeout(() => (copiedIndex = null), 1500)
   }
@@ -186,11 +197,11 @@ $: if (entries !== localEntries) {
   }
 </script>
 
-<div class="cmd-editor">
+<div class="snippet-editor">
   <div class="editor-header">
     <button class="icon-btn" on:click={() => dispatch('back')} title="Back"><span class="anemona icon-arrow-back"></span></button>
     <span class="note-title">{selectedNote.name}</span>
-    <button class="icon-btn primary-btn" on:click={openAddModal} title="Add command"><span class="anemona icon-plus"></span></button>
+    <button class="icon-btn primary-btn" on:click={openAddModal} title="Add snippet"><span class="anemona icon-plus"></span></button>
   </div>
 
   <div class="entries" bind:this={entriesContainerElem}>
@@ -201,7 +212,7 @@ $: if (entries !== localEntries) {
         <input
           class="field toolbar-search"
           type="text"
-          placeholder="Filter commands..."
+          placeholder="Filter snippets..."
           bind:value={filterText}
         />
       </div>
@@ -220,6 +231,7 @@ $: if (entries !== localEntries) {
           <div class="entry-toolbar">
             <span class="entry-title">{entry.title}</span>
             <div class="entry-toolbar-actions">
+              <span class="lang-badge">{entry.language}</span>
               <div class="menu-wrap" class:menu-open={openMenuIndex === i}>
                 <button
                   class="icon-btn menu-btn"
@@ -243,8 +255,8 @@ $: if (entries !== localEntries) {
               </div>
               <button
                 class="icon-btn copy-btn"
-                on:click|stopPropagation={() => copyCommand(i)}
-                title="Copy command"
+                on:click|stopPropagation={() => copyCode(i)}
+                title="Copy code"
               >
                 <span class={`anemona ${copiedIndex === i ? 'icon-check' : 'icon-copy'}`}></span>
               </button>
@@ -257,19 +269,19 @@ $: if (entries !== localEntries) {
             role="button"
             tabindex="0"
           >
-            <code class="entry-command">{entry.command}</code>
+            <pre class="entry-code">{entry.code}</pre>
           </div>
         </div>
       </div>
     {/each}
   </div>
-  <button class="add-entry-btn" on:click={openAddModal}><span class="anemona icon-plus"></span> Add command</button>
+  <button class="add-entry-btn" on:click={openAddModal}><span class="anemona icon-plus"></span> Add snippet</button>
 </div>
 
 {#if deletePrompt}
-  <button class="delete-modal-backdrop" on:click={cancelDeletePrompt} aria-label="Close command delete confirmation"></button>
+  <button class="delete-modal-backdrop" on:click={cancelDeletePrompt} aria-label="Close snippet delete confirmation"></button>
   <div class="delete-modal">
-    <h3>Delete command</h3>
+    <h3>Delete snippet</h3>
     <p>Confirm deletion of <strong>{deletePrompt.title}</strong> by typing <strong>{deletePrompt.code}</strong></p>
     <input
       class="delete-code-input"
@@ -286,21 +298,26 @@ $: if (entries !== localEntries) {
   </div>
 {/if}
 
-{#if cmdModalMode}
+{#if modalMode}
   <button class="modal-backdrop" on:click={cancelModal} aria-label="Close"></button>
   <div class="add-modal">
-    <h3>{cmdModalMode === 'add' ? 'Add command' : 'Edit command'}</h3>
+    <h3>{modalMode === 'add' ? 'Add snippet' : 'Edit snippet'}</h3>
     <input class="modal-field" type="text" placeholder="Title" bind:this={modalTitleInput} bind:value={modalTitle} />
-    <textarea class="modal-field cmd-modal-field" placeholder="Command" bind:value={modalCommand} rows="3"></textarea>
+    <select class="modal-field lang-select" bind:value={modalLanguage}>
+      {#each SUPPORTED_LANGUAGES as lang}
+        <option value={lang}>{lang}</option>
+      {/each}
+    </select>
+    <textarea class="modal-field code-modal-field" placeholder="Code" bind:value={modalCode} rows="6"></textarea>
     <div class="modal-actions">
       <button class="btn" on:click={cancelModal}>Cancel</button>
-      <button class="btn primary" on:click={saveModal}>{cmdModalMode === 'add' ? 'Add' : 'Save'}</button>
+      <button class="btn primary" on:click={saveModal}>{modalMode === 'add' ? 'Add' : 'Save'}</button>
     </div>
   </div>
 {/if}
 
 <style>
-  .cmd-editor {
+  .snippet-editor {
     display: flex;
     flex-direction: column;
     height: 100%;
@@ -495,7 +512,18 @@ $: if (entries !== localEntries) {
     white-space: nowrap;
   }
 
-  .entry-command {
+  .lang-badge {
+    font-size: 0.62rem;
+    font-weight: 500;
+    color: var(--vscode-textLink-foreground);
+    background: color-mix(in srgb, var(--accent-color) 10%, transparent);
+    padding: 0.08rem 0.3rem;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .entry-code {
     display: block;
     font-size: var(--ui-font-sm);
     color: var(--vscode-textPreformat-foreground);
@@ -508,6 +536,8 @@ $: if (entries !== localEntries) {
     font-family: var(--vscode-editor-font-family, monospace);
     line-height: 1.25;
     min-height: 1.55rem;
+    max-height: 8rem;
+    overflow-y: auto;
   }
 
   .copy-btn { font-size: 1em; flex-shrink: 0; }
@@ -593,6 +623,11 @@ $: if (entries !== localEntries) {
   .search-field .toolbar-search {
     padding-left: var(--ui-search-input-pad-left);
     padding-right: 0.46rem;
+  }
+
+  .lang-select {
+    appearance: auto;
+    cursor: pointer;
   }
 
   .btn {
@@ -691,7 +726,7 @@ $: if (entries !== localEntries) {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: min(360px, calc(100vw - 2rem));
+    width: min(400px, calc(100vw - 2rem));
     background: var(--vscode-editor-background);
     color: var(--vscode-editor-foreground);
     border: 1px solid var(--ui-border-strong);
@@ -728,9 +763,10 @@ $: if (entries !== localEntries) {
     gap: 0.5rem;
   }
 
-  .cmd-modal-field {
+  .code-modal-field {
     font-family: var(--vscode-editor-font-family, monospace);
-    resize: none;
+    resize: vertical;
+    min-height: 5rem;
   }
 
   .add-entry-btn {

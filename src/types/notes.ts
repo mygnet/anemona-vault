@@ -5,11 +5,12 @@ export interface Note {
   fileType: FileType
 }
 
-export type FileType = 'md' | 'key' | 'command' | 'todo'
+export type FileType = 'md' | 'key' | 'command' | 'todo' | 'snippet'
 
 export interface CategoryConfig {
   color?: string
   icon?: string
+  file?: Record<string, { progress?: number }>
 }
 
 export interface Category {
@@ -29,6 +30,7 @@ export interface KeyEntry {
   username?: string
   host?: string
   port?: string
+  token?: string
 }
 
 export interface CommandEntry {
@@ -37,11 +39,28 @@ export interface CommandEntry {
 }
 
 export interface TodoEntry {
+  id?: string
   title: string
   progress: number
   status: 'open' | 'done' | 'cancelled'
   priority: 'low' | 'medium' | 'high'
   dueAt?: string
+}
+
+export interface SnippetEntry {
+  title: string
+  language: string
+  code: string
+}
+
+export interface GlobalSearchResult {
+  category: string
+  noteName: string
+  filePath: string
+  fileType: FileType
+  displayName: string
+  matchLabel: string
+  snippet: string
 }
 
 export interface KeyFileData {
@@ -52,6 +71,26 @@ export interface KeyFileData {
 export interface VaultState {
   unlocked: boolean
   passwordHash?: string
+}
+
+export interface FolderBrief {
+  name: string
+  path: string
+  color?: string
+  isEmpty?: boolean
+}
+
+export interface FolderTreeNode {
+  name: string
+  path: string
+  children: FolderTreeNode[]
+}
+
+export interface RecentFolderData {
+  path: string
+  name: string
+  icon?: string
+  lastOpened: string
 }
 
 export interface WebviewMessage {

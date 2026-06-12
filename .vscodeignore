@@ -3,6 +3,8 @@
 .git/**
 .gitignore
 
+node_modules/**
+
 src/**
 webview/src/**
 webview/node_modules/**

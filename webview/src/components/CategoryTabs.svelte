@@ -107,7 +107,7 @@
             title={collapsed ? "Show categories" : "Hide categories"}
           >
             <span
-              class={`anemona ${collapsed ? "icon-sidebar-collapse" : "icon-sidebar-expand"}`}
+              class={`anemona ${collapsed ? "icon-chevron-right" : "icon-chevron-left"}`}
             ></span>
           </button>
           {#if !collapsed}
@@ -225,8 +225,8 @@
   }
 
   .side-tool {
-    width: 1.2rem;
-    height: 1.2rem;
+    width: var(--ui-icon-btn-size);
+    height: var(--ui-icon-btn-size);
   }
 
   .sidebar.collapsed .add-cat {
@@ -243,8 +243,9 @@
     background: var(--vscode-input-background);
     color: var(--vscode-input-foreground);
     border: 1px solid var(--ui-border-strong);
-    padding: 0.26rem 0.3rem;
-    font-size: var(--ui-font-sm);
+    min-height: var(--ui-control-height);
+    padding: var(--ui-control-pad-y) var(--ui-control-pad-x);
+    font-size: var(--ui-font-control);
     outline: none;
     box-sizing: border-box;
     border-radius: var(--ui-radius-sm);
@@ -285,7 +286,7 @@
       background 0.14s,
       border-color 0.14s,
       transform 0.14s;
-    font-size: var(--ui-font-sm);
+    font-size: var(--ui-font-entry);
     color: var(--vscode-sideBarTitle-foreground);
     min-width: 0;
     position: relative;
@@ -383,8 +384,8 @@
     color: var(--vscode-sideBarTitle-foreground);
     cursor: pointer;
     font-size: 0.72em;
-    width: 1.2rem;
-    height: 1.2rem;
+    width: var(--ui-icon-btn-size);
+    height: var(--ui-icon-btn-size);
     border-radius: 5px;
     padding: 0;
     line-height: 1;

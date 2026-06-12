@@ -1,6 +1,7 @@
 <script lang="ts">
   export let noteContent = "";
   export let selectedNote: { name: string; filePath: string };
+  export let searchText = "";
   export let onSave: (content: string) => void;
   export let onBack: () => void;
 
@@ -161,7 +162,22 @@
     return html.join("");
   }
 
-  $: renderedContent = renderMarkdown(noteContent);
+  function filterPreviewContent(content: string, query: string) {
+    const normalizedQuery = query.trim().toLowerCase();
+    if (!normalizedQuery) return content;
+
+    const matchedLines = content
+      .replace(/\r\n/g, "\n")
+      .split("\n")
+      .filter((line) => line.toLowerCase().includes(normalizedQuery));
+
+    return matchedLines.length > 0
+      ? matchedLines.join("\n")
+      : `No visible matches for: ${query}`;
+  }
+
+  $: previewContent = filterPreviewContent(noteContent, searchText);
+  $: renderedContent = renderMarkdown(previewContent);
 </script>
 
 <div class="editor">
@@ -170,6 +186,9 @@
       ><span class="anemona icon-arrow-back"></span></button
     >
     <span class="note-title">{selectedNote.name}.md</span>
+    {#if !editing && searchText.trim()}
+      <span class="search-chip">{searchText}</span>
+    {/if}
     {#if editing}
       <button class="icon-btn" on:click={save} title="Save"
         ><span class="anemona icon-check"></span></button
@@ -222,7 +241,7 @@
 
   .note-title {
     flex: 1;
-    font-size: 0.68rem;
+    font-size: var(--ui-font-title);
     font-weight: 400;
     color: var(--vscode-sideBarTitle-foreground);
     overflow: hidden;
@@ -236,8 +255,8 @@
     color: var(--vscode-sideBarTitle-foreground);
     cursor: pointer;
     font-size: 0.72rem;
-    width: 1.2rem;
-    height: 1.2rem;
+    width: var(--ui-icon-btn-size);
+    height: var(--ui-icon-btn-size);
     border-radius: 5px;
     padding: 0;
     line-height: 1;
@@ -249,6 +268,19 @@
     color: var(--vscode-textLink-foreground);
     background: color-mix(in srgb, var(--accent-color) 8%, transparent);
     border-color: color-mix(in srgb, var(--accent-color) 16%, transparent);
+  }
+
+  .search-chip {
+    max-width: 8rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    border: 1px solid color-mix(in srgb, var(--accent-color) 16%, var(--ui-border));
+    border-radius: 999px;
+    padding: 0.08rem 0.34rem;
+    font-size: var(--ui-font-xs);
+    color: var(--ui-muted);
+    background: color-mix(in srgb, var(--accent-color) 5%, transparent);
   }
 
   .editor-body {

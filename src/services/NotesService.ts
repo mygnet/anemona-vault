@@ -1,8 +1,12 @@
+import * as crypto from 'crypto'
 import * as fs from 'fs'
 import * as path from 'path'
+import { ZipArchive } from 'archiver'
+import extract from 'extract-zip'
+import * as yauzl from 'yauzl'
 import { ConfigService } from './ConfigService'
 import { CryptoService } from './CryptoService'
-import type { Category, CategoryConfig, FileType, KeyEntry, CommandEntry, TodoEntry, Note } from '../types/notes'
+import type { Category, CategoryConfig, FileType, KeyEntry, CommandEntry, TodoEntry, SnippetEntry, Note, GlobalSearchResult, FolderBrief, FolderTreeNode } from '../types/notes'
 
 export class NotesService {
   private storagePath: string | undefined
@@ -53,6 +57,7 @@ export class NotesService {
     if (fileName.endsWith('.anemona-key') || fileName.endsWith('.anemona-lock')) return 'key'
     if (fileName.endsWith('.anemona-command')) return 'command'
     if (fileName.endsWith('.anemona-todo')) return 'todo'
+    if (fileName.endsWith('.anemona-snippet')) return 'snippet'
     return 'md'
   }
 
@@ -63,6 +68,7 @@ export class NotesService {
       case 'key': return '🔑'
       case 'command': return '⌘'
       case 'todo': return '☑️'
+      case 'snippet': return '📋'
       default: return '📄'
     }
   }
@@ -73,6 +79,7 @@ export class NotesService {
       .replace(/\.anemona-key$/, '')
       .replace(/\.anemona-command$/, '')
       .replace(/\.anemona-todo$/, '')
+      .replace(/\.anemona-snippet$/, '')
       .replace(/\.md$/, '')
   }
 
@@ -161,6 +168,45 @@ export class NotesService {
     })
   }
 
+  async updateFolderColor(folderPath: string, color: string): Promise<void> {
+    const current = this.readCategoryConfigSync(folderPath) ?? {}
+    this.writeCategoryConfigSync(folderPath, { ...current, color })
+  }
+
+  private writeCategoryConfigSync(folderPath: string, config: CategoryConfig): void {
+    if (!fs.existsSync(folderPath)) {
+      fs.mkdirSync(folderPath, { recursive: true })
+    }
+    const configPath = path.join(folderPath, '.config.json')
+    fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8')
+  }
+
+  getMergedConfig(categoryName: string, relativeFolderPath?: string): CategoryConfig {
+    const rootPath = this.ensureStoragePath()
+    const categoryPath = path.join(rootPath, this.sanitizePathName(categoryName))
+
+    let merged: CategoryConfig = {}
+
+    const rootConfig = this.readCategoryConfigSync(categoryPath)
+    if (rootConfig) {
+      merged = { ...merged, ...rootConfig }
+    }
+
+    if (relativeFolderPath) {
+      const parts = relativeFolderPath.split('/').filter(Boolean)
+      let currentPath = categoryPath
+      for (const part of parts) {
+        currentPath = path.join(currentPath, part)
+        const folderConfig = this.readCategoryConfigSync(currentPath)
+        if (folderConfig) {
+          merged = { ...merged, ...folderConfig }
+        }
+      }
+    }
+
+    return merged
+  }
+
   getNotesForCategory(categoryName: string): Note[] {
     try {
       const rootPath = this.ensureStoragePath()
@@ -176,7 +222,7 @@ export class NotesService {
       for (const entry of entries) {
         if (entry.isFile() && !entry.name.startsWith('.')) {
           const ext = path.extname(entry.name)
-          if (ext === '.md' || ext === '.anemona-key' || ext === '.anemona-command' || ext === '.anemona-lock' || ext === '.anemona-todo') {
+          if (ext === '.md' || ext === '.anemona-key' || ext === '.anemona-command' || ext === '.anemona-lock' || ext === '.anemona-todo' || ext === '.anemona-snippet') {
             const filePath = path.join(categoryPath, entry.name)
             notes.push({
               name: entry.name,
@@ -194,9 +240,61 @@ export class NotesService {
     }
   }
 
-  async createNote(categoryName: string, title: string, fileType: FileType = 'md'): Promise<Note> {
+  getFolderContents(categoryName: string, relativePath?: string): { folders: FolderBrief[]; notes: Note[] } {
+    try {
+      const rootPath = this.ensureStoragePath()
+      const categoryPath = path.join(rootPath, this.sanitizePathName(categoryName))
+      const targetPath = relativePath ? path.join(categoryPath, relativePath) : categoryPath
+
+      if (!fs.existsSync(targetPath)) {
+        return { folders: [], notes: [] }
+      }
+
+      const entries = fs.readdirSync(targetPath, { withFileTypes: true })
+      const folders: FolderBrief[] = []
+      const notes: Note[] = []
+
+      for (const entry of entries) {
+        if (entry.name.startsWith('.')) continue
+
+        const fullPath = path.join(targetPath, entry.name)
+
+        if (entry.isDirectory()) {
+          const config = this.readCategoryConfigSync(fullPath)
+          const isEmpty = this._isFolderEmpty(fullPath)
+          folders.push({
+            name: entry.name,
+            path: fullPath,
+            color: config?.color,
+            isEmpty,
+          })
+        } else if (entry.isFile()) {
+          const ext = path.extname(entry.name)
+          if (ext === '.md' || ext === '.anemona-key' || ext === '.anemona-command' || ext === '.anemona-lock' || ext === '.anemona-todo' || ext === '.anemona-snippet') {
+            notes.push({
+              name: entry.name,
+              filePath: fullPath,
+              content: '',
+              fileType: this.getFileType(entry.name),
+            })
+          }
+        }
+      }
+
+      return {
+        folders: folders.sort((a, b) => a.name.localeCompare(b.name)),
+        notes: notes.sort((a, b) => a.name.localeCompare(b.name)),
+      }
+    } catch {
+      return { folders: [], notes: [] }
+    }
+  }
+
+  async createNote(categoryName: string, title: string, fileType: FileType = 'md', parentFolderPath?: string): Promise<Note> {
     const rootPath = this.ensureStoragePath()
-    const categoryPath = path.join(rootPath, this.sanitizePathName(categoryName))
+    const categoryPath = parentFolderPath
+      ? parentFolderPath
+      : path.join(rootPath, this.sanitizePathName(categoryName))
 
     if (!fs.existsSync(categoryPath)) {
       fs.mkdirSync(categoryPath, { recursive: true })
@@ -208,7 +306,9 @@ export class NotesService {
         ? '.anemona-command'
         : fileType === 'todo'
           ? '.anemona-todo'
-          : '.md'
+          : fileType === 'snippet'
+            ? '.anemona-snippet'
+            : '.md'
     const fileName = this.sanitizePathName(title) + ext
     const filePath = path.join(categoryPath, fileName)
 
@@ -318,6 +418,7 @@ export class NotesService {
     if (!Array.isArray(data)) return []
 
     return data.map((entry) => ({
+      id: String(entry?.id || '') || undefined,
       title: String(entry?.title || '').trim(),
       progress: Math.max(0, Math.min(100, Number(entry?.progress) || 0)),
       status: entry?.status === 'done' || entry?.status === 'cancelled' ? entry.status : 'open',
@@ -326,8 +427,20 @@ export class NotesService {
     }))
   }
 
+  private generateUUID(): string {
+    const hex = crypto.randomBytes(16).toString('hex')
+    return [
+      hex.slice(0, 8),
+      hex.slice(8, 12),
+      '4' + hex.slice(13, 16),
+      '8' + hex.slice(17, 20),
+      hex.slice(20, 32),
+    ].join('-')
+  }
+
   async saveTodoEntries(notePath: string, entries: TodoEntry[]): Promise<void> {
     const normalized = entries.map((entry) => ({
+      id: entry.id || this.generateUUID(),
       title: String(entry.title || '').trim(),
       progress: Math.max(0, Math.min(100, Number(entry.progress) || 0)),
       status: entry.status === 'done' || entry.status === 'cancelled' ? entry.status : 'open',
@@ -336,6 +449,180 @@ export class NotesService {
     }))
 
     fs.writeFileSync(notePath, JSON.stringify(normalized, null, 2), 'utf-8')
+  }
+
+  async readSnippetEntries(notePath: string): Promise<SnippetEntry[]> {
+    if (!fs.existsSync(notePath)) return []
+    try {
+      const raw = fs.readFileSync(notePath, 'utf-8').trim()
+      if (!raw) return []
+      const parsed = JSON.parse(raw)
+      if (!Array.isArray(parsed)) return []
+      return parsed.filter(
+        (e: unknown): e is SnippetEntry =>
+          typeof e === 'object' && e !== null &&
+          typeof (e as SnippetEntry).title === 'string' &&
+          typeof (e as SnippetEntry).language === 'string' &&
+          typeof (e as SnippetEntry).code === 'string'
+      )
+    } catch {
+      return []
+    }
+  }
+
+  async saveSnippetEntries(notePath: string, entries: SnippetEntry[]): Promise<void> {
+    const normalized = entries.map((entry) => ({
+      title: String(entry.title || '').trim(),
+      language: String(entry.language || 'text').trim(),
+      code: entry.code || '',
+    }))
+    fs.writeFileSync(notePath, JSON.stringify(normalized, null, 2), 'utf-8')
+  }
+
+  async updateCategoryFileProgress(categoryName: string, fileName: string, progress: number): Promise<void> {
+    const current = (await this.readCategoryConfig(categoryName)) ?? {}
+    await this.writeCategoryConfig(categoryName, {
+      ...current,
+      file: {
+        ...current.file,
+        [fileName]: { progress },
+      },
+    })
+  }
+
+  async searchAll(query: string): Promise<GlobalSearchResult[]> {
+    const normalizedQuery = query.trim().toLowerCase()
+    if (!normalizedQuery) return []
+
+    const results: GlobalSearchResult[] = []
+
+    for (const category of this.getCategories()) {
+      const categoryPath = path.join(this.ensureStoragePath(), category.name)
+      const allNotes = this.getNotesRecursive(categoryPath)
+      for (const note of allNotes) {
+        const result = await this.searchNoteFile(category.name, note, normalizedQuery)
+        if (result) {
+          results.push(result)
+        }
+      }
+    }
+
+    return results.sort((a, b) => {
+      const categoryCmp = a.category.localeCompare(b.category)
+      if (categoryCmp !== 0) return categoryCmp
+      return a.displayName.localeCompare(b.displayName)
+    })
+  }
+
+  private async searchNoteFile(
+    categoryName: string,
+    note: Note,
+    normalizedQuery: string,
+  ): Promise<GlobalSearchResult | null> {
+    if (note.filePath.endsWith('.anemona-lock')) {
+      return null
+    }
+
+    if (note.fileType === 'command') {
+      const entries = await this.readCommandEntries(note.filePath)
+      const match = entries.find((entry) =>
+        [entry.title, entry.command].some((value) =>
+          String(value || '').toLowerCase().includes(normalizedQuery),
+        ),
+      )
+
+      if (!match) return null
+
+      return this.toSearchResult(categoryName, note, match.title || 'Command', match.command || match.title)
+    }
+
+    if (note.fileType === 'todo') {
+      const entries = await this.readTodoEntries(note.filePath)
+      const match = entries.find((entry) =>
+        [entry.title, entry.status, entry.priority].some((value) =>
+          String(value || '').toLowerCase().includes(normalizedQuery),
+        ),
+      )
+
+      if (!match) return null
+
+      return this.toSearchResult(categoryName, note, match.title || 'Task', `${match.title} ${match.priority} ${match.status}`)
+    }
+
+    if (note.fileType === 'key') {
+      try {
+        const entries = await this.readDecryptedKeyEntries(note.filePath)
+        const match = entries.find((entry) =>
+          [
+            entry.title,
+            entry.password,
+            entry.note,
+            entry.url,
+            entry.email,
+            entry.username,
+            entry.host,
+            entry.port,
+            entry.token,
+          ].some((value) => String(value || '').toLowerCase().includes(normalizedQuery)),
+        )
+
+        if (!match) return null
+
+        const snippet = [match.title, match.url, match.email, match.username, match.host, match.note]
+          .find((value) => value && String(value).trim()) || match.password
+
+        return this.toSearchResult(categoryName, note, match.title || 'Key entry', snippet)
+      } catch {
+        return null
+      }
+    }
+
+    if (note.fileType === 'snippet') {
+      const entries = await this.readSnippetEntries(note.filePath)
+      const match = entries.find((entry) =>
+        [entry.title, entry.language, entry.code].some((value) =>
+          String(value || '').toLowerCase().includes(normalizedQuery),
+        ),
+      )
+
+      if (!match) return null
+
+      return this.toSearchResult(categoryName, note, match.title || 'Snippet', match.code)
+    }
+
+    const content = await this.readNote(note.filePath)
+    const matchLine = content
+      .replace(/\r\n/g, '\n')
+      .split('\n')
+      .map((line) => line.trim())
+      .find((line) => line.toLowerCase().includes(normalizedQuery))
+
+    if (!matchLine) return null
+
+    return this.toSearchResult(categoryName, note, 'Document', matchLine)
+  }
+
+  private toSearchResult(
+    categoryName: string,
+    note: Note,
+    matchLabel: string,
+    snippet: string | undefined,
+  ): GlobalSearchResult {
+    return {
+      category: categoryName,
+      noteName: note.name,
+      filePath: note.filePath,
+      fileType: note.fileType,
+      displayName: this.getDisplayName(note.name),
+      matchLabel,
+      snippet: this.compactSnippet(snippet || ''),
+    }
+  }
+
+  private compactSnippet(value: string): string {
+    const compact = value.replace(/\s+/g, ' ').trim()
+    if (compact.length <= 180) return compact
+    return `${compact.slice(0, 177)}...`
   }
 
   private normalizeTodoDueAt(value: unknown): string | undefined {
@@ -385,6 +672,167 @@ export class NotesService {
 
     fs.renameSync(notePath, newPath)
     return newPath
+  }
+
+  async moveNote(notePath: string, targetCategory: string): Promise<void> {
+    if (!fs.existsSync(notePath)) {
+      throw new Error('Note file not found')
+    }
+
+    const rootPath = this.ensureStoragePath()
+    const targetDir = path.join(rootPath, this.sanitizePathName(targetCategory))
+
+    if (!fs.existsSync(targetDir)) {
+      throw new Error(`Category "${targetCategory}" does not exist`)
+    }
+
+    const fileName = path.basename(notePath)
+    const destPath = path.join(targetDir, fileName)
+
+    if (fs.existsSync(destPath)) {
+      throw new Error(`A file named "${fileName}" already exists in "${targetCategory}"`)
+    }
+
+    fs.renameSync(notePath, destPath)
+
+    const sourceCategory = path.basename(path.dirname(notePath))
+    if (sourceCategory !== this.sanitizePathName(targetCategory)) {
+      const oldConfig = (await this.readCategoryConfig(sourceCategory)) ?? {}
+      if (oldConfig.file?.[fileName]) {
+        const { [fileName]: movedEntry, ...rest } = oldConfig.file
+        await this.writeCategoryConfig(sourceCategory, { ...oldConfig, file: rest })
+        const targetConfig = (await this.readCategoryConfig(targetCategory)) ?? {}
+        await this.writeCategoryConfig(targetCategory, {
+          ...targetConfig,
+          file: {
+            ...targetConfig.file,
+            [fileName]: movedEntry,
+          },
+        })
+      }
+    }
+  }
+
+  async exportNote(notePath: string, format: string): Promise<{ content: string; language: string }> {
+    const fileName = path.basename(notePath)
+    const fileType = this.getFileType(fileName)
+    const displayName = this.getDisplayName(fileName)
+
+    if (fileType === 'key') {
+      if (format === 'en-claro') {
+        const { entries, locked } = await this.readKeyEntries(notePath)
+        const data = locked ? entries : await this.readDecryptedKeyEntries(notePath)
+        return { content: JSON.stringify(data, null, 2), language: 'json' }
+      }
+      const content = await this.readNote(notePath)
+      return { content, language: 'json' }
+    }
+
+    if (fileType === 'command') {
+      const entries = await this.readCommandEntries(notePath)
+      if (format === 'texto') {
+        const lines = entries.map((e, i) => `${i + 1}. ${e.title}\n   $ ${e.command}`)
+        return { content: lines.join('\n'), language: 'plaintext' }
+      }
+      if (format === 'markdown') {
+        const md = entries.map(e => `### ${e.title}\n\n\`\`\`bash\n${e.command}\n\`\`\``).join('\n\n')
+        return { content: `# ${displayName}\n\n${md}`, language: 'markdown' }
+      }
+      const content = await this.readNote(notePath)
+      return { content, language: 'json' }
+    }
+
+    if (fileType === 'todo') {
+      const entries = await this.readTodoEntries(notePath)
+      if (format === 'default') {
+        return { content: JSON.stringify(entries, null, 2), language: 'json' }
+      }
+      if (format === 'texto') {
+        const lines = entries.map(e => {
+          const status = e.status === 'done' ? '[x]' : e.status === 'cancelled' ? '[-]' : '[ ]'
+          return `${status} ${e.title} (${e.progress}%)`
+        })
+        return { content: lines.join('\n'), language: 'plaintext' }
+      }
+      const lines = entries.map(e => {
+        if (e.status === 'cancelled') return `- ~~[ ] ${e.title}~~`
+        if (e.status === 'done') return `- [x] ${e.title}`
+        const p = Math.max(0, Math.min(100, Number(e.progress) || 0))
+        return `- [ ] ${e.title}${p > 0 ? ` (${p}%)` : ''}`
+      })
+      return { content: `# ${displayName}\n\n${lines.join('\n')}`, language: 'markdown' }
+    }
+
+    if (fileType === 'snippet') {
+      const entries = await this.readSnippetEntries(notePath)
+      if (format === 'texto') {
+        const lines = entries.map(e => {
+          return `---\n# ${e.title}\nLanguage: ${e.language}\n\n${e.code}`
+        })
+        return { content: lines.join('\n'), language: 'plaintext' }
+      }
+      if (format === 'markdown') {
+        const md = entries.map(e => `### ${e.title}\n\n\`\`\`${e.language}\n${e.code}\n\`\`\``).join('\n\n')
+        return { content: `# ${displayName}\n\n${md}`, language: 'markdown' }
+      }
+      return { content: JSON.stringify(entries, null, 2), language: 'json' }
+    }
+
+    const content = await this.readNote(notePath)
+    return { content, language: 'markdown' }
+  }
+
+  private renderTodoAsMarkdown(entries: TodoEntry[], title: string): string {
+    const active = entries.filter(e => e.status !== 'cancelled')
+    const totalProgress = active.length === 0
+      ? 0
+      : Math.round(active.reduce((s, e) => s + Math.max(0, Math.min(100, Number(e.progress) || 0)), 0) / active.length)
+
+    const barLen = 16
+    const filled = Math.round(totalProgress / 100 * barLen)
+    const bar = '█'.repeat(filled) + '░'.repeat(barLen - filled)
+
+    const lines: string[] = []
+    lines.push(`# ${title}`)
+    lines.push('')
+    lines.push(`> Progress: ${bar} ${totalProgress}%`)
+    lines.push('')
+
+    const done = entries.filter(e => e.status === 'done')
+    const inProgress = entries.filter(e => e.status === 'open' && e.progress > 0)
+    const open = entries.filter(e => e.status === 'open' && e.progress === 0)
+    const cancelled = entries.filter(e => e.status === 'cancelled')
+
+    if (done.length > 0) {
+      lines.push('## ✅ Done')
+      for (const e of done) lines.push(`- [x] ${e.title}`)
+      lines.push('')
+    }
+
+    if (inProgress.length > 0) {
+      lines.push('## 🔄 In Progress')
+      for (const e of inProgress) {
+        const p = Math.max(0, Math.min(100, Number(e.progress) || 0))
+        const pf = Math.round(p / 100 * barLen)
+        const pb = '█'.repeat(pf) + '░'.repeat(barLen - pf)
+        lines.push(`- ${pb} **${e.title}** (${p}%)`)
+      }
+      lines.push('')
+    }
+
+    if (open.length > 0) {
+      lines.push('## 📋 Open')
+      for (const e of open) lines.push(`- [ ] ${e.title}`)
+      lines.push('')
+    }
+
+    if (cancelled.length > 0) {
+      lines.push('## ❌ Cancelled')
+      for (const e of cancelled) lines.push(`- ~~${e.title}~~`)
+      lines.push('')
+    }
+
+    return lines.join('\n')
   }
 
   async createCategory(name: string): Promise<void> {
@@ -451,6 +899,234 @@ export class NotesService {
     fs.rmdirSync(categoryPath)
   }
 
+  async createFolder(parentPath: string, name: string): Promise<string> {
+    const sanitized = this.sanitizePathName(name)
+    const folderPath = path.join(parentPath, sanitized)
+
+    if (fs.existsSync(folderPath)) {
+      throw new Error(`Folder "${name}" already exists`)
+    }
+
+    fs.mkdirSync(folderPath, { recursive: true })
+    this.writeCategoryConfigSync(folderPath, { color: this.defaultCategoryColor })
+    return folderPath
+  }
+
+  private _isFolderEmpty(dirPath: string): boolean {
+    const entries = fs.readdirSync(dirPath, { withFileTypes: true })
+    return entries.every(
+      (e) => e.name === '.config.json' || e.name.startsWith('.'),
+    )
+  }
+
+  async deleteFolder(folderPath: string): Promise<void> {
+    if (!fs.existsSync(folderPath)) {
+      throw new Error('Folder not found')
+    }
+    if (!this._isFolderEmpty(folderPath)) {
+      throw new Error('Folder is not empty. Remove all files and subfolders first.')
+    }
+    fs.rmSync(folderPath, { recursive: true, force: true })
+  }
+
+  async renameFolder(folderPath: string, newName: string): Promise<string> {
+    if (!fs.existsSync(folderPath)) {
+      throw new Error('Folder not found')
+    }
+
+    const trimmed = newName.trim()
+    if (!trimmed) {
+      throw new Error('Name is required')
+    }
+
+    const parentPath = path.dirname(folderPath)
+    const sanitized = this.sanitizePathName(trimmed)
+    const newPath = path.join(parentPath, sanitized)
+
+    if (newPath === folderPath) {
+      return folderPath
+    }
+
+    if (fs.existsSync(newPath)) {
+      throw new Error(`Folder "${trimmed}" already exists`)
+    }
+
+    fs.renameSync(folderPath, newPath)
+    return newPath
+  }
+
+  async moveItem(sourcePath: string, targetDir: string): Promise<void> {
+    if (!fs.existsSync(sourcePath)) {
+      throw new Error('Source not found')
+    }
+
+    if (!fs.existsSync(targetDir)) {
+      throw new Error('Target directory not found')
+    }
+
+    const itemName = path.basename(sourcePath)
+    const destPath = path.join(targetDir, itemName)
+
+    if (fs.existsSync(destPath)) {
+      throw new Error(`"${itemName}" already exists in target`)
+    }
+
+    const stat = fs.statSync(sourcePath)
+    fs.renameSync(sourcePath, destPath)
+  }
+
+  getFolderTree(dirPath: string): FolderTreeNode[] {
+    if (!fs.existsSync(dirPath)) return []
+
+    const entries = fs.readdirSync(dirPath, { withFileTypes: true })
+    const nodes: FolderTreeNode[] = []
+
+    for (const entry of entries) {
+      if (entry.isDirectory() && !entry.name.startsWith('.')) {
+        const fullPath = path.join(dirPath, entry.name)
+        nodes.push({
+          name: entry.name,
+          path: fullPath,
+          children: this.getFolderTree(fullPath),
+        })
+      }
+    }
+
+    return nodes.sort((a, b) => a.name.localeCompare(b.name))
+  }
+
+  getNotesRecursive(dirPath: string): Note[] {
+    const result: Note[] = []
+    if (!fs.existsSync(dirPath)) return result
+
+    const entries = fs.readdirSync(dirPath, { withFileTypes: true })
+
+    for (const entry of entries) {
+      if (entry.name.startsWith('.')) continue
+
+      const fullPath = path.join(dirPath, entry.name)
+
+      if (entry.isDirectory()) {
+        result.push(...this.getNotesRecursive(fullPath))
+      } else if (entry.isFile()) {
+        const ext = path.extname(entry.name)
+        if (ext === '.md' || ext === '.anemona-key' || ext === '.anemona-command' || ext === '.anemona-lock' || ext === '.anemona-todo' || ext === '.anemona-snippet') {
+          result.push({
+            name: entry.name,
+            filePath: fullPath,
+            content: '',
+            fileType: this.getFileType(entry.name),
+          })
+        }
+      }
+    }
+
+    return result
+  }
+
+  async exportVault(outputPath: string): Promise<void> {
+    const rootPath = this.ensureStoragePath()
+
+    return new Promise<void>((resolve, reject) => {
+      const archive = new ZipArchive({ zlib: { level: 9 } })
+      const output = fs.createWriteStream(outputPath)
+
+      output.on('close', () => resolve())
+      archive.on('error', (err: Error) => reject(err))
+
+      archive.pipe(output)
+      archive.directory(rootPath, false)
+      archive.finalize()
+    })
+  }
+
+  scanZipContents(zipPath: string): Promise<string[]> {
+    return new Promise<string[]>((resolve, reject) => {
+      const entries: string[] = []
+
+      yauzl.open(zipPath, { lazyEntries: true }, (err, zipfile) => {
+        if (err) return reject(err)
+        if (!zipfile) return reject(new Error('Failed to open zip file'))
+
+        zipfile.readEntry()
+
+        zipfile.on('entry', (entry) => {
+          if (!entry.fileName.endsWith('/')) {
+            entries.push(entry.fileName)
+          }
+          zipfile.readEntry()
+        })
+
+        zipfile.on('end', () => resolve(entries))
+        zipfile.on('error', (e) => reject(e))
+      })
+    })
+  }
+
+  async importVault(zipPath: string, mode: 'overwrite' | 'skip'): Promise<void> {
+    const rootPath = this.ensureStoragePath()
+
+    if (mode === 'overwrite') {
+      await extract(zipPath, { dir: rootPath })
+      return
+    }
+
+    const tmpDir = path.join(rootPath, '.import-tmp-' + Date.now())
+    fs.mkdirSync(tmpDir, { recursive: true })
+
+    try {
+      await extract(zipPath, { dir: tmpDir })
+
+      const entries = fs.readdirSync(tmpDir, { withFileTypes: true })
+      for (const entry of entries) {
+        const src = path.join(tmpDir, entry.name)
+        const dest = path.join(rootPath, entry.name)
+
+        if (entry.isDirectory()) {
+          this._mergeDirectory(src, dest)
+        } else if (!fs.existsSync(dest)) {
+          fs.mkdirSync(path.dirname(dest), { recursive: true })
+          fs.copyFileSync(src, dest)
+        }
+      }
+    } finally {
+      this._rmRecursive(tmpDir)
+    }
+  }
+
+  private _mergeDirectory(srcDir: string, destDir: string): void {
+    if (!fs.existsSync(destDir)) {
+      fs.mkdirSync(destDir, { recursive: true })
+    }
+
+    const entries = fs.readdirSync(srcDir, { withFileTypes: true })
+    for (const entry of entries) {
+      const src = path.join(srcDir, entry.name)
+      const dest = path.join(destDir, entry.name)
+
+      if (entry.isDirectory()) {
+        this._mergeDirectory(src, dest)
+      } else if (!fs.existsSync(dest)) {
+        fs.mkdirSync(path.dirname(dest), { recursive: true })
+        fs.copyFileSync(src, dest)
+      }
+    }
+  }
+
+  private _rmRecursive(dir: string): void {
+    if (!fs.existsSync(dir)) return
+    const entries = fs.readdirSync(dir, { withFileTypes: true })
+    for (const entry of entries) {
+      const full = path.join(dir, entry.name)
+      if (entry.isDirectory()) {
+        this._rmRecursive(full)
+      } else {
+        fs.unlinkSync(full)
+      }
+    }
+    fs.rmdirSync(dir)
+  }
+
   private isEmptyKeyFile(notePath: string): boolean {
     if (!fs.existsSync(notePath)) {
       return true
@@ -486,8 +1162,7 @@ export class NotesService {
       return false
     }
 
-    const entries = fs.readdirSync(categoryPath, { withFileTypes: true })
-    return entries.every((entry) => entry.isFile() && entry.name === '.config.json')
+    return this._isFolderEmpty(categoryPath)
   }
 
   private detectFullExtension(fileName: string): string {

@@ -2,7 +2,7 @@
   "name": "anemona-vault",
   "displayName": "Anemona Vault",
   "description": "Manage notes, passwords, API keys, tasks, commands and snippets from a unified sidebar inside Visual Studio Code.",
-  "version": "0.1.",
+  "version": "1.0.0",
   "publisher": "mygnet",
   "license": "MIT",
   "engines": {
@@ -44,7 +44,14 @@
     "organizer"
   ],
   "activationEvents": [
-    "onView:anemonaVault.view"
+    "onView:anemonaVault.view",
+    "onCommand:anemonaVault.moreActions",
+    "onCommand:anemonaVault.refresh",
+    "onCommand:anemonaVault.search",
+    "onCommand:anemonaVault.selectStorageFolder",
+    "onCommand:anemonaVault.recentFolders",
+    "onCommand:anemonaVault.exportVault",
+    "onCommand:anemonaVault.importVault"
   ],
   "main": "./out/extension.js",
   "icon": "media/anemona-vault.png",
@@ -103,10 +110,52 @@
       {
         "command": "anemonaVault.deleteNote",
         "title": "Vault: Delete Note"
+      },
+      {
+        "command": "anemonaVault.search",
+        "title": "Vault: Search Notes",
+        "icon": {
+          "light": "media/search-light.svg",
+          "dark": "media/search-dark.svg"
+        }
+      },
+      {
+        "command": "anemonaVault.exportVault",
+        "title": "Vault: Export (zip)",
+        "icon": {
+          "light": "media/export-light.svg",
+          "dark": "media/export-dark.svg"
+        }
+      },
+      {
+        "command": "anemonaVault.importVault",
+        "title": "Vault: Import (zip)",
+        "icon": {
+          "light": "media/import-light.svg",
+          "dark": "media/import-dark.svg"
+        }
+      },
+      {
+        "command": "anemonaVault.recentFolders",
+        "title": "Vault: Recent Folders",
+        "icon": {
+          "light": "media/folder-light.svg",
+          "dark": "media/folder-dark.svg"
+        }
       }
     ],
     "menus": {
       "view/title": [
+        {
+          "command": "anemonaVault.search",
+          "when": "view == anemonaVault.view",
+          "group": "navigation@1"
+        },
+        {
+          "command": "anemonaVault.refresh",
+          "when": "view == anemonaVault.view",
+          "group": "navigation@2"
+        },
         {
           "command": "anemonaVault.moreActions",
           "when": "view == anemonaVault.view",
@@ -151,12 +200,19 @@
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^3.1.0",
+    "@types/archiver": "^8.0.0",
     "@types/node": "^20.11.0",
     "@types/vscode": "^1.85.0",
+    "@types/yauzl": "^3.3.0",
     "svelte": "^4.2.0",
     "svelte-check": "^3.6.0",
     "tslib": "^2.6.0",
     "typescript": "^5.3.0",
     "vite": "^5.1.0"
+  },
+  "dependencies": {
+    "archiver": "^8.0.0",
+    "extract-zip": "^2.0.1",
+    "yauzl": "^3.4.0"
   }
 }
