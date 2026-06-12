@@ -2,7 +2,7 @@
   "name": "anemona-vault",
   "displayName": "Anemona Vault",
   "description": "Manage notes, passwords, API keys, tasks, commands and snippets from a unified sidebar inside Visual Studio Code.",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "publisher": "mygnet",
   "license": "MIT",
   "engines": {

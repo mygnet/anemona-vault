@@ -3,8 +3,7 @@
 .git/**
 .gitignore
 
-node_modules/**
-
+screenshot/**
 src/**
 webview/src/**
 webview/node_modules/**
@@ -25,3 +24,5 @@ PLAN.md
 
 media/icons/demo.html
 media/icons/anemona.icomoon.json
+
+.vscodeignore
