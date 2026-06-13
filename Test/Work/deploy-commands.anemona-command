@@ -1,0 +1,18 @@
+[
+  {
+    "title": "Build production",
+    "command": "npm run build -- --production"
+  },
+  {
+    "title": "Deploy to staging",
+    "command": "npm run deploy:staging"
+  },
+  {
+    "title": "Deploy to production",
+    "command": "npm run deploy:prod"
+  },
+  {
+    "title": "Rollback last deploy",
+    "command": "npm run rollback"
+  }
+]

@@ -4,7 +4,7 @@ Your developer workspace inside Visual Studio Code.
 
 Organize everything you use every day in one place — notes, secrets, tasks, commands, and code snippets — all accessible from a dedicated sidebar.
 
-![Screenshot of Anémona Vault](./screenshot/00.png)
+<img src="screenshot/01.gif" alt="Anémona Vault demo" width="100%">
 
 ## Features
 
@@ -17,9 +17,6 @@ Organize everything you use every day in one place — notes, secrets, tasks, co
 | Command | `.anemona-command` | ⌘ | Reusable shell commands with copy |
 | Todo | `.anemona-todo` | ☑️ | Task tracking with progress, priorities, and due dates |
 | Snippet | `.anemona-snippet` | 📋 | Code snippets with language tagging and copy |
-
-
-![Screenshot Todo list](./screenshot/03.png)
 
 ### Vault management
 
@@ -44,6 +41,54 @@ Organize everything you use every day in one place — notes, secrets, tasks, co
 - **Accent colors** — Per-category color theming
 - **Filtering** — Inline filter for each note type's entries
 - **Confirmation dialogs** — Code-based delete confirmation to prevent accidental loss
+
+## Gallery
+
+<table>
+  <tr>
+    <td width="50%">
+      <img src="screenshot/02.gif" alt="Drag & drop folders" width="100%">
+      <br>
+      <em>Drag & drop — move folders between categories</em>
+    </td>
+    <td width="50%">
+      <img src="screenshot/03.gif" alt="Commands and snippets" width="100%">
+      <br>
+      <em>Commands & snippets — add, edit, and organize</em>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <img src="screenshot/04.gif" alt="Snippets and tasks" width="100%">
+      <br>
+      <em>Snippets & tasks — filter, sort, change status</em>
+    </td>
+    <td width="50%">
+      <img src="screenshot/05.gif" alt="Markdown and keys" width="100%">
+      <br>
+      <em>Markdown notes & keys — copy passwords with one click</em>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <img src="screenshot/09.gif" alt="Task management" width="100%">
+      <br>
+      <em>Tasks — detailed view with progress, priority, and due dates</em>
+    </td>
+    <td width="50%">
+      <img src="screenshot/10.gif" alt="Lock key file" width="100%">
+      <br>
+      <em>Lock — protect key files with a password</em>
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2">
+      <img src="screenshot/11.gif" alt="Unlock key file" width="100%">
+      <br>
+      <em>Unlock — open protected key files with your password</em>
+    </td>
+  </tr>
+</table>
 
 ## Storage
 

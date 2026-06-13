@@ -1,0 +1,32 @@
+[
+  {
+    "id": "d4e5f6a7-b8c9-0123-defa-123456789abc",
+    "title": "Implement user auth",
+    "progress": 50,
+    "status": "open",
+    "priority": "high",
+    "dueAt": "2026-06-20T17:00"
+  },
+  {
+    "id": "e5f6a7b8-c9d0-1234-efab-23456789abcd",
+    "title": "Write API tests",
+    "progress": 10,
+    "status": "open",
+    "priority": "high",
+    "dueAt": "2026-06-22T17:00"
+  },
+  {
+    "id": "f6a7b8c9-d0e1-2345-fabc-3456789abcde",
+    "title": "Database migration",
+    "progress": 100,
+    "status": "done",
+    "priority": "medium"
+  },
+  {
+    "id": "a7b8c9d0-e1f2-3456-abcd-456789abcdef",
+    "title": "Code review PR #42",
+    "progress": 0,
+    "status": "cancelled",
+    "priority": "low"
+  }
+]

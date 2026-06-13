@@ -1,0 +1,18 @@
+[
+  {
+    "title": "Git status",
+    "command": "git status"
+  },
+  {
+    "title": "Git commit",
+    "command": "git add -A && git commit -m \"\""
+  },
+  {
+    "title": "Git push",
+    "command": "git push origin main"
+  },
+  {
+    "title": "Git squash last 3 commits",
+    "command": "git rebase -i HEAD~3"
+  }
+]

@@ -1,0 +1,22 @@
+[
+  {
+    "title": "Rust Hello World",
+    "language": "rust",
+    "code": "fn main() {\n    println!(\"Hello, world!\");\n}"
+  },
+  {
+    "title": "Python List Comprehension",
+    "language": "python",
+    "code": "squares = [x**2 for x in range(10) if x % 2 == 0]"
+  },
+  {
+    "title": "Go HTTP Server",
+    "language": "go",
+    "code": "package main\n\nimport \"net/http\"\n\nfunc main() {\n    http.HandleFunc(\"/\", func(w http.ResponseWriter, r *http.Request) {\n        w.Write([]byte(\"Hello\"))\n    })\n    http.ListenAndServe(\":8080\", nil)\n}"
+  },
+  {
+    "title": "TypeScript Interface",
+    "language": "typescript",
+    "code": "interface User {\n  id: string;\n  name: string;\n  email?: string;\n  readonly createdAt: Date;\n}"
+  }
+]

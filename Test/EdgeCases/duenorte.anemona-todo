@@ -1,0 +1,31 @@
+[
+  {
+    "id": "b8c9d0e1-f2a3-4567-bcde-567890abcdef",
+    "title": "ALL priorities and statuses test",
+    "progress": 100,
+    "status": "done",
+    "priority": "high",
+    "dueAt": "2026-12-31T23:59"
+  },
+  {
+    "id": "c9d0e1f2-a3b4-5678-cdef-678901234567",
+    "title": "Task done medium",
+    "progress": 35,
+    "status": "open",
+    "priority": "high"
+  },
+  {
+    "id": "d0e1f2a3-b4c5-6789-defa-789012345678",
+    "title": "Task cancelled low",
+    "progress": 0,
+    "status": "open",
+    "priority": "low"
+  },
+  {
+    "id": "e1f2a3b4-c5d6-7890-efab-890123456789",
+    "title": "Without dueAt",
+    "progress": 90,
+    "status": "open",
+    "priority": "high"
+  }
+]

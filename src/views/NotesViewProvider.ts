@@ -232,12 +232,13 @@ export class NotesViewProvider implements vscode.WebviewViewProvider {
 
     this._updateViewTitle()
     const categories = this._notesService.getCategories()
+    const rootCategoryConfig = this._notesService.readRootCategoryConfig()
     this._postMessage({
       command: 'categoriesLoaded',
       categories: categories.map((c) => ({
         name: c.name,
         path: c.path,
-        config: c.config,
+        config: rootCategoryConfig ? { ...rootCategoryConfig, ...c.config } : c.config,
         canDelete: c.canDelete === true,
       })),
     })
@@ -529,11 +530,12 @@ export class NotesViewProvider implements vscode.WebviewViewProvider {
               0,
             ) / activeEntries.length,
           )
-      const categoryName = path.basename(path.dirname(notePath))
+      const folderPath = path.dirname(notePath)
       const fileName = path.basename(notePath)
-      await this._notesService.updateCategoryFileProgress(categoryName, fileName, progress)
+      await this._notesService.updateCategoryFileProgress(folderPath, fileName, progress)
       this._postMessage({ command: 'noteSaved' })
-      this._loadNotes(categoryName, this._currentFolderPath)
+      const actualCategory = this._getCategoryFromNotePath(notePath) || this._currentCategory || ''
+      this._loadNotes(actualCategory, this._currentFolderPath)
     } catch (err) {
       this._postMessage({
         command: 'error',

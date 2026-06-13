@@ -1,0 +1,28 @@
+{
+  "entries": [
+    {
+      "title": "Stripe API Key",
+      "password": "YooH5wc+DyKgnGkax077F34dwZv/RYFMX+thJpFkuvLtcNTsqNFZ/eau+3xG8nnh6rZehQ==",
+      "note": "Production key - DO NOT SHARE",
+      "url": "https://dashboard.stripe.com",
+      "email": "dev@company.com",
+      "host": "api.stripe.com",
+      "token": "sk_live_abc123def456"
+    },
+    {
+      "title": "Database Credentials",
+      "password": "B2z5Z0THNUmRzuDY+Xuw0bKH/TPDRNIN2xeLp31ATaOICwp0JGK5naYxP1Ry+QfKwBrKflQbj/EHemIiPZUV2pnt4lqXJDKhtl03jQazm4hxCw==",
+      "note": "PostgreSQL connection string",
+      "host": "db.example.com",
+      "port": "5432",
+      "username": "admin"
+    },
+    {
+      "title": "OpenAI Token",
+      "password": "Grga+DHsJH2kKxVkCboyx+1x9sJTba2I7Z4xHOpbWMgVFhsNobQ5vPO8IZouzxnR2TZhRs7jekobUA==",
+      "url": "https://platform.openai.com",
+      "token": "sk-proj-openaikey123456789"
+    }
+  ],
+  "locked": false
+}

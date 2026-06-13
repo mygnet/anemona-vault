@@ -32,17 +32,12 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.NotesService = void 0;
 const crypto = __importStar(require("crypto"));
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
-const archiver_1 = require("archiver");
-const extract_zip_1 = __importDefault(require("extract-zip"));
-const yauzl = __importStar(require("yauzl"));
+const ZipService = __importStar(require("./ZipService"));
 const ConfigService_1 = require("./ConfigService");
 const CryptoService_1 = require("./CryptoService");
 class NotesService {
@@ -208,9 +203,13 @@ class NotesService {
         const rootPath = this.ensureStoragePath();
         const categoryPath = path.join(rootPath, this.sanitizePathName(categoryName));
         let merged = {};
-        const rootConfig = this.readCategoryConfigSync(categoryPath);
+        const rootConfig = this.readRootCategoryConfig();
         if (rootConfig) {
-            merged = { ...merged, ...rootConfig };
+            merged = this.mergeConfig(merged, rootConfig);
+        }
+        const categoryConfig = this.readCategoryConfigSync(categoryPath);
+        if (categoryConfig) {
+            merged = this.mergeConfig(merged, categoryConfig);
         }
         if (relativeFolderPath) {
             const parts = relativeFolderPath.split('/').filter(Boolean);
@@ -219,11 +218,40 @@ class NotesService {
                 currentPath = path.join(currentPath, part);
                 const folderConfig = this.readCategoryConfigSync(currentPath);
                 if (folderConfig) {
-                    merged = { ...merged, ...folderConfig };
+                    merged = this.mergeConfig(merged, folderConfig);
                 }
             }
         }
         return merged;
+    }
+    readRootCategoryConfig() {
+        try {
+            const rootPath = this.ensureStoragePath();
+            const configPath = path.join(rootPath, '.config.json');
+            if (!fs.existsSync(configPath))
+                return null;
+            const raw = fs.readFileSync(configPath, 'utf-8');
+            const parsed = JSON.parse(raw);
+            const result = {};
+            if (typeof parsed.color === 'string')
+                result.color = parsed.color;
+            if (typeof parsed.icon === 'string')
+                result.icon = parsed.icon;
+            if (parsed.file && typeof parsed.file === 'object') {
+                result.file = parsed.file;
+            }
+            return Object.keys(result).length > 0 ? result : null;
+        }
+        catch {
+            return null;
+        }
+    }
+    mergeConfig(base, override) {
+        const result = { ...base, ...override };
+        if (base.file || override.file) {
+            result.file = { ...base.file, ...override.file };
+        }
+        return result;
     }
     getNotesForCategory(categoryName) {
         try {
@@ -472,9 +500,9 @@ class NotesService {
         }));
         fs.writeFileSync(notePath, JSON.stringify(normalized, null, 2), 'utf-8');
     }
-    async updateCategoryFileProgress(categoryName, fileName, progress) {
-        const current = (await this.readCategoryConfig(categoryName)) ?? {};
-        await this.writeCategoryConfig(categoryName, {
+    async updateCategoryFileProgress(folderPath, fileName, progress) {
+        const current = this.readCategoryConfigSync(folderPath) ?? {};
+        this.writeCategoryConfigSync(folderPath, {
             ...current,
             file: {
                 ...current.file,
@@ -915,46 +943,21 @@ class NotesService {
     }
     async exportVault(outputPath) {
         const rootPath = this.ensureStoragePath();
-        return new Promise((resolve, reject) => {
-            const archive = new archiver_1.ZipArchive({ zlib: { level: 9 } });
-            const output = fs.createWriteStream(outputPath);
-            output.on('close', () => resolve());
-            archive.on('error', (err) => reject(err));
-            archive.pipe(output);
-            archive.directory(rootPath, false);
-            archive.finalize();
-        });
+        await ZipService.createArchive(rootPath, outputPath);
     }
     scanZipContents(zipPath) {
-        return new Promise((resolve, reject) => {
-            const entries = [];
-            yauzl.open(zipPath, { lazyEntries: true }, (err, zipfile) => {
-                if (err)
-                    return reject(err);
-                if (!zipfile)
-                    return reject(new Error('Failed to open zip file'));
-                zipfile.readEntry();
-                zipfile.on('entry', (entry) => {
-                    if (!entry.fileName.endsWith('/')) {
-                        entries.push(entry.fileName);
-                    }
-                    zipfile.readEntry();
-                });
-                zipfile.on('end', () => resolve(entries));
-                zipfile.on('error', (e) => reject(e));
-            });
-        });
+        return ZipService.scanZipContents(zipPath);
     }
     async importVault(zipPath, mode) {
         const rootPath = this.ensureStoragePath();
         if (mode === 'overwrite') {
-            await (0, extract_zip_1.default)(zipPath, { dir: rootPath });
+            await ZipService.extractArchive(zipPath, rootPath);
             return;
         }
         const tmpDir = path.join(rootPath, '.import-tmp-' + Date.now());
         fs.mkdirSync(tmpDir, { recursive: true });
         try {
-            await (0, extract_zip_1.default)(zipPath, { dir: tmpDir });
+            await ZipService.extractArchive(zipPath, tmpDir);
             const entries = fs.readdirSync(tmpDir, { withFileTypes: true });
             for (const entry of entries) {
                 const src = path.join(tmpDir, entry.name);

@@ -1,9 +1,7 @@
 import * as crypto from 'crypto'
 import * as fs from 'fs'
 import * as path from 'path'
-import { ZipArchive } from 'archiver'
-import extract from 'extract-zip'
-import * as yauzl from 'yauzl'
+import * as ZipService from './ZipService'
 import { ConfigService } from './ConfigService'
 import { CryptoService } from './CryptoService'
 import type { Category, CategoryConfig, FileType, KeyEntry, CommandEntry, TodoEntry, SnippetEntry, Note, GlobalSearchResult, FolderBrief, FolderTreeNode } from '../types/notes'
@@ -187,9 +185,14 @@ export class NotesService {
 
     let merged: CategoryConfig = {}
 
-    const rootConfig = this.readCategoryConfigSync(categoryPath)
+    const rootConfig = this.readRootCategoryConfig()
     if (rootConfig) {
-      merged = { ...merged, ...rootConfig }
+      merged = this.mergeConfig(merged, rootConfig)
+    }
+
+    const categoryConfig = this.readCategoryConfigSync(categoryPath)
+    if (categoryConfig) {
+      merged = this.mergeConfig(merged, categoryConfig)
     }
 
     if (relativeFolderPath) {
@@ -199,12 +202,39 @@ export class NotesService {
         currentPath = path.join(currentPath, part)
         const folderConfig = this.readCategoryConfigSync(currentPath)
         if (folderConfig) {
-          merged = { ...merged, ...folderConfig }
+          merged = this.mergeConfig(merged, folderConfig)
         }
       }
     }
 
     return merged
+  }
+
+  readRootCategoryConfig(): CategoryConfig | null {
+    try {
+      const rootPath = this.ensureStoragePath()
+      const configPath = path.join(rootPath, '.config.json')
+      if (!fs.existsSync(configPath)) return null
+      const raw = fs.readFileSync(configPath, 'utf-8')
+      const parsed = JSON.parse(raw) as Record<string, unknown>
+      const result: CategoryConfig = {}
+      if (typeof parsed.color === 'string') result.color = parsed.color
+      if (typeof parsed.icon === 'string') result.icon = parsed.icon
+      if (parsed.file && typeof parsed.file === 'object') {
+        result.file = parsed.file as Record<string, { progress?: number }>
+      }
+      return Object.keys(result).length > 0 ? result : null
+    } catch {
+      return null
+    }
+  }
+
+  private mergeConfig(base: CategoryConfig, override: CategoryConfig): CategoryConfig {
+    const result: CategoryConfig = { ...base, ...override }
+    if (base.file || override.file) {
+      result.file = { ...base.file, ...override.file }
+    }
+    return result
   }
 
   getNotesForCategory(categoryName: string): Note[] {
@@ -479,9 +509,9 @@ export class NotesService {
     fs.writeFileSync(notePath, JSON.stringify(normalized, null, 2), 'utf-8')
   }
 
-  async updateCategoryFileProgress(categoryName: string, fileName: string, progress: number): Promise<void> {
-    const current = (await this.readCategoryConfig(categoryName)) ?? {}
-    await this.writeCategoryConfig(categoryName, {
+  async updateCategoryFileProgress(folderPath: string, fileName: string, progress: number): Promise<void> {
+    const current = this.readCategoryConfigSync(folderPath) ?? {}
+    this.writeCategoryConfigSync(folderPath, {
       ...current,
       file: {
         ...current.file,
@@ -1026,48 +1056,18 @@ export class NotesService {
 
   async exportVault(outputPath: string): Promise<void> {
     const rootPath = this.ensureStoragePath()
-
-    return new Promise<void>((resolve, reject) => {
-      const archive = new ZipArchive({ zlib: { level: 9 } })
-      const output = fs.createWriteStream(outputPath)
-
-      output.on('close', () => resolve())
-      archive.on('error', (err: Error) => reject(err))
-
-      archive.pipe(output)
-      archive.directory(rootPath, false)
-      archive.finalize()
-    })
+    await ZipService.createArchive(rootPath, outputPath)
   }
 
   scanZipContents(zipPath: string): Promise<string[]> {
-    return new Promise<string[]>((resolve, reject) => {
-      const entries: string[] = []
-
-      yauzl.open(zipPath, { lazyEntries: true }, (err, zipfile) => {
-        if (err) return reject(err)
-        if (!zipfile) return reject(new Error('Failed to open zip file'))
-
-        zipfile.readEntry()
-
-        zipfile.on('entry', (entry) => {
-          if (!entry.fileName.endsWith('/')) {
-            entries.push(entry.fileName)
-          }
-          zipfile.readEntry()
-        })
-
-        zipfile.on('end', () => resolve(entries))
-        zipfile.on('error', (e) => reject(e))
-      })
-    })
+    return ZipService.scanZipContents(zipPath)
   }
 
   async importVault(zipPath: string, mode: 'overwrite' | 'skip'): Promise<void> {
     const rootPath = this.ensureStoragePath()
 
     if (mode === 'overwrite') {
-      await extract(zipPath, { dir: rootPath })
+      await ZipService.extractArchive(zipPath, rootPath)
       return
     }
 
@@ -1075,7 +1075,7 @@ export class NotesService {
     fs.mkdirSync(tmpDir, { recursive: true })
 
     try {
-      await extract(zipPath, { dir: tmpDir })
+      await ZipService.extractArchive(zipPath, tmpDir)
 
       const entries = fs.readdirSync(tmpDir, { withFileTypes: true })
       for (const entry of entries) {

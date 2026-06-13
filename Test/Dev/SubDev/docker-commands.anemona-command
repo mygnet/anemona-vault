@@ -1,0 +1,18 @@
+[
+  {
+    "title": "Stop all containers",
+    "command": "docker stop $(docker ps -aq)"
+  },
+  {
+    "title": "List containers",
+    "command": "docker ps -a"
+  },
+  {
+    "title": "Clean docker system",
+    "command": "docker system prune -af"
+  },
+  {
+    "title": "Build image",
+    "command": "docker build -t myapp:latest ."
+  }
+]

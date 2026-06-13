@@ -1,0 +1,10 @@
+{
+  "entries": [
+    {
+      "title": "Single Secret",
+      "password": "H2dwcZ5421hLZ00nc7b5LAGeg0fvK1xITPuadWpuqCJF6eHSk4UIQSC1VL2AEw==",
+      "note": "Minimal key file with single entry"
+    }
+  ],
+  "locked": false
+}

@@ -1,0 +1,17 @@
+[
+  {
+    "title": "Express Server",
+    "language": "javascript",
+    "code": "const express = require('express');\nconst app = express();\napp.get('/', (req, res) => res.send('Hello'));\napp.listen(3000);"
+  },
+  {
+    "title": "Docker Compose",
+    "language": "yaml",
+    "code": "version: '3'\nservices:\n  app:\n    build: .\n    ports:\n      - '3000:3000'"
+  },
+  {
+    "title": "PostgreSQL Query",
+    "language": "sql",
+    "code": "SELECT u.name, COUNT(o.id) as order_count\nFROM users u\nLEFT JOIN orders o ON o.user_id = u.id\nGROUP BY u.name\nHAVING COUNT(o.id) > 5;"
+  }
+]

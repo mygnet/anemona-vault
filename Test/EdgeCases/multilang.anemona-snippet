@@ -1,0 +1,27 @@
+[
+  {
+    "title": "Bash Loop",
+    "language": "bash",
+    "code": "for f in *.md; do\n  echo \"Processing $f\"\ndone"
+  },
+  {
+    "title": "CSS Grid",
+    "language": "css",
+    "code": ".container {\n  display: grid;\n  grid-template-columns: repeat(3, 1fr);\n  gap: 1rem;\n}"
+  },
+  {
+    "title": "Kotlin Class",
+    "language": "kotlin",
+    "code": "data class User(val id: Long, val name: String)"
+  },
+  {
+    "title": "Rust Match",
+    "language": "rust",
+    "code": "match value {\n    1 => println!(\"one\"),\n    2 => println!(\"two\"),\n    _ => println!(\"other\"),\n}"
+  },
+  {
+    "title": "Lua Function",
+    "language": "lua",
+    "code": "function greet(name)\n  return \"Hello, \" .. name\nend"
+  }
+]

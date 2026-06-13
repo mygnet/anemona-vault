@@ -495,7 +495,6 @@
     todoEntries = []
     snippetEntries = []
     pendingGlobalFilter = null
-    effectiveConfig = {}
   }
 
   function confirmMoveNote() {
