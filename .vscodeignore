@@ -15,6 +15,7 @@ webview/tsconfig.json
 webview/vite.config.ts
 webview/svelte.config.js
 webview/index.html
+Test/**
 
 *.map
 **/*.map
