@@ -5,10 +5,13 @@
 export let entries: { title: string; command: string }[] = []
 export let selectedNote: { name: string; filePath: string }
 export let initialFilterText = ''
+export let selectionSuggestion: { title?: string; type?: string; text?: string; requestId?: number } | null = null
+export let onRequestSelectionCheck: () => number
 
   const dispatch = createEventDispatcher<{
     save: typeof entries
     back: void
+    insert: string
   }>()
 
   let localEntries = entries.map((e) => ({ ...e }))
@@ -26,6 +29,8 @@ export let initialFilterText = ''
   let filterText = ''
 let lastAppliedInitialFilter = ''
 let entriesContainerElem: HTMLDivElement
+let filledFromSuggestion = false
+let activeSelectionRequestId = 0
 
 $: if (initialFilterText !== lastAppliedInitialFilter) {
   filterText = initialFilterText
@@ -49,6 +54,42 @@ $: if (entries !== localEntries) {
   localEntries = entries.map((e) => ({ ...e }))
 }
 
+$: if (selectionSuggestion?.text && selectionSuggestion.requestId === activeSelectionRequestId && cmdModalMode === 'add' && !filledFromSuggestion) {
+  filledFromSuggestion = true
+  const trimmed = selectionSuggestion.text.trim()
+  let jsonHandled = false
+  if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+    try {
+      const parsed = JSON.parse(trimmed)
+      const obj = Array.isArray(parsed) ? parsed[0] : parsed
+      if (obj && typeof obj === 'object') {
+        modalTitle = obj.title || obj.name || ''
+        modalCommand = obj.command || obj.cmd || obj.code || obj.script || ''
+        jsonHandled = true
+      }
+    } catch { /* fall through */ }
+  }
+  if (!jsonHandled) {
+    const cleaned = trimmed.replace(/^[\{\[]\s*/, '').replace(/\s*[\}\]]$/, '').trim()
+    const lines = cleaned.split('\n').filter((l: string) => l.trim())
+    let title = '', cmd = ''
+    for (const line of lines) {
+      const t = line.trim().replace(/,$/, '')
+      const idx = t.indexOf(':')
+      if (idx > 0) {
+        const key = t.slice(0, idx).trim().toLowerCase().replace(/^["']|["']$/g, '')
+        const value = t.slice(idx + 1).trim().replace(/^["']|["']$/g, '')
+        if ((key === 'title' || key === 'name') && !title) title = value
+        if ((key === 'command' || key === 'cmd' || key === 'code' || key === 'script') && !cmd) cmd = value
+      }
+    }
+    if (!title) title = lines[0]?.trim().slice(0, 60) || ''
+    if (!cmd) cmd = cleaned
+    modalTitle = title
+    modalCommand = cmd
+  }
+}
+
   function toggleSort() {
     if (sortDirection === 'asc') {
       sortDirection = 'desc'
@@ -68,7 +109,10 @@ $: if (entries !== localEntries) {
   }
 
   async function openAddModal() {
+    activeSelectionRequestId = 0
     cmdModalMode = 'add'
+    activeSelectionRequestId = onRequestSelectionCheck()
+    filledFromSuggestion = false
     modalTitle = ''
     modalCommand = ''
     await tick()
@@ -102,6 +146,8 @@ $: if (entries !== localEntries) {
     editingCmdIndex = null
     modalTitle = ''
     modalCommand = ''
+    activeSelectionRequestId = 0
+    filledFromSuggestion = false
   }
 
   function deleteEntry(index: number) {
@@ -155,6 +201,10 @@ $: if (entries !== localEntries) {
     navigator.clipboard.writeText(localEntries[index].command)
     copiedIndex = index
     setTimeout(() => (copiedIndex = null), 1500)
+  }
+
+  function insertCommand(index: number) {
+    dispatch('insert', localEntries[index].command)
   }
 
   function openEntry(index: number) {
@@ -248,6 +298,13 @@ $: if (entries !== localEntries) {
               >
                 <span class={`anemona ${copiedIndex === i ? 'icon-check' : 'icon-copy'}`}></span>
               </button>
+              <button
+                class="icon-btn insert-btn"
+                on:click|stopPropagation={() => insertCommand(i)}
+                title="Insert into editor"
+              >
+                <span class="anemona icon-code-insert"></span>
+              </button>
             </div>
           </div>
           <div
@@ -262,8 +319,8 @@ $: if (entries !== localEntries) {
         </div>
       </div>
     {/each}
+    <button class="add-entry-btn" class:no-entries={localEntries.length === 0} on:click={openAddModal}><span class="anemona icon-plus"></span> Add command</button>
   </div>
-  <button class="add-entry-btn" on:click={openAddModal}><span class="anemona icon-plus"></span> Add command</button>
 </div>
 
 {#if deletePrompt}
@@ -331,11 +388,14 @@ $: if (entries !== localEntries) {
   }
 
   .icon-btn {
-    background: color-mix(in srgb, var(--vscode-sideBar-background) 95%, white 5%);
-    border: 1px solid color-mix(in srgb, var(--accent-color) 10%, var(--ui-border));
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid transparent;
     color: var(--vscode-sideBarTitle-foreground);
     cursor: pointer;
-    font-size: 0.72em;
+    font-size: 0.82em;
     width: var(--ui-icon-btn-size);
     height: var(--ui-icon-btn-size);
     border-radius: 5px;
@@ -347,20 +407,25 @@ $: if (entries !== localEntries) {
   .icon-btn:hover {
     opacity: 1;
     color: var(--vscode-textLink-foreground);
-    background: color-mix(in srgb, var(--accent-color) 8%, transparent);
-    border-color: color-mix(in srgb, var(--accent-color) 16%, transparent);
+    background: color-mix(in srgb, var(--accent-color) 10%, transparent);
+    border-color: transparent;
+  }
+
+  .icon-btn:focus-visible {
+    outline: 1px solid color-mix(in srgb, var(--accent-color) 45%, transparent);
+    outline-offset: 1px;
   }
 
   .primary-btn {
-    color: #f4fbff;
-    border-color: color-mix(in srgb, var(--accent-color) 22%, transparent);
-    background: color-mix(in srgb, var(--accent-color) 14%, var(--vscode-sideBar-background));
+    color: color-mix(in srgb, var(--accent-color) 86%, white 14%);
+    border-color: transparent;
+    background: transparent;
   }
 
   .primary-btn:hover {
     color: white;
-    background: color-mix(in srgb, var(--accent-color) 20%, var(--vscode-sideBar-background));
-    border-color: color-mix(in srgb, var(--accent-color) 30%, transparent);
+    background: color-mix(in srgb, var(--accent-color) 14%, transparent);
+    border-color: transparent;
   }
 
   .primary-btn span {
@@ -510,7 +575,9 @@ $: if (entries !== localEntries) {
     min-height: 1.55rem;
   }
 
-  .copy-btn { font-size: 1em; flex-shrink: 0; }
+  .copy-btn { font-size: 0.8em; flex-shrink: 0; }
+
+  .insert-btn { font-size: 0.8em; flex-shrink: 0; }
 
   .menu-wrap {
     position: relative;
@@ -735,6 +802,9 @@ $: if (entries !== localEntries) {
 
   .add-entry-btn {
     width: 100%;
+    position: sticky;
+    bottom: 0;
+    z-index: 1;
     background: color-mix(in srgb, var(--accent-color) 5%, var(--vscode-editor-background));
     border: 1px dashed var(--ui-border-strong);
     border-radius: var(--ui-radius-md);
@@ -752,5 +822,9 @@ $: if (entries !== localEntries) {
     opacity: 1;
     border-color: color-mix(in srgb, var(--accent-color) 30%, transparent);
     background: color-mix(in srgb, var(--accent-color) 8%, transparent);
+  }
+
+  .add-entry-btn.no-entries {
+    position: static;
   }
 </style>

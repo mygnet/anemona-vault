@@ -39,6 +39,7 @@ Organize everything you use every day in one place — notes, secrets, tasks, co
 
 - **Compact sidebar** — Responsive layout designed for VS Code's narrow sidebar
 - **Accent colors** — Per-category color theming
+- **Drag-and-drop** — Move files and folders by dragging them onto a target folder
 - **Filtering** — Inline filter for each note type's entries
 - **Confirmation dialogs** — Code-based delete confirmation to prevent accidental loss
 

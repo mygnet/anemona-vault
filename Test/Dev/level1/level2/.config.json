@@ -1,3 +1,8 @@
 {
-  "color": "#eb3b5a"
+  "color": "#eb3b5a",
+  "file": {
+    "tasks.anemona-todo": {
+      "progress": 52
+    }
+  }
 }

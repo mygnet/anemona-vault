@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.3 — 2026-06-15
+
+- **Drag-and-drop to move files & folders** — Grab any note or folder and drop it onto a target folder to move it instantly. Visual highlight on hover, works like a file explorer. Drop also works on breadcrumb segments (Home icon or any intermediate folder in the path).
+- **Import content from selection or file** — Click "Import" in the note menu to parse selected text or a picked file. Recognises JSON, `key: value` pairs, code blocks, task lists, and shell commands across all note types. Maps known fields (username, password, email, etc.) and deduces titles when missing. Supports `.anemona-lock` decryption and cross-vault `.anemona-key` import with automatic source vault key detection.
+- **Smart add from selection** — When text is selected in the VS Code editor, clicking "+" in any editor (Key, Command, Todo, Snippet) pre-fills the add modal with detected fields. Parses key:value pairs for keys, command patterns, task markers, and code blocks depending on the editor context.
+- **Sticky "Add entry" button** — The add button is now sticky at the bottom of the list when content overflows, and positioned at the top when the list is empty. Applies to NotesList and all four editors.
+- **Persistent view state** — The extension now remembers the selected category, current subfolder, and open note across VS Code view switches (e.g. switching to Files explorer and back).
+
 ## 1.0.2 — 2026-06-12
 
 - **Config cascade merge on reload** — Configs now merge from root vault → category → subfolder chain. Each child overrides only matching properties, preserving non-overlapping ones. Includes deep merge of per-file progress tracking.

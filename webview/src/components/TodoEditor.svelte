@@ -13,6 +13,8 @@
   export let entries: TodoEntry[] = [];
   export let selectedNote: { name: string; filePath: string };
   export let initialFilterText = "";
+  export let selectionSuggestion: { title?: string; type?: string; text?: string; requestId?: number } | null = null;
+  export let onRequestSelectionCheck: () => number;
 
   const dispatch = createEventDispatcher<{
     save: TodoEntry[];
@@ -36,6 +38,8 @@
     null;
   let deleteTaskCodeInput = "";
   let lastAppliedInitialFilter = "";
+  let filledFromSuggestion = false;
+  let activeSelectionRequestId = 0;
 
   $: if (entries !== localEntries) {
     localEntries = entries.map((entry) => ({ ...entry }));
@@ -44,6 +48,49 @@
   $: if (initialFilterText !== lastAppliedInitialFilter) {
     filterText = initialFilterText;
     lastAppliedInitialFilter = initialFilterText;
+  }
+
+  $: if (selectionSuggestion?.text && selectionSuggestion.requestId === activeSelectionRequestId && taskModalMode === 'add' && !filledFromSuggestion) {
+    filledFromSuggestion = true;
+    const trimmed = selectionSuggestion.text.trim();
+    let jsonHandled = false;
+    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        const obj = Array.isArray(parsed) ? parsed[0] : parsed;
+        if (obj && typeof obj === 'object') {
+          editingTaskTitle = obj.title || obj.task || '';
+          if (obj.priority && ['high','medium','low'].includes(String(obj.priority).toLowerCase())) {
+            editingTaskPriority = String(obj.priority).toLowerCase() as 'high' | 'medium' | 'low';
+          }
+          if (obj.due || obj.dueAt) editingTaskDueAt = String(obj.due || obj.dueAt || '');
+          jsonHandled = true;
+        }
+      } catch { /* fall through */ }
+    }
+    if (!jsonHandled) {
+      const cleaned = trimmed.replace(/^[\{\[]\s*/, '').replace(/\s*[\}\]]$/, '').trim();
+      const lines = cleaned.split('\n').filter(l => l.trim());
+      const parsed: Record<string, string> = {};
+      for (const line of lines) {
+        const t = line.trim().replace(/,$/, '');
+        const m = t.match(/^\s*[-*]\s+(\[.?\])\s+(.+)/);
+        if (m) { if (!parsed.title) parsed.title = m[2].trim(); continue; }
+        const m2 = t.match(/^\s*[-*]\s+(.+)/);
+        if (m2) { if (!parsed.title) parsed.title = m2[1].trim(); continue; }
+        const idx = t.indexOf(':');
+        if (idx > 0) {
+          const key = t.slice(0, idx).trim().toLowerCase().replace(/^["']|["']$/g, '');
+          const value = t.slice(idx + 1).trim().replace(/^["']|["']$/g, '');
+          if ((key === 'title' || key === 'task') && !parsed.title) parsed.title = value;
+          if (key === 'priority' && ['high','medium','low'].includes(value.toLowerCase())) parsed.priority = value.toLowerCase();
+          if ((key === 'due' || key === 'dueAt') && !parsed.due) parsed.due = value;
+        }
+      }
+      if (!parsed.title) parsed.title = lines[0]?.trim() || '';
+      if (parsed.title) editingTaskTitle = parsed.title;
+      if (parsed.due) editingTaskDueAt = parsed.due;
+    }
   }
 
   $: normalizedFilterText = filterText.trim().toLowerCase();
@@ -193,8 +240,10 @@
   }
 
   async function openAddTaskModal() {
+    activeSelectionRequestId = 0;
     taskModalMode = "add";
-    editingTaskIndex = null;
+    activeSelectionRequestId = onRequestSelectionCheck();
+    filledFromSuggestion = false;
     editingTaskTitle = "";
     editingTaskDueAt = "";
     taskModalError = "";
@@ -332,6 +381,8 @@
     editingTaskTitle = "";
     editingTaskDueAt = "";
     taskModalError = "";
+    activeSelectionRequestId = 0;
+    filledFromSuggestion = false;
   }
 
   function saveTaskEdit() {
@@ -431,11 +482,6 @@
     >
   </div>
 
-  {#if localEntries.length === 0}
-    <button class="add-entry-btn" on:click={openAddTaskModal}
-      ><span class="anemona icon-plus"></span> Add task</button
-    >
-  {:else}
     <div class="todo-summary">
       <div class="summary-copy">
         <span class="summary-label">Progress</span>
@@ -629,12 +675,11 @@
           </div>
         {/each}
       {/if}
-    </div>
 
-    <button class="add-entry-btn" on:click={openAddTaskModal}
-      ><span class="anemona icon-plus"></span> Add task</button
-    >
-  {/if}
+      <button class="add-entry-btn" class:no-entries={localEntries.length === 0} on:click={openAddTaskModal}
+        ><span class="anemona icon-plus"></span> Add entry</button
+      >
+    </div>
 
   {#if taskModalMode}
     <button
@@ -944,8 +989,14 @@
     padding: 0.26rem 0.38rem;
     font-size: var(--ui-font-control);
     font-weight: 400;
-    margin-top: 0.18rem;
     opacity: 0.84;
+    position: sticky;
+    bottom: 0;
+    z-index: 1;
+  }
+
+  .add-entry-btn.no-entries {
+    position: static;
   }
 
   .add-entry-btn:hover {
@@ -1447,16 +1498,14 @@
   }
 
   .icon-btn {
-    background: color-mix(
-      in srgb,
-      var(--vscode-sideBar-background) 95%,
-      white 5%
-    );
-    border: 1px solid
-      color-mix(in srgb, var(--accent-color) 10%, var(--ui-border));
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid transparent;
     color: var(--vscode-sideBarTitle-foreground);
     cursor: pointer;
-    font-size: 0.72em;
+    font-size: 0.82em;
     width: var(--ui-icon-btn-size);
     height: var(--ui-icon-btn-size);
     border-radius: 5px;
@@ -1469,30 +1518,27 @@
   .icon-btn:hover {
     opacity: 1;
     color: var(--vscode-textLink-foreground);
-    background: color-mix(in srgb, var(--accent-color) 8%, transparent);
-    border-color: color-mix(in srgb, var(--accent-color) 16%, transparent);
+    background: color-mix(in srgb, var(--accent-color) 10%, transparent);
+    border-color: transparent;
+  }
+
+  .icon-btn:focus-visible {
+    outline: 1px solid color-mix(in srgb, var(--accent-color) 45%, transparent);
+    outline-offset: 1px;
   }
 
   .primary-btn {
-    color: #f4fbff;
-    border-color: color-mix(in srgb, var(--accent-color) 22%, transparent);
-    background: color-mix(
-      in srgb,
-      var(--accent-color) 14%,
-      var(--vscode-sideBar-background)
-    );
+    color: color-mix(in srgb, var(--accent-color) 86%, white 14%);
+    border-color: transparent;
+    background: transparent;
     box-shadow: none;
     text-shadow: none;
   }
 
   .primary-btn:hover {
     color: white;
-    background: color-mix(
-      in srgb,
-      var(--accent-color) 20%,
-      var(--vscode-sideBar-background)
-    );
-    border-color: color-mix(in srgb, var(--accent-color) 30%, transparent);
+    background: color-mix(in srgb, var(--accent-color) 14%, transparent);
+    border-color: transparent;
   }
 
   .primary-btn span {

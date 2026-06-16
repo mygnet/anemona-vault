@@ -2,7 +2,7 @@
   {
     "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
     "title": "Comprar leche",
-    "progress": 90,
+    "progress": 25,
     "status": "open",
     "priority": "low",
     "dueAt": "2026-06-15T18:00"

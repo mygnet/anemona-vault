@@ -883,6 +883,392 @@ class NotesService {
         fs.renameSync(folderPath, newPath);
         return newPath;
     }
+    async importContent(content, notePath) {
+        const fileType = this.getFileType(path.basename(notePath));
+        if (fileType === 'md') {
+            const existing = await this.readNote(notePath);
+            await this.saveNote(notePath, existing + '\n' + content);
+            return;
+        }
+        let newEntries;
+        try {
+            const trimmed = content.trim();
+            if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+                const parsed = JSON.parse(trimmed);
+                newEntries = Array.isArray(parsed) ? parsed : [parsed];
+            }
+            else {
+                newEntries = this._parseTextToEntries(content, fileType);
+            }
+        }
+        catch {
+            newEntries = this._parseTextToEntries(content, fileType);
+        }
+        if (newEntries.length === 0) {
+            throw new Error('No recognizable content found to import');
+        }
+        newEntries = newEntries.map((e) => this._deduceEntryTitle(e, fileType));
+        switch (fileType) {
+            case 'key': {
+                const current = await this.readKeyEntries(notePath);
+                const merged = [...current.entries, ...newEntries];
+                await this.saveKeyEntries(notePath, merged, current.locked);
+                break;
+            }
+            case 'command': {
+                const current = await this.readCommandEntries(notePath);
+                const merged = [...current, ...newEntries];
+                await this.saveCommandEntries(notePath, merged);
+                break;
+            }
+            case 'todo': {
+                const current = await this.readTodoEntries(notePath);
+                const merged = [...current, ...newEntries];
+                await this.saveTodoEntries(notePath, merged);
+                const folderPath = path.dirname(notePath);
+                const fileName = path.basename(notePath);
+                const active = merged.filter((e) => e.status !== 'cancelled');
+                const progress = active.length === 0 ? 0
+                    : Math.round(active.reduce((s, e) => s + Math.max(0, Math.min(100, Number(e.progress) || 0)), 0) / active.length);
+                await this.updateCategoryFileProgress(folderPath, fileName, progress);
+                break;
+            }
+            case 'snippet': {
+                const current = await this.readSnippetEntries(notePath);
+                const merged = [...current, ...newEntries];
+                await this.saveSnippetEntries(notePath, merged);
+                break;
+            }
+        }
+    }
+    async decryptFileContent(filePath, password) {
+        try {
+            const encrypted = fs.readFileSync(filePath, 'utf-8');
+            return this.crypto.decryptFileContent(encrypted, password);
+        }
+        catch {
+            return null;
+        }
+    }
+    async tryDecryptKeyEntries(entries, vaultPath, password) {
+        try {
+            const configPath = path.join(vaultPath, '.config.json');
+            if (!fs.existsSync(configPath))
+                return null;
+            const raw = fs.readFileSync(configPath, 'utf-8');
+            const config = JSON.parse(raw);
+            const vault = config.vault;
+            if (!vault || typeof vault !== 'object')
+                return null;
+            let key = null;
+            if (vault.mode === 'plain' && typeof vault.key === 'string') {
+                key = Buffer.from(vault.key, 'base64');
+            }
+            else if (vault.mode === 'password' && password) {
+                const salt = Buffer.from(vault.salt, 'hex');
+                const storedHash = Buffer.from(vault.hash, 'hex');
+                const encryptedKey = Buffer.from(vault.encryptedKey, 'base64');
+                const derivedKey = crypto.pbkdf2Sync(password, salt, 100000, 32, 'sha512');
+                const hash = crypto.createHash('sha256').update(derivedKey).digest();
+                if (!crypto.timingSafeEqual(hash, storedHash))
+                    return null;
+                const IV_LENGTH = 16;
+                const AUTH_TAG_LENGTH = 16;
+                const iv = encryptedKey.subarray(0, IV_LENGTH);
+                const authTag = encryptedKey.subarray(encryptedKey.length - AUTH_TAG_LENGTH);
+                const ciphertext = encryptedKey.subarray(IV_LENGTH, encryptedKey.length - AUTH_TAG_LENGTH);
+                const decipher = crypto.createDecipheriv('aes-256-gcm', derivedKey, iv);
+                decipher.setAuthTag(authTag);
+                key = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+            }
+            if (!key)
+                return null;
+            const IV_LENGTH = 16;
+            const AUTH_TAG_LENGTH = 16;
+            return entries.map((e) => {
+                if (!e.password || e.password.length < 20)
+                    return e;
+                try {
+                    const payload = Buffer.from(e.password, 'base64');
+                    const iv = payload.subarray(0, IV_LENGTH);
+                    const authTag = payload.subarray(payload.length - AUTH_TAG_LENGTH);
+                    const data = payload.subarray(IV_LENGTH, payload.length - AUTH_TAG_LENGTH);
+                    const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+                    decipher.setAuthTag(authTag);
+                    const decrypted = Buffer.concat([decipher.update(data), decipher.final()]).toString('utf-8');
+                    return { ...e, password: decrypted };
+                }
+                catch {
+                    return e;
+                }
+            });
+        }
+        catch {
+            return null;
+        }
+    }
+    _parseTextToEntries(text, fileType) {
+        const lines = text.split('\n').filter((l) => l.trim());
+        if (fileType === 'key') {
+            const knownFields = {
+                username: 'username', user: 'username', nick: 'username', login: 'username',
+                password: 'password', pass: 'password', pw: 'password', passwd: 'password',
+                email: 'email', mail: 'email', e: 'email',
+                url: 'url', uri: 'url', website: 'url', site: 'url', link: 'url',
+                host: 'host', server: 'host', hostname: 'host',
+                port: 'port',
+                token: 'token', api_key: 'token', apikey: 'token', api: 'token', key: 'token',
+                note: 'note', notes: 'note', description: 'note', desc: 'note', comment: 'note',
+                title: 'title', name: 'title', label: 'title', service: 'title', account: 'title',
+            };
+            return this._parseKeyValueLines(lines, knownFields, 'note');
+        }
+        if (fileType === 'command') {
+            const knownFields = {
+                title: 'title', name: 'title', command: 'command', cmd: 'command', code: 'command', script: 'command',
+            };
+            const result = this._parseKeyValueLines(lines, knownFields, 'command');
+            if (result.length === 0) {
+                const single = {};
+                single.title = this._extractTitle(lines.join(' ')) || 'Imported command';
+                single.command = lines.join('\n');
+                return [single];
+            }
+            return result;
+        }
+        if (fileType === 'todo') {
+            const entries = [];
+            let current = {};
+            const taskLine = /^\s*[-*]\s+(\[.?\])\s+(.+)|^\s*[-*]\s+(.+)|^\s*\d+[.)]\s+(.+)/;
+            for (const line of lines) {
+                if (line.trim() === '---') {
+                    if (current.title)
+                        entries.push({ ...current });
+                    current = {};
+                    continue;
+                }
+                const m = line.match(taskLine);
+                if (m) {
+                    if (current.title)
+                        entries.push({ ...current });
+                    current = {};
+                    const check = m[1] || '';
+                    const text = m[2] || m[3] || m[4] || '';
+                    current.title = text.trim();
+                    if (check.includes('x') || check.includes('X')) {
+                        current.status = 'done';
+                        current.progress = 100;
+                    }
+                    else {
+                        current.status = 'open';
+                        current.progress = 0;
+                    }
+                    continue;
+                }
+                const pi = line.match(/\((\d+)%\)/);
+                if (pi)
+                    current.progress = Math.max(0, Math.min(100, parseInt(pi[1], 10)));
+                const pri = line.match(/priority:\s*(high|medium|low)/i);
+                if (pri)
+                    current.priority = pri[1].toLowerCase();
+                else
+                    current.priority = 'medium';
+                const du = line.match(/due:\s*(.+)/i);
+                if (du)
+                    current.dueAt = du[1].trim();
+            }
+            if (current.title)
+                entries.push({ ...current });
+            if (entries.length === 0) {
+                entries.push({ title: lines[0]?.trim() || 'Task', progress: 0, status: 'open', priority: 'medium' });
+            }
+            return entries;
+        }
+        if (fileType === 'snippet') {
+            const codeBlocks = text.match(/```(\w*)\n([\s\S]*?)```/g);
+            if (codeBlocks) {
+                return codeBlocks.map((block) => {
+                    const langMatch = block.match(/```(\w*)\n/);
+                    const lang = langMatch?.[1] || 'text';
+                    const code = block.replace(/```\w*\n/, '').replace(/```$/, '').trim();
+                    return { title: code.split('\n')[0]?.slice(0, 60) || 'Snippet', language: lang, code };
+                });
+            }
+            const knownFields = {
+                title: 'title', name: 'title', language: 'language', lang: 'language', code: 'code', snippet: 'code',
+            };
+            return this._parseKeyValueLines(lines, knownFields, 'code');
+        }
+        return [{ content: text }];
+    }
+    _parseKeyValueLines(lines, knownFields, fallbackField) {
+        const entries = [];
+        let current = {};
+        let extraNotes = [];
+        let hasContent = false;
+        const flush = () => {
+            if (hasContent) {
+                if (extraNotes.length > 0 && !current[fallbackField]) {
+                    current[fallbackField] = extraNotes.join('\n');
+                }
+                else if (extraNotes.length > 0 && current[fallbackField]) {
+                    current[fallbackField] += '\n' + extraNotes.join('\n');
+                }
+                entries.push({ ...current });
+            }
+            current = {};
+            extraNotes = [];
+            hasContent = false;
+        };
+        for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed) {
+                flush();
+                continue;
+            }
+            if (trimmed === '---') {
+                flush();
+                continue;
+            }
+            const colonIdx = trimmed.indexOf(':');
+            if (colonIdx > 0) {
+                const key = trimmed.slice(0, colonIdx).trim().toLowerCase();
+                const value = trimmed.slice(colonIdx + 1).trim();
+                const mapped = knownFields[key];
+                if (mapped) {
+                    current[mapped] = value;
+                    hasContent = true;
+                }
+                else {
+                    extraNotes.push(trimmed);
+                    hasContent = true;
+                }
+            }
+            else {
+                extraNotes.push(trimmed);
+                hasContent = true;
+            }
+        }
+        flush();
+        if (entries.length === 0) {
+            const single = {};
+            single[fallbackField] = lines.join('\n');
+            entries.push(single);
+        }
+        return entries;
+    }
+    _deduceEntryTitle(entry, fileType) {
+        if (entry.title && entry.title.trim())
+            return entry;
+        if (fileType === 'key') {
+            entry.title = entry.username || entry.email || entry.host || entry.url || entry.token || entry.note || 'Imported entry';
+            if (entry.title.length > 60)
+                entry.title = entry.title.slice(0, 60);
+        }
+        else if (fileType === 'command') {
+            const cmd = (entry.command || '').split('\n')[0];
+            entry.title = entry.title || cmd?.slice(0, 60) || 'Imported command';
+        }
+        else if (fileType === 'todo') {
+            entry.title = entry.title || 'Task';
+        }
+        else if (fileType === 'snippet') {
+            entry.title = entry.title || (entry.code || '').split('\n')[0]?.slice(0, 60) || 'Imported snippet';
+        }
+        return entry;
+    }
+    _extractTitle(text) {
+        const patterns = [
+            /^#+\s+(.+)/m,
+            /^(?:title|name):\s*(.+)/im,
+            /^(?:https?:\/\/[^\s]+)/,
+            /^([^\n]{3,60})/,
+        ];
+        for (const p of patterns) {
+            const m = text.match(p);
+            if (m)
+                return m[1]?.trim() || m[0]?.trim();
+        }
+        return undefined;
+    }
+    analyzeSelection(text) {
+        const trimmed = text.trim();
+        if (!trimmed)
+            return null;
+        const isJsonObject = trimmed.startsWith('{');
+        const isJsonArray = trimmed.startsWith('[');
+        if (isJsonObject || isJsonArray) {
+            try {
+                const parsed = JSON.parse(trimmed);
+                const items = Array.isArray(parsed) ? parsed : [parsed];
+                if (items.length > 0 && typeof items[0] === 'object') {
+                    const keys = Object.keys(items[0]).map((k) => k.toLowerCase());
+                    const keyPatterns = ['password', 'pass', 'username', 'user', 'email', 'url', 'host', 'port', 'token'];
+                    const commandPatterns = ['command', 'cmd', 'script'];
+                    const todoPatterns = ['progress', 'status', 'priority', 'due'];
+                    const snippetPatterns = ['language', 'lang', 'code', 'snippet'];
+                    const hasKey = keyPatterns.some((p) => keys.includes(p));
+                    const hasCommand = commandPatterns.some((p) => keys.includes(p));
+                    const hasTodo = todoPatterns.some((p) => keys.includes(p));
+                    const hasSnippet = snippetPatterns.some((p) => keys.includes(p));
+                    if (hasKey && !hasCommand && !hasSnippet) {
+                        return { title: items[0].title || items[0].name || items[0].username || items[0].email || 'Imported', type: 'key' };
+                    }
+                    if (hasSnippet) {
+                        return { title: items[0].title || items[0].name || 'Snippet', type: 'snippet' };
+                    }
+                    if (hasCommand) {
+                        return { title: items[0].title || items[0].name || 'Command', type: 'command' };
+                    }
+                    if (hasTodo) {
+                        return { title: items[0].title || 'Task', type: 'todo' };
+                    }
+                    return { title: items[0].title || items[0].name || 'Entry', type: 'key' };
+                }
+                return null;
+            }
+            catch {
+                return null;
+            }
+        }
+        const hasCodeBlock = /```\w*\n[\s\S]*?```/.test(trimmed);
+        if (hasCodeBlock) {
+            return { title: this._extractTitle(trimmed) || 'Snippet', type: 'snippet' };
+        }
+        const lines = trimmed.split('\n').filter((l) => l.trim());
+        const colonPairs = lines.filter((l) => l.includes(':') && !l.trim().startsWith('#'));
+        const keyLike = ['password', 'pass', 'pw', 'username', 'user', 'email', 'mail', 'url', 'host', 'port', 'token', 'api'];
+        const hasKeyFields = colonPairs.some((l) => {
+            const k = l.split(':')[0].trim().toLowerCase();
+            return keyLike.includes(k);
+        });
+        if (hasKeyFields) {
+            const title = this._extractTitle(trimmed) || lines[0]?.split(':')[1]?.trim() || 'Imported key';
+            return { title, type: 'key' };
+        }
+        const hasTaskMarker = /^\s*[-*]\s+\[.?\]/.test(trimmed) || /^\s*[-*]\s+/.test(trimmed);
+        if (hasTaskMarker) {
+            return { title: 'Tasks', type: 'todo' };
+        }
+        if (colonPairs.length > 0) {
+            const cmdLike = colonPairs.some((l) => {
+                const k = l.split(':')[0].trim().toLowerCase();
+                return ['command', 'cmd', 'title', 'name'].includes(k);
+            });
+            if (cmdLike) {
+                return { title: this._extractTitle(trimmed) || 'Command', type: 'command' };
+            }
+        }
+        const firstLine = lines[0]?.trim();
+        if (firstLine) {
+            const isUrl = /^https?:\/\//.test(firstLine);
+            const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(firstLine);
+            if (isUrl || isEmail) {
+                return { title: firstLine.slice(0, 60), type: 'key' };
+            }
+        }
+        return { title: this._extractTitle(trimmed) || firstLine?.slice(0, 60) || 'Note', type: 'md' };
+    }
     async moveItem(sourcePath, targetDir) {
         if (!fs.existsSync(sourcePath)) {
             throw new Error('Source not found');

@@ -107,11 +107,26 @@ class NotesViewProvider {
             case 'moveFolder':
                 await this._moveFolder(message.sourcePath, message.targetDir);
                 break;
+            case 'dropItem':
+                await this._handleDropItem(message.sourcePath, message.targetPath);
+                break;
             case 'updateFolderColor':
                 await this._updateFolderColor(message.folderPath, message.color);
                 break;
             case 'getFolderTree':
                 await this._sendFolderTree(message.categoryName);
+                break;
+            case 'checkSelection':
+                this._handleCheckSelection(Number(message.requestId || 0));
+                break;
+            case 'openExternal':
+                this._handleOpenExternal(message);
+                break;
+            case 'insertIntoEditor':
+                this._handleInsertIntoEditor(message.text);
+                break;
+            case 'importContent':
+                await this._handleImportContent(message.notePath);
                 break;
             case 'exportNote':
                 await this._exportNote(message.notePath, message.format);
@@ -606,6 +621,23 @@ class NotesViewProvider {
             });
         }
     }
+    async _handleDropItem(sourcePath, targetPath) {
+        try {
+            await this._notesService.moveItem(sourcePath, targetPath);
+            const sourceCategory = this._getCategoryFromNotePath(sourcePath) || this._currentCategory;
+            this._postMessage({ command: 'itemMoved', sourcePath, targetPath });
+            if (sourceCategory) {
+                this._loadNotes(sourceCategory, this._currentFolderPath);
+                this._loadCategories();
+            }
+        }
+        catch (err) {
+            this._postMessage({
+                command: 'error',
+                message: err instanceof Error ? err.message : 'Failed to move item',
+            });
+        }
+    }
     async _updateFolderColor(folderPath, color) {
         try {
             await this._notesService.updateFolderColor(folderPath, color);
@@ -619,6 +651,25 @@ class NotesViewProvider {
                 command: 'error',
                 message: err instanceof Error ? err.message : 'Failed to update folder color',
             });
+        }
+    }
+    _handleCheckSelection(requestId = 0) {
+        try {
+            const editor = vscode.window.activeTextEditor;
+            if (!editor || editor.selection.isEmpty) {
+                this._postMessage({ command: 'selectionAnalysis', requestId, suggestion: null });
+                return;
+            }
+            const text = editor.document.getText(editor.selection);
+            const suggestion = this._notesService.analyzeSelection(text);
+            this._postMessage({
+                command: 'selectionAnalysis',
+                requestId,
+                suggestion: suggestion ? { title: suggestion.title, type: suggestion.type, text } : null,
+            });
+        }
+        catch {
+            this._postMessage({ command: 'selectionAnalysis', requestId, suggestion: null });
         }
     }
     async _sendFolderTree(categoryName) {
@@ -640,6 +691,112 @@ class NotesViewProvider {
                 message: err instanceof Error ? err.message : 'Failed to get folder tree',
             });
         }
+    }
+    async _handleImportContent(notePath) {
+        try {
+            let content = '';
+            let sourceFilePath;
+            const editor = vscode.window.activeTextEditor;
+            if (editor && !editor.selection.isEmpty) {
+                content = editor.document.getText(editor.selection);
+            }
+            else {
+                const files = await vscode.window.showOpenDialog({
+                    canSelectFiles: true,
+                    canSelectFolders: false,
+                    canSelectMany: false,
+                    openLabel: 'Import file',
+                    filters: {
+                        'All Files': ['*'],
+                        'Anemona Vault': ['*anemona-key', '*anemona-lock', '*anemona-command', '*anemona-todo', '*anemona-snippet', '*.md'],
+                    },
+                });
+                if (!files || files.length === 0)
+                    return;
+                sourceFilePath = files[0].fsPath;
+                const fileType = this._notesService.getFileType(path.basename(sourceFilePath));
+                if (sourceFilePath.endsWith('.anemona-lock')) {
+                    const password = await vscode.window.showInputBox({
+                        prompt: 'Enter password to decrypt the key file',
+                        password: true,
+                        placeHolder: 'Password',
+                    });
+                    if (!password)
+                        return;
+                    const decrypted = await this._notesService.decryptFileContent(sourceFilePath, password);
+                    if (decrypted === null) {
+                        vscode.window.showErrorMessage('Incorrect password or corrupted file');
+                        return;
+                    }
+                    content = decrypted;
+                }
+                else if (fileType === 'key') {
+                    const raw = fs.readFileSync(sourceFilePath, 'utf-8');
+                    const parsed = JSON.parse(raw);
+                    const entries = Array.isArray(parsed) ? parsed : (parsed.entries || []);
+                    if (entries.length > 0 && typeof entries[0].password === 'string' && entries[0].password.length > 40) {
+                        const sourceVaultPath = this._findVaultRoot(sourceFilePath);
+                        let vaultPassword;
+                        if (sourceVaultPath) {
+                            const configPath = path.join(sourceVaultPath, '.config.json');
+                            if (fs.existsSync(configPath)) {
+                                try {
+                                    const cfg = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+                                    if (cfg.vault?.mode === 'password') {
+                                        vaultPassword = await vscode.window.showInputBox({
+                                            prompt: 'Enter the source vault password to decrypt key entries',
+                                            password: true,
+                                            placeHolder: 'Source vault password',
+                                        }) || undefined;
+                                        if (!vaultPassword) {
+                                            vaultPassword = undefined;
+                                        }
+                                    }
+                                }
+                                catch { /* use undefined password */ }
+                            }
+                        }
+                        const decrypted = await this._notesService.tryDecryptKeyEntries(entries, sourceVaultPath || path.dirname(sourceFilePath), vaultPassword);
+                        if (decrypted) {
+                            content = JSON.stringify(decrypted, null, 2);
+                        }
+                        else {
+                            vscode.window.showWarningMessage('Could not decrypt entries. Importing as-is (passwords may remain encrypted).');
+                            content = raw;
+                        }
+                    }
+                    else {
+                        content = raw;
+                    }
+                }
+                else {
+                    content = fs.readFileSync(sourceFilePath, 'utf-8');
+                }
+            }
+            await this._notesService.importContent(content, notePath);
+            const category = this._getCategoryFromNotePath(notePath) || this._currentCategory;
+            this._postMessage({ command: 'contentImported', notePath });
+            if (category) {
+                this._loadNotes(category, this._currentFolderPath);
+                this._loadCategories();
+            }
+        }
+        catch (err) {
+            this._postMessage({
+                command: 'error',
+                message: err instanceof Error ? err.message : 'Failed to import content',
+            });
+        }
+    }
+    _findVaultRoot(filePath) {
+        let dir = path.dirname(filePath);
+        const root = path.parse(dir).root;
+        while (dir !== root) {
+            if (fs.existsSync(path.join(dir, '.config.json')))
+                return dir;
+            dir = path.dirname(dir);
+        }
+        return null;
     }
     async _exportNote(notePath, format) {
         try {
@@ -930,6 +1087,36 @@ class NotesViewProvider {
                 message: err instanceof Error ? err.message : 'Failed to import vault',
             });
         }
+    }
+    _handleOpenExternal(message) {
+        try {
+            let uri;
+            if (message.type === 'email') {
+                uri = vscode.Uri.parse(`mailto:${message.value}`);
+            }
+            else if (message.type === 'host') {
+                const host = message.value.replace(/^https?:\/\//, '');
+                uri = vscode.Uri.parse(`https://${host}`);
+            }
+            else {
+                const url = message.value.startsWith('http') ? message.value : `https://${message.value}`;
+                uri = vscode.Uri.parse(url);
+            }
+            vscode.env.openExternal(uri);
+        }
+        catch (err) {
+            vscode.window.showErrorMessage(`Failed to open ${message.type}: ${err instanceof Error ? err.message : 'Unknown error'}`);
+        }
+    }
+    _handleInsertIntoEditor(text) {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor) {
+            vscode.window.showInformationMessage('No active editor to insert into');
+            return;
+        }
+        editor.edit(editBuilder => {
+            editBuilder.insert(editor.selection.active, text);
+        });
     }
 }
 exports.NotesViewProvider = NotesViewProvider;

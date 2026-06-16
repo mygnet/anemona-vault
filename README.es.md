@@ -25,6 +25,14 @@ Organiza todo lo que usas a diario en un solo lugar — notas, secretos, tareas,
 - **Importar / Exportar** — backup y restauración del vault completo vía ZIP
 - **Búsqueda** — búsqueda global en todos los tipos de nota y categorías
 
+## UX
+
+- **Barra lateral compacta** — Diseño responsivo para la barra estrecha de VS Code
+- **Colores de acento** — Tema de color por categoría
+- **Arrastrar y soltar** — Mueve archivos y carpetas arrastrándolos sobre una carpeta destino. También funciona sobre las migas de pan (Home o cualquier carpeta en la ruta).
+- **Filtrado** — Filtro inline para las entradas de cada tipo de nota
+- **Diálogos de confirmación** — Confirmación de eliminación con código para evitar pérdidas accidentales
+
 ## Funcionalidades por tipo
 
 - **Markdown** — edición completa con búsqueda y resaltado

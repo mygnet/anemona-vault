@@ -71,6 +71,9 @@
   let selectedMoveFolder = ''
   let exportPrompt: { note: { name: string; filePath: string; fileType?: string }; formats: { label: string; value: string }[] } | null = null
   let selectedExportFormat = ''
+  let selectionSuggestion: { title?: string; type?: string; text?: string; requestId?: number } | null = null
+  let selectionCheckSeed = 0
+  let pendingNoteRestore: { name: string; path: string; fileType?: string } | null = null
 
   function focus(node: HTMLInputElement) {
     node.focus()
@@ -111,18 +114,40 @@
       case 'categoriesLoaded':
         categories = message.categories
         needsStoragePath = false
-        if (selectedCategory && !categories.some((category) => category.name === selectedCategory)) {
-          selectedCategory = ''
-          selectedNote = null
-          noteContent = ''
-          keyEntries = []
-          commandEntries = []
-          todoEntries = []
-          notes = []
-        }
-        if (categories.length > 0 && !selectedCategory) {
-          selectedCategory = categories[0].name
-          vscode.postMessage({ command: 'selectCategory', category: selectedCategory })
+        {
+          const saved = vscode.getState()
+          const savedCategory = saved?.selectedCategory
+          const savedFolder = saved?.currentFolderPath || ''
+
+          if (savedCategory && categories.some((c) => c.name === savedCategory)) {
+            selectedCategory = savedCategory
+            currentFolderPath = savedFolder
+            parentFolderPath = savedFolder ? savedFolder.split('/').slice(0, -1).join('/') || null : null
+            folderBreadcrumb = savedFolder ? savedFolder.split('/') : []
+            vscode.postMessage({ command: 'selectCategory', category: savedCategory, folderPath: savedFolder })
+
+            if (saved?.selectedNotePath && saved?.selectedNoteName) {
+              pendingNoteRestore = {
+                name: saved.selectedNoteName,
+                path: saved.selectedNotePath,
+                fileType: saved.selectedNoteFileType || undefined,
+              }
+            }
+          } else {
+            if (selectedCategory && !categories.some((c) => c.name === selectedCategory)) {
+              selectedCategory = ''
+              selectedNote = null
+              noteContent = ''
+              keyEntries = []
+              commandEntries = []
+              todoEntries = []
+              notes = []
+            }
+            if (categories.length > 0 && !selectedCategory) {
+              selectedCategory = categories[0].name
+              vscode.postMessage({ command: 'selectCategory', category: selectedCategory })
+            }
+          }
         }
         break
 
@@ -133,14 +158,23 @@
         parentFolderPath = message.parentFolder || null
         folderBreadcrumb = currentFolderPath ? currentFolderPath.split('/') : []
         effectiveConfig = message.effectiveConfig || {}
+        persistUiState()
         if (reloadTimer) clearTimeout(reloadTimer)
         reloadTimer = setTimeout(() => { reloading = false }, 700)
+        if (pendingNoteRestore) {
+          const match = notes.find((n) => n.filePath === pendingNoteRestore.path || n.name === pendingNoteRestore.name)
+          if (match && !selectedNote) {
+            handleSelectNote(match)
+          }
+          pendingNoteRestore = null
+        }
         break
 
       case 'noteContent':
         selectedNote = { name: message.note.name, filePath: message.note.filePath, fileType: message.fileType }
         currentFileType = message.fileType
         effectiveConfig = message.effectiveConfig || {}
+        persistUiState()
         if (message.fileType === 'key') {
           keyEntries = message.entries || []
           keyLocked = message.locked || false
@@ -220,6 +254,13 @@
         todoEntries = []
         break
 
+      case 'selectionAnalysis': {
+        const requestId = Number(message.requestId || 0)
+        if (requestId !== selectionCheckSeed) break
+        selectionSuggestion = message.suggestion ? { title: String(message.suggestion.title || ''), type: String(message.suggestion.type || ''), text: String(message.suggestion.text || ''), requestId } : null
+        break
+      }
+
       case 'folderTree':
         moveFolderTree = message.tree || []
         break
@@ -252,12 +293,15 @@
     folderBreadcrumb = []
     folders = []
     effectiveConfig = {}
+    persistUiState()
     vscode.postMessage({ command: 'selectCategory', category, folderPath: '' })
   }
 
   function handleSelectNote(note: { name: string; filePath: string }) {
     activeSection = 'notes'
     pendingGlobalFilter = null
+    selectedNote = { name: note.name, filePath: note.filePath }
+    persistUiState()
     vscode.postMessage({ command: 'selectNote', category: selectedCategory, note: note.name })
   }
 
@@ -277,21 +321,42 @@
     persistUiState()
   }
 
+  function handleToggleTabs() {
+    tabsCollapsed = !tabsCollapsed
+    persistUiState()
+  }
+
   function handleOpenFolder(folder: { name: string; path: string }) {
     const relativePath = currentFolderPath
       ? currentFolderPath + '/' + folder.name
       : folder.name
+    selectedNote = null
+    currentFolderPath = relativePath
+    parentFolderPath = relativePath.split('/').slice(0, -1).join('/') || null
+    folderBreadcrumb = relativePath.split('/')
+    persistUiState()
     vscode.postMessage({ command: 'openFolder', category: selectedCategory, folderPath: relativePath })
   }
 
   function handleFolderBack() {
     if (parentFolderPath !== null) {
-      vscode.postMessage({ command: 'openFolder', category: selectedCategory, folderPath: parentFolderPath || '' })
+      const path = parentFolderPath || ''
+      selectedNote = null
+      currentFolderPath = path
+      parentFolderPath = path ? path.split('/').slice(0, -1).join('/') || null : null
+      folderBreadcrumb = path ? path.split('/') : []
+      persistUiState()
+      vscode.postMessage({ command: 'openFolder', category: selectedCategory, folderPath: path })
     }
   }
 
   function handleBreadcrumbClick(index: number) {
     const path = folderBreadcrumb.slice(0, index + 1).join('/')
+    selectedNote = null
+    currentFolderPath = path
+    parentFolderPath = path ? path.split('/').slice(0, -1).join('/') || null : null
+    folderBreadcrumb = path ? path.split('/') : []
+    persistUiState()
     vscode.postMessage({ command: 'openFolder', category: selectedCategory, folderPath: path || '' })
   }
 
@@ -323,6 +388,18 @@
 
   function handleUpdateFolderColor(folder: { name: string; path: string }, color: string) {
     vscode.postMessage({ command: 'updateFolderColor', folderPath: folder.path, color })
+  }
+
+  function handleDropItem(data: { sourcePath: string; targetPath: string }) {
+    vscode.postMessage({ command: 'dropItem', sourcePath: data.sourcePath, targetPath: data.targetPath })
+  }
+
+  function handleRequestSelectionCheck() {
+    selectionCheckSeed++
+    const requestId = selectionCheckSeed
+    selectionSuggestion = { requestId }
+    vscode.postMessage({ command: 'checkSelection', requestId })
+    return requestId
   }
 
   function handleSearchGlobal(event: CustomEvent<string>) {
@@ -444,6 +521,10 @@
     }
   }
 
+  function handleImport(note: { name: string; filePath: string }) {
+    vscode.postMessage({ command: 'importContent', notePath: note.filePath })
+  }
+
   function handleExportNote(note: { name: string; filePath: string; fileType?: string }) {
     const fileType = note.fileType || 'md'
     let formats: { label: string; value: string }[]
@@ -495,6 +576,7 @@
     todoEntries = []
     snippetEntries = []
     pendingGlobalFilter = null
+    persistUiState()
   }
 
   function confirmMoveNote() {
@@ -549,12 +631,15 @@
   }
 
   function persistUiState() {
-    vscode.setState({ tabsCollapsed, activeSection })
-  }
-
-  function handleToggleTabs() {
-    tabsCollapsed = !tabsCollapsed
-    persistUiState()
+    vscode.setState({
+      tabsCollapsed,
+      activeSection,
+      selectedCategory,
+      currentFolderPath,
+      selectedNotePath: selectedNote?.filePath || null,
+      selectedNoteName: selectedNote?.name || null,
+      selectedNoteFileType: selectedNote?.fileType || null,
+    })
   }
 
   function handleCreateCategory(name: string) {
@@ -613,6 +698,14 @@
 
   function handleLock(event: CustomEvent<string>) {
     vscode.postMessage({ command: 'lockVault', password: event.detail })
+  }
+
+  function handleOpenExternal(event: CustomEvent<{ type: string; value: string }>) {
+    vscode.postMessage({ command: 'openExternal', ...event.detail })
+  }
+
+  function handleInsertIntoEditor(event: CustomEvent<string>) {
+    vscode.postMessage({ command: 'insertIntoEditor', text: event.detail })
   }
 
   function handleReady() {
@@ -707,6 +800,7 @@
   $: selectedColorRaw = effectiveConfig.color || categories.find((c) => c.name === selectedCategory)?.config?.color || ''
   $: selectedColor = resolveAccentColor(selectedColorRaw)
   $: selectedCategoryCanDelete = categories.find((c) => c.name === selectedCategory)?.canDelete === true
+  $: categoryPath = categories.find((c) => c.name === selectedCategory)?.path || ''
   $: selectedCategoryConfig = categories.find((c) => c.name === selectedCategory)?.config || {}
   $: activeEditorSearchText = selectedNote && pendingGlobalFilter?.filePath === selectedNote.filePath
     ? pendingGlobalFilter.query
@@ -768,24 +862,32 @@
             locked={keyLocked}
             {selectedNote}
             initialFilterText={activeEditorSearchText}
+            {selectionSuggestion}
+            onRequestSelectionCheck={handleRequestSelectionCheck}
             on:save={handleKeySave}
             on:back={handleBack}
             on:unlock={handleUnlock}
             on:lock={handleLock}
+            on:openExternal={handleOpenExternal}
           />
         {:else if selectedNote && currentFileType === 'command'}
           <CommandEditor
             entries={commandEntries}
             {selectedNote}
             initialFilterText={activeEditorSearchText}
+            {selectionSuggestion}
+            onRequestSelectionCheck={handleRequestSelectionCheck}
             on:save={handleCommandSave}
             on:back={handleBack}
+            on:insert={handleInsertIntoEditor}
           />
         {:else if selectedNote && currentFileType === 'todo'}
           <TodoEditor
             entries={todoEntries}
             {selectedNote}
             initialFilterText={activeEditorSearchText}
+            {selectionSuggestion}
+            onRequestSelectionCheck={handleRequestSelectionCheck}
             on:save={handleTodoSave}
             on:back={handleBack}
           />
@@ -794,8 +896,11 @@
             entries={snippetEntries}
             {selectedNote}
             initialFilterText={activeEditorSearchText}
+            {selectionSuggestion}
+            onRequestSelectionCheck={handleRequestSelectionCheck}
             on:save={handleSnippetSave}
             on:back={handleBack}
+            on:insert={handleInsertIntoEditor}
           />
         {:else if selectedNote}
           <NoteEditor
@@ -820,6 +925,7 @@
             onDeleteCategory={handleDeleteCategory}
             onRename={handleRenameNote}
             onMove={handleMoveNote}
+            onImport={handleImport}
             onExport={handleExportNote}
             onRenameCategory={handleRenameCategory}
             onUpdateCategoryColor={handleUpdateCategoryColor}
@@ -830,6 +936,10 @@
             onRenameFolder={handleRenameFolder}
             onMoveFolder={handleMoveFolderTrigger}
             onUpdateFolderColor={handleUpdateFolderColor}
+            onDropItem={handleDropItem}
+            {selectionSuggestion}
+            onRequestSelectionCheck={handleRequestSelectionCheck}
+            {categoryPath}
           />
         {/if}
       </div>

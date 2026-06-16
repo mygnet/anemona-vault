@@ -370,20 +370,14 @@
   }
 
   .icon-btn {
-    background: color-mix(
-      in srgb,
-      var(--vscode-sideBar-background) 94%,
-      white 6%
-    );
-    border: 1px solid
-      color-mix(
-        in srgb,
-        var(--accent-color, var(--vscode-textLink-foreground)) 10%,
-        var(--ui-border)
-      );
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid transparent;
     color: var(--vscode-sideBarTitle-foreground);
     cursor: pointer;
-    font-size: 0.72em;
+    font-size: 0.82em;
     width: var(--ui-icon-btn-size);
     height: var(--ui-icon-btn-size);
     border-radius: 5px;
@@ -398,14 +392,15 @@
     color: var(--vscode-textLink-foreground);
     background: color-mix(
       in srgb,
-      var(--accent-color, var(--vscode-textLink-foreground)) 8%,
-      var(--vscode-sideBar-background)
-    );
-    border-color: color-mix(
-      in srgb,
-      var(--accent-color, var(--vscode-textLink-foreground)) 18%,
+      var(--accent-color, var(--vscode-textLink-foreground)) 10%,
       transparent
     );
+    border-color: transparent;
+  }
+
+  .icon-btn:focus-visible {
+    outline: 1px solid color-mix(in srgb, var(--accent-color, var(--vscode-textLink-foreground)) 45%, transparent);
+    outline-offset: 1px;
   }
 
   .add-cat {

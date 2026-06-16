@@ -12,10 +12,13 @@
 export let entries: { title: string; language: string; code: string }[] = []
 export let selectedNote: { name: string; filePath: string }
 export let initialFilterText = ''
+export let selectionSuggestion: { title?: string; type?: string; text?: string; requestId?: number } | null = null
+export let onRequestSelectionCheck: () => number
 
   const dispatch = createEventDispatcher<{
     save: typeof entries
     back: void
+    insert: string
   }>()
 
   let localEntries = entries.map((e) => ({ ...e }))
@@ -34,6 +37,8 @@ export let initialFilterText = ''
   let filterText = ''
 let lastAppliedInitialFilter = ''
 let entriesContainerElem: HTMLDivElement
+let filledFromSuggestion = false
+let activeSelectionRequestId = 0
 
 $: if (initialFilterText !== lastAppliedInitialFilter) {
   filterText = initialFilterText
@@ -57,6 +62,45 @@ $: if (entries !== localEntries) {
   localEntries = entries.map((e) => ({ ...e }))
 }
 
+$: if (selectionSuggestion?.text && selectionSuggestion.requestId === activeSelectionRequestId && modalMode === 'add' && !filledFromSuggestion) {
+  filledFromSuggestion = true
+  const trimmed = selectionSuggestion.text.trim()
+  let jsonHandled = false
+  if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+    try {
+      const parsed = JSON.parse(trimmed)
+      const obj = Array.isArray(parsed) ? parsed[0] : parsed
+      if (obj && typeof obj === 'object') {
+        modalTitle = obj.title || obj.name || ''
+        modalLanguage = obj.language || obj.lang || 'text'
+        modalCode = obj.code || obj.snippet || ''
+        jsonHandled = true
+      }
+    } catch { /* fall through */ }
+  }
+  if (!jsonHandled) {
+    const cleaned = trimmed.replace(/^[\{\[]\s*/, '').replace(/\s*[\}\]]$/, '').trim()
+    const codeBlock = cleaned.match(/```(\w*)\n([\s\S]*?)```/)
+    if (codeBlock) {
+      if (codeBlock[1]) modalLanguage = codeBlock[1]
+      modalCode = codeBlock[2].trim()
+    }
+    const lines = cleaned.split('\n')
+    for (const line of lines) {
+      const t = line.trim().replace(/,$/, '')
+      const idx = t.indexOf(':')
+      if (idx > 0) {
+        const key = t.slice(0, idx).trim().toLowerCase().replace(/^["']|["']$/g, '')
+        const value = t.slice(idx + 1).trim().replace(/^["']|["']$/g, '')
+        if ((key === 'title' || key === 'name') && !modalTitle) modalTitle = value
+        if ((key === 'language' || key === 'lang') && !modalLanguage) modalLanguage = value
+        if ((key === 'code' || key === 'snippet') && !modalCode) modalCode = value
+      }
+    }
+    if (!modalTitle) modalTitle = (modalCode || cleaned).split('\n')[0]?.slice(0, 60) || 'Snippet'
+  }
+}
+
   function toggleSort() {
     if (sortDirection === 'asc') {
       sortDirection = 'desc'
@@ -76,7 +120,10 @@ $: if (entries !== localEntries) {
   }
 
   async function openAddModal() {
+    activeSelectionRequestId = 0
     modalMode = 'add'
+    activeSelectionRequestId = onRequestSelectionCheck()
+    filledFromSuggestion = false
     modalTitle = ''
     modalLanguage = 'text'
     modalCode = ''
@@ -113,6 +160,8 @@ $: if (entries !== localEntries) {
     modalTitle = ''
     modalLanguage = 'text'
     modalCode = ''
+    activeSelectionRequestId = 0
+    filledFromSuggestion = false
   }
 
   function deleteEntry(index: number) {
@@ -166,6 +215,10 @@ $: if (entries !== localEntries) {
     navigator.clipboard.writeText(localEntries[index].code)
     copiedIndex = index
     setTimeout(() => (copiedIndex = null), 1500)
+  }
+
+  function insertCode(index: number) {
+    dispatch('insert', localEntries[index].code)
   }
 
   function openEntry(index: number) {
@@ -260,6 +313,13 @@ $: if (entries !== localEntries) {
               >
                 <span class={`anemona ${copiedIndex === i ? 'icon-check' : 'icon-copy'}`}></span>
               </button>
+              <button
+                class="icon-btn insert-btn"
+                on:click|stopPropagation={() => insertCode(i)}
+                title="Insert into editor"
+              >
+                <span class="anemona icon-code-insert"></span>
+              </button>
             </div>
           </div>
           <div
@@ -274,8 +334,8 @@ $: if (entries !== localEntries) {
         </div>
       </div>
     {/each}
+    <button class="add-entry-btn" on:click={openAddModal}><span class="anemona icon-plus"></span> Add snippet</button>
   </div>
-  <button class="add-entry-btn" on:click={openAddModal}><span class="anemona icon-plus"></span> Add snippet</button>
 </div>
 
 {#if deletePrompt}
@@ -348,11 +408,14 @@ $: if (entries !== localEntries) {
   }
 
   .icon-btn {
-    background: color-mix(in srgb, var(--vscode-sideBar-background) 95%, white 5%);
-    border: 1px solid color-mix(in srgb, var(--accent-color) 10%, var(--ui-border));
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid transparent;
     color: var(--vscode-sideBarTitle-foreground);
     cursor: pointer;
-    font-size: 0.72em;
+    font-size: 0.82em;
     width: var(--ui-icon-btn-size);
     height: var(--ui-icon-btn-size);
     border-radius: 5px;
@@ -364,20 +427,25 @@ $: if (entries !== localEntries) {
   .icon-btn:hover {
     opacity: 1;
     color: var(--vscode-textLink-foreground);
-    background: color-mix(in srgb, var(--accent-color) 8%, transparent);
-    border-color: color-mix(in srgb, var(--accent-color) 16%, transparent);
+    background: color-mix(in srgb, var(--accent-color) 10%, transparent);
+    border-color: transparent;
+  }
+
+  .icon-btn:focus-visible {
+    outline: 1px solid color-mix(in srgb, var(--accent-color) 45%, transparent);
+    outline-offset: 1px;
   }
 
   .primary-btn {
-    color: #f4fbff;
-    border-color: color-mix(in srgb, var(--accent-color) 22%, transparent);
-    background: color-mix(in srgb, var(--accent-color) 14%, var(--vscode-sideBar-background));
+    color: color-mix(in srgb, var(--accent-color) 86%, white 14%);
+    border-color: transparent;
+    background: transparent;
   }
 
   .primary-btn:hover {
     color: white;
-    background: color-mix(in srgb, var(--accent-color) 20%, var(--vscode-sideBar-background));
-    border-color: color-mix(in srgb, var(--accent-color) 30%, transparent);
+    background: color-mix(in srgb, var(--accent-color) 14%, transparent);
+    border-color: transparent;
   }
 
   .primary-btn span {
@@ -540,7 +608,9 @@ $: if (entries !== localEntries) {
     overflow-y: auto;
   }
 
-  .copy-btn { font-size: 1em; flex-shrink: 0; }
+  .copy-btn { font-size: 0.8em; flex-shrink: 0; }
+
+  .insert-btn { font-size: 0.8em; flex-shrink: 0; }
 
   .menu-wrap {
     position: relative;
@@ -782,6 +852,13 @@ $: if (entries !== localEntries) {
     font-weight: 400;
     margin-bottom: 0.18rem;
     opacity: 0.84;
+    position: sticky;
+    bottom: 0;
+    z-index: 1;
+  }
+
+  .add-entry-btn.no-entries {
+    position: static;
   }
 
   .add-entry-btn:hover {

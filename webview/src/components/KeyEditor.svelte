@@ -17,12 +17,15 @@
   export let locked = false;
   export let selectedNote: { name: string; filePath: string };
   export let initialFilterText = "";
+  export let selectionSuggestion: { title?: string; type?: string; text?: string; requestId?: number } | null = null;
+  export let onRequestSelectionCheck: () => number;
 
   const dispatch = createEventDispatcher<{
     save: { entries: Entry[]; locked: boolean };
     back: void;
     unlock: string;
     lock: string;
+    openExternal: { type: string; value: string };
   }>();
 
   const extraFields = [
@@ -67,6 +70,23 @@
   let filterText = "";
   let lastAppliedInitialFilter = "";
   let entriesContainerElem: HTMLDivElement;
+
+  let filledFromSuggestion = false;
+  let activeSelectionRequestId = 0;
+
+  $: if (selectionSuggestion?.text && selectionSuggestion.requestId === activeSelectionRequestId && keyModalMode === 'add' && !filledFromSuggestion) {
+    filledFromSuggestion = true;
+    const parsed = parseKeyText(selectionSuggestion.text);
+    if (parsed.title) modalTitle = parsed.title;
+    if (parsed.password) modalPassword = parsed.password;
+    if (parsed.username) modalUsername = parsed.username;
+    if (parsed.email) modalEmail = parsed.email;
+    if (parsed.url) modalUrl = parsed.url;
+    if (parsed.host) modalHost = parsed.host;
+    if (parsed.port) modalPort = parsed.port;
+    if (parsed.token) modalToken = parsed.token;
+    if (parsed.note) modalNote = parsed.note;
+  }
 
   $: if (initialFilterText !== lastAppliedInitialFilter) {
     filterText = initialFilterText;
@@ -194,7 +214,10 @@
   }
 
   async function openAddModal() {
+    activeSelectionRequestId = 0;
     keyModalMode = 'add';
+    activeSelectionRequestId = onRequestSelectionCheck();
+    filledFromSuggestion = false;
     modalTitle = '';
     modalPassword = '';
     modalUrl = '';
@@ -206,6 +229,63 @@
     modalNote = '';
     await tick();
     modalTitleInput?.focus();
+  }
+
+  function parseKeyText(text: string): Record<string, string> {
+    const result: Record<string, string> = {};
+    const knownFields: Record<string, string> = {
+      username: 'username', user: 'username', nick: 'username', login: 'username',
+      password: 'password', pass: 'password', pw: 'password', passwd: 'password',
+      email: 'email', mail: 'email', e: 'email',
+      url: 'url', uri: 'url', website: 'url', site: 'url', link: 'url',
+      host: 'host', server: 'host', hostname: 'host',
+      port: 'port',
+      token: 'token', api_key: 'token', apikey: 'token', api: 'token', key: 'token',
+      note: 'note', notes: 'note', description: 'note', desc: 'note', comment: 'note',
+      title: 'title', name: 'title', label: 'title', service: 'title', account: 'title',
+    };
+
+    const trimmed = text.trim();
+    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        const obj = Array.isArray(parsed) ? parsed[0] : parsed;
+        if (obj && typeof obj === 'object') {
+          const unknown: string[] = [];
+          for (const [k, v] of Object.entries(obj)) {
+            const key = k.toLowerCase();
+            const value = String(v ?? '');
+            const mapped = knownFields[key];
+            if (mapped) {
+              if (!result[mapped]) result[mapped] = value;
+            } else {
+              unknown.push(`${k}: ${value}`);
+            }
+          }
+          if (unknown.length > 0) result.note = unknown.join('\n');
+          return result;
+        }
+      } catch { /* fall through to lenient parsing */ }
+    }
+
+    // Lenient JSON-like: strip braces, trailing commas, and surrounding quotes
+    const cleaned = trimmed
+      .replace(/^[\{\[]\s*/, '')
+      .replace(/\s*[\}\]]$/, '')
+      .trim();
+
+    for (const line of cleaned.split('\n')) {
+      const raw = line.trim().replace(/,$/, '');
+      if (!raw || raw === '---') continue;
+      const idx = raw.indexOf(':');
+      if (idx > 0) {
+        let key = raw.slice(0, idx).trim().toLowerCase().replace(/^["']|["']$/g, '');
+        let value = raw.slice(idx + 1).trim().replace(/^["']|["']$/g, '');
+        const mapped = knownFields[key];
+        if (mapped && !result[mapped]) result[mapped] = value;
+      }
+    }
+    return result;
   }
 
   function openEditModal(index: number) {
@@ -255,6 +335,17 @@
   function cancelModal() {
     keyModalMode = null;
     editingKeyIndex = null;
+    modalTitle = '';
+    modalPassword = '';
+    modalUrl = '';
+    modalEmail = '';
+    modalUsername = '';
+    modalHost = '';
+    modalPort = '';
+    modalToken = '';
+    modalNote = '';
+    activeSelectionRequestId = 0;
+    filledFromSuggestion = false;
   }
 
   function deleteEntry(index: number) {
@@ -309,6 +400,10 @@
     copyTimer = setTimeout(() => {
       copiedKey = "";
     }, 1200);
+  }
+
+  function doOpen(type: string, value: string) {
+    dispatch("openExternal", { type, value });
   }
 
   function handleUnlock() {
@@ -420,7 +515,6 @@
       </div>
     </div>
   {:else}
-    {#if localEntries.length > 0}
     <div class="editor-toolbar">
       <div class="search-field">
         <span class="search-icon anemona icon-search-alt"></span>
@@ -440,7 +534,6 @@
         ></span></button
       >
     </div>
-    {/if}
     <div class="entries" bind:this={entriesContainerElem}>
       {#each filteredEntries as entry, i}
         <div class="entry">
@@ -519,9 +612,20 @@
                           class={`anemona ${copiedKey === `${i}:${def.key}` ? "icon-check" : "icon-copy"}`}
                         ></span></button
                       >
-                      <span
-                        class={`detail-type-icon anemona ${getPropertyIcon(def.key)}`}
-                      ></span>
+                      {#if ["url", "host", "email"].includes(def.key)}
+                        <button
+                          class="icon-btn action-icon"
+                          on:click|stopPropagation={() => doOpen(def.key, val)}
+                          title="Open {def.label}"
+                          ><span
+                            class={`anemona ${getPropertyIcon(def.key)}`}
+                          ></span></button
+                        >
+                      {:else}
+                        <span
+                          class={`action-icon anemona ${getPropertyIcon(def.key)}`}
+                        ></span>
+                      {/if}
                       <div class="detail-copy-content">
                         <span class="detail-label">{def.label}</span>
                         <span class="detail-value">{val}</span>
@@ -533,8 +637,8 @@
             {/if}
         </div>
       {/each}
+      <button class="add-entry-btn" class:no-entries={localEntries.length === 0} on:click={openAddModal}><span class="anemona icon-plus"></span> Add entry</button>
     </div>
-    <button class="add-entry-btn" on:click={openAddModal}><span class="anemona icon-plus"></span> Add entry</button>
   {/if}
 </div>
 
@@ -636,16 +740,14 @@
   }
 
   .icon-btn {
-    background: color-mix(
-      in srgb,
-      var(--vscode-sideBar-background) 95%,
-      white 5%
-    );
-    border: 1px solid
-      color-mix(in srgb, var(--accent-color) 10%, var(--ui-border));
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid transparent;
     color: var(--vscode-sideBarTitle-foreground);
     cursor: pointer;
-    font-size: 0.72em;
+    font-size: 0.82em;
     width: var(--ui-icon-btn-size);
     height: var(--ui-icon-btn-size);
     border-radius: 5px;
@@ -658,20 +760,25 @@
   .icon-btn:hover {
     opacity: 1;
     color: var(--vscode-textLink-foreground);
-    background: color-mix(in srgb, var(--accent-color) 8%, transparent);
-    border-color: color-mix(in srgb, var(--accent-color) 16%, transparent);
+    background: color-mix(in srgb, var(--accent-color) 10%, transparent);
+    border-color: transparent;
+  }
+
+  .icon-btn:focus-visible {
+    outline: 1px solid color-mix(in srgb, var(--accent-color) 45%, transparent);
+    outline-offset: 1px;
   }
 
   .primary-btn {
-    color: #f4fbff;
-    border-color: color-mix(in srgb, var(--accent-color) 22%, transparent);
-    background: color-mix(in srgb, var(--accent-color) 14%, var(--vscode-sideBar-background));
+    color: color-mix(in srgb, var(--accent-color) 86%, white 14%);
+    border-color: transparent;
+    background: transparent;
   }
 
   .primary-btn:hover {
     color: white;
-    background: color-mix(in srgb, var(--accent-color) 20%, var(--vscode-sideBar-background));
-    border-color: color-mix(in srgb, var(--accent-color) 30%, transparent);
+    background: color-mix(in srgb, var(--accent-color) 14%, transparent);
+    border-color: transparent;
   }
 
   .primary-btn span {
@@ -964,13 +1071,13 @@
   .detail-action-btn {
     width: 1.52rem;
     height: 1.52rem;
-    font-size: 0.8em;
+    font-size: 0.86em;
   }
 
   .detail-row {
     display: flex;
-    align-items: flex-start;
-    gap: 0.24rem;
+    align-items: center;
+    gap: 0.1rem;
     font-size: var(--ui-font-xs);
     background: color-mix(
       in srgb,
@@ -978,20 +1085,31 @@
       var(--vscode-sideBar-background)
     );
     border-radius: var(--ui-radius-sm);
-    padding: 0.18rem var(--ui-card-pad-x);
+    padding: 0.06rem 0.16rem;
   }
 
-  .detail-type-icon {
-    width: 1.42rem;
-    height: 1.42rem;
+  .action-icon {
+    width: 1.3rem;
+    height: 1.3rem;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border-radius: var(--ui-radius-sm);
-    background: color-mix(in srgb, var(--accent-color) 10%, transparent);
-    color: color-mix(in srgb, var(--accent-color) 76%, white 24%);
-    font-size: 0.9em;
     flex-shrink: 0;
+    font-size: 0.8em;
+    background: none;
+    border: none;
+    cursor: default;
+    color: color-mix(in srgb, var(--accent-color) 72%, white 28%);
+  }
+
+  .action-icon:is(button) {
+    cursor: pointer;
+    border-radius: 3px;
+    background: transparent;
+  }
+
+  .action-icon:is(button):hover {
+    background: color-mix(in srgb, var(--accent-color) 18%, transparent);
   }
 
   .detail-copy-content {
@@ -1022,8 +1140,8 @@
 
   .copy-btn {
     font-size: 0.78em;
-    width: 1.42rem;
-    height: 1.42rem;
+    width: 1.3rem;
+    height: 1.3rem;
   }
 
   .field {
@@ -1226,6 +1344,13 @@
     font-weight: 400;
     margin-bottom: 0.18rem;
     opacity: 0.84;
+    position: sticky;
+    bottom: 0;
+    z-index: 1;
+  }
+
+  .add-entry-btn.no-entries {
+    position: static;
   }
 
   .add-entry-btn:hover {

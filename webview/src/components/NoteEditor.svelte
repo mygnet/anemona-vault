@@ -250,11 +250,14 @@
   }
 
   .icon-btn {
-    background: color-mix(in srgb, var(--vscode-sideBar-background) 95%, white 5%);
-    border: 1px solid color-mix(in srgb, var(--accent-color) 10%, var(--ui-border));
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid transparent;
     color: var(--vscode-sideBarTitle-foreground);
     cursor: pointer;
-    font-size: 0.72rem;
+    font-size: 0.82rem;
     width: var(--ui-icon-btn-size);
     height: var(--ui-icon-btn-size);
     border-radius: 5px;
@@ -266,8 +269,13 @@
   .icon-btn:hover {
     opacity: 1;
     color: var(--vscode-textLink-foreground);
-    background: color-mix(in srgb, var(--accent-color) 8%, transparent);
-    border-color: color-mix(in srgb, var(--accent-color) 16%, transparent);
+    background: color-mix(in srgb, var(--accent-color) 10%, transparent);
+    border-color: transparent;
+  }
+
+  .icon-btn:focus-visible {
+    outline: 1px solid color-mix(in srgb, var(--accent-color) 45%, transparent);
+    outline-offset: 1px;
   }
 
   .search-chip {

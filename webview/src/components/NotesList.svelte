@@ -1,3 +1,7 @@
+<script lang="ts" context="module">
+  let suppressNavigationUntil = 0;
+</script>
+
 <script lang="ts">
   import { tick } from "svelte";
   import { smartPopover } from "../utils/smartPopover";
@@ -15,6 +19,7 @@
   export let parentFolderPath: string | null = null;
   export let folderBreadcrumb: string[] = [];
   export let selectedCategoryConfig: { color?: string; icon?: string } = {};
+  export let categoryPath = "";
   export let canDeleteCategory = false;
   export let onSelect: (note: { name: string; filePath: string }) => void;
   export let onCreate: (title: string, fileType: string) => void;
@@ -23,6 +28,7 @@
   export let onRename: (note: { name: string; filePath: string }) => void;
   export let onMove: (note: { name: string; filePath: string }) => void;
   export let onExport: (note: { name: string; filePath: string }) => void;
+  export let onImport: (note: { name: string; filePath: string }) => void;
   export let onRenameCategory: (category: string) => void;
   export let onUpdateCategoryColor: (category: string, color: string) => void;
   export let onOpenFolder: (folder: { name: string; path: string }) => void;
@@ -38,8 +44,31 @@
     folder: { name: string; path: string },
     color: string,
   ) => void;
+  export let onDropItem: (data: {
+    sourcePath: string;
+    targetPath: string;
+  }) => void;
+  export let selectionSuggestion: { title?: string; type?: string } | null = null;
+  export let onRequestSelectionCheck: () => void;
 
   let newNoteName = "";
+  let selectionCheckPending = false;
+  let selectionCheckTimer: ReturnType<typeof setTimeout> | null = null;
+  let dragOverFolder: string | null = null;
+  let isDragActive = false;
+  let dropGuard = false;
+
+  function guard(fn: () => void) {
+    return (e: Event) => {
+      if (isDragActive || dropGuard || Date.now() < suppressNavigationUntil) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        return;
+      }
+      fn();
+    };
+  }
   let showInput = false;
   let addTitleInput: HTMLInputElement;
   let selectedType: string = "md";
@@ -124,8 +153,22 @@
     isCategoryMenuOpen = false;
     activeNoteMenu = null;
     if (showInput) {
-      await tick();
-      addTitleInput?.focus();
+      newNoteName = "";
+      selectedType = "md";
+      showInput = false;
+      selectionCheckPending = true;
+      if (selectionCheckTimer) clearTimeout(selectionCheckTimer);
+      onRequestSelectionCheck();
+      selectionCheckTimer = setTimeout(() => {
+        if (selectionCheckPending) {
+          selectionCheckPending = false;
+          showInput = true;
+          tick().then(() => addTitleInput?.focus());
+        }
+      }, 250);
+    } else {
+      selectionCheckPending = false;
+      if (selectionCheckTimer) clearTimeout(selectionCheckTimer);
     }
   }
 
@@ -169,9 +212,23 @@
     onMove(note);
   }
 
+  function requestImportFromMenu(note: { name: string; filePath: string }) {
+    activeNoteMenu = null;
+    onImport(note);
+  }
+
   function requestExportFromMenu(note: { name: string; filePath: string }) {
     activeNoteMenu = null;
     onExport(note);
+  }
+
+  $: if (selectionSuggestion && selectionCheckPending && (selectionSuggestion.title || selectionSuggestion.type)) {
+    if (selectionSuggestion.title) newNoteName = selectionSuggestion.title;
+    if (selectionSuggestion.type) selectedType = selectionSuggestion.type;
+    selectionCheckPending = false;
+    if (selectionCheckTimer) clearTimeout(selectionCheckTimer);
+    showInput = true;
+    tick().then(() => addTitleInput?.focus());
   }
 
   function getIconClass(note: { fileType?: string; name?: string }): string {
@@ -252,6 +309,45 @@
     onUpdateFolderColor(folder, color);
     folderColorPicker = null;
   }
+
+  function handleDragStart(event: DragEvent, itemPath: string) {
+    isDragActive = true;
+    event.dataTransfer?.setData("text/plain", itemPath);
+    event.dataTransfer!.effectAllowed = "move";
+  }
+
+  function handleDragEnd() {
+    isDragActive = false;
+    dragOverFolder = null;
+  }
+
+  function handleDragOver(event: DragEvent) {
+    event.preventDefault();
+    event.dataTransfer!.dropEffect = "move";
+  }
+
+  function handleDragEnter(event: DragEvent, folderPath: string) {
+    event.preventDefault();
+    dragOverFolder = folderPath;
+  }
+
+  function handleDragLeave() {
+    dragOverFolder = null;
+  }
+
+  function handleDrop(event: DragEvent, targetPath: string) {
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+    isDragActive = false;
+    dropGuard = true;
+    suppressNavigationUntil = Date.now() + 800;
+    setTimeout(() => { dropGuard = false; }, 800);
+    const sourcePath = event.dataTransfer?.getData("text/plain");
+    if (sourcePath && sourcePath !== targetPath) {
+      onDropItem({ sourcePath, targetPath });
+    }
+  }
 </script>
 
 <div class="notes-list">
@@ -260,7 +356,7 @@
       {#if parentFolderPath !== null}
         <button
           class="icon-btn back-btn"
-          on:click={onFolderBack}
+          on:click={guard(onFolderBack)}
           title="Back to parent folder"
           ><span class="anemona icon-chevron-left"></span></button
         >
@@ -332,19 +428,39 @@
     <div class="breadcrumb">
       <button
         class="breadcrumb-item icon-btn"
+        class:drag-over={dragOverFolder === categoryPath}
         aria-label="Root"
-        on:click={() => onBreadcrumbClick(-1)}
+        on:click={guard(() => onBreadcrumbClick(-1))}
+        on:dragover={handleDragOver}
+        on:dragenter={(e) => handleDragEnter(e, categoryPath)}
+        on:dragleave={handleDragLeave}
+        on:drop={(e) => handleDrop(e, categoryPath)}
         ><span class="anemona icon-home"></span></button
       >
       {#each folderBreadcrumb as segment, i}
+        {@const segPath = categoryPath + "/" + folderBreadcrumb.slice(0, i + 1).join("/")}
+        {@const isLast = i === folderBreadcrumb.length - 1}
         <span class="breadcrumb-sep">/</span>
-        <button
-          class="breadcrumb-item"
-          class:active={i === folderBreadcrumb.length - 1}
-          on:click={() => onBreadcrumbClick(i)}
-        >
-          {segment}
-        </button>
+        {#if isLast}
+          <button
+            class="breadcrumb-item active"
+            on:click={guard(() => onBreadcrumbClick(i))}
+          >
+            {segment}
+          </button>
+        {:else}
+          <button
+            class="breadcrumb-item"
+            class:drag-over={dragOverFolder === segPath}
+            on:click={guard(() => onBreadcrumbClick(i))}
+            on:dragover={handleDragOver}
+            on:dragenter={(e) => handleDragEnter(e, segPath)}
+            on:dragleave={handleDragLeave}
+            on:drop={(e) => handleDrop(e, segPath)}
+          >
+            {segment}
+          </button>
+        {/if}
       {/each}
     </div>
   {/if}
@@ -352,11 +468,20 @@
   {#each folders as folder}
     <div
       class="note-item folder-item"
+      class:drag-over={dragOverFolder === folder.path}
+      draggable="true"
+      role="listitem"
+      on:dragstart={(e) => handleDragStart(e, folder.path)}
+      on:dragend={handleDragEnd}
+      on:dragover={handleDragOver}
+      on:dragenter={(e) => handleDragEnter(e, folder.path)}
+      on:dragleave={handleDragLeave}
+      on:drop={(e) => handleDrop(e, folder.path)}
       style={resolveFolderAccent(folder.color)
         ? `background: color-mix(in srgb, ${resolveFolderAccent(folder.color)} 10%, var(--vscode-editor-background))`
         : ""}
     >
-      <button class="note-btn" on:click={() => openFolder(folder)}>
+      <button class="note-btn" on:click={guard(() => openFolder(folder))}>
         <span
           class="note-icon anemona icon-folder"
           style={resolveFolderAccent(folder.color)
@@ -453,8 +578,14 @@
   {/each}
 
   {#each notes as note}
-    <div class="note-item">
-      <button class="note-btn" on:click={() => select(note)}>
+    <div
+      class="note-item"
+      draggable="true"
+      role="listitem"
+      on:dragstart={(e) => handleDragStart(e, note.filePath)}
+      on:dragend={handleDragEnd}
+    >
+      <button class="note-btn" on:click={guard(() => select(note))}>
         <span class={`note-icon anemona ${getIconClass(note)}`}></span>
         <span class="note-name">{note.displayName || note.name}</span>
       </button>
@@ -491,6 +622,12 @@
               >
               <button
                 class="menu-item"
+                on:click|stopPropagation={() => requestImportFromMenu(note)}
+                ><span class="anemona icon-import"></span><span>Import</span
+                ></button
+              >
+              <button
+                class="menu-item"
                 on:click|stopPropagation={() => requestExportFromMenu(note)}
                 ><span class="anemona icon-export"></span><span>Export</span
                 ></button
@@ -514,7 +651,10 @@
     </div>
   {/each}
 
-  <button class="add-entry-btn" on:click={toggleInput}
+  <button
+    class="add-entry-btn"
+    class:no-entries={notes.length === 0 && folders.length === 0}
+    on:click={toggleInput}
     ><span class="anemona icon-plus"></span> Add entry</button
   >
 </div>
@@ -573,11 +713,11 @@
   .notes-list {
     flex: 1;
     overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    padding: 0.12rem 0.18rem 0.24rem;
+    padding: 0.12rem 0.18rem 0;
     box-sizing: border-box;
   }
+
+
 
   .header {
     display: flex;
@@ -645,8 +785,17 @@
     padding: 0.26rem 0.38rem;
     font-size: var(--ui-font-control);
     font-weight: 400;
-    margin-bottom: 0.24rem;
+    margin: 0 0 0.24rem;
     opacity: 0.84;
+    flex-shrink: 0;
+    position: sticky;
+    bottom: 0.24rem;
+    z-index: 1;
+  }
+
+  .add-entry-btn.no-entries {
+    position: static;
+    margin-top: 0.12rem;
   }
 
   .add-entry-btn:hover {
@@ -742,15 +891,14 @@
   }
 
   .icon-btn {
-    background: color-mix(
-      in srgb,
-      var(--vscode-editor-background) 96%,
-      white 4%
-    );
-    border: 1px solid color-mix(in srgb, var(--accent-color) 10%, transparent);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid transparent;
     color: var(--vscode-sideBarTitle-foreground);
     cursor: pointer;
-    font-size: 0.72em;
+    font-size: 0.82em;
     width: var(--ui-icon-btn-size);
     height: var(--ui-icon-btn-size);
     border-radius: 5px;
@@ -761,8 +909,13 @@
 
   .icon-btn:hover {
     color: var(--vscode-textLink-foreground);
-    background: color-mix(in srgb, var(--accent-color) 8%, transparent);
-    border-color: color-mix(in srgb, var(--accent-color) 14%, transparent);
+    background: color-mix(in srgb, var(--accent-color) 10%, transparent);
+    border-color: transparent;
+  }
+
+  .icon-btn:focus-visible {
+    outline: 1px solid color-mix(in srgb, var(--accent-color) 45%, transparent);
+    outline-offset: 1px;
   }
 
   .menu-popover {
@@ -1009,6 +1162,11 @@
     font-weight: 500;
   }
 
+  .breadcrumb-item.drag-over {
+    background: color-mix(in srgb, var(--accent-color) 18%, transparent) !important;
+    color: var(--accent-color) !important;
+  }
+
   .breadcrumb-sep {
     opacity: 0.4;
   }
@@ -1019,6 +1177,19 @@
 
   .folder-item .note-btn:hover {
     opacity: 1;
+  }
+
+  .folder-item.drag-over {
+    background: color-mix(in srgb, var(--accent-color) 18%, transparent) !important;
+    border-color: var(--accent-color) !important;
+  }
+
+  .note-item[draggable="true"] {
+    cursor: grab;
+  }
+
+  .note-item[draggable="true"]:active {
+    cursor: grabbing;
   }
 
   .folder-menu {
