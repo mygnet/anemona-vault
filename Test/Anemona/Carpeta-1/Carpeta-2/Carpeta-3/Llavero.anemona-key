@@ -1,0 +1,20 @@
+{
+  "entries": [
+    {
+      "title": "Llave 1",
+      "password": "9T+h2Vq1mBJNhPg2uTsV8vn/w2nF/zaS5aWchO8OBgpjHr8F/6w="
+    },
+    {
+      "title": "Llave 2",
+      "password": "W/jxsVhCk6qWWL7n2H1UYJgef1bKU/4iqhe2v0f1CZmiqwjhRpqK1ywx",
+      "url": "http://demo.com",
+      "email": "mygnet@gmail.com",
+      "username": "eoot",
+      "host": "ft.demo.dev",
+      "port": "21",
+      "token": "36363-373773-83838",
+      "note": "Nota---"
+    }
+  ],
+  "locked": false
+}

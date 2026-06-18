@@ -2,8 +2,8 @@
   {
     "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
     "title": "Comprar leche",
-    "progress": 25,
-    "status": "open",
+    "progress": 100,
+    "status": "done",
     "priority": "low",
     "dueAt": "2026-06-15T18:00"
   },
@@ -18,8 +18,8 @@
   {
     "id": "c3d4e5f6-a7b8-9012-cdef-123456789012",
     "title": "Leer libro de Rust",
-    "progress": 30,
-    "status": "open",
+    "progress": 100,
+    "status": "done",
     "priority": "medium"
   }
 ]

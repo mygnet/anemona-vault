@@ -3,6 +3,8 @@ import * as path from 'path'
 import * as vscode from 'vscode'
 import { NotesService } from '../services/NotesService'
 import { ConfigService } from './../services/ConfigService'
+import { NotificationService } from '../modules/notifications/NotificationService'
+import { ScheduledEventsCache } from '../modules/notifications/ScheduledEventsCache'
 import type { FileType, WebviewMessage, FolderBrief, FolderTreeNode, RecentFolderData, CategoryConfig } from '../types/notes'
 
 export class NotesViewProvider implements vscode.WebviewViewProvider {
@@ -14,14 +16,92 @@ export class NotesViewProvider implements vscode.WebviewViewProvider {
   private _currentCategory: string | null = null
   private _currentFolderPath: string = ''
   private _globalState: vscode.Memento | null = null
+  private _notificationService: NotificationService | null = null
+  private _scheduledEventsCache: ScheduledEventsCache | null = null
+  private _onVaultSwitch: ((vaultPath: string) => void) | null = null
 
   constructor(
     private readonly _extensionUri: vscode.Uri,
     notesService: NotesService,
     globalState?: vscode.Memento,
+    notificationService?: NotificationService,
   ) {
     this._notesService = notesService
     this._globalState = globalState ?? null
+    this._notificationService = notificationService ?? null
+  }
+
+  setNotificationService(service: NotificationService): void {
+    this._notificationService = service
+  }
+
+  setScheduledEventsCache(cache: ScheduledEventsCache): void {
+    this._scheduledEventsCache = cache
+  }
+
+  set onVaultSwitch(callback: ((vaultPath: string) => void) | null) {
+    this._onVaultSwitch = callback
+  }
+
+  private _syncScheduledEventsFile(filePath: string): void {
+    this._scheduledEventsCache?.syncFile(filePath)
+  }
+
+  private _cancelScheduledEventsFile(filePath: string): void {
+    this._scheduledEventsCache?.cancelFile(filePath)
+  }
+
+  private _cleanupReminderKeys(entries: any[]): void {
+    if (!this._notificationService) return
+    for (const entry of entries) {
+      if (String(entry?.status || '').trim() === 'completed' && entry?.id) {
+        this._notificationService.removeGeneratedKey(`reminder:${entry.id}`)
+      }
+    }
+  }
+
+  private _cleanupTodoKeys(entries: any[]): void {
+    if (!this._notificationService) return
+    for (const entry of entries) {
+      const status = String(entry?.status || '').trim()
+      if ((status === 'done' || status === 'cancelled') && entry?.id) {
+        this._notificationService.removeGeneratedKey(`task:${entry.id}`)
+      }
+    }
+  }
+
+  private _cleanupFileKeys(filePath: string, fileType: string): void {
+    if (!this._notificationService) return
+    try {
+      const raw = require('fs').readFileSync(filePath, 'utf-8')
+      const entries = JSON.parse(raw)
+      if (!Array.isArray(entries)) return
+      const prefix = fileType === 'reminder' ? 'reminder:' : fileType === 'todo' ? 'task:' : ''
+      if (!prefix) return
+      for (const entry of entries) {
+        if (entry?.id) {
+          this._notificationService.removeGeneratedKey(`${prefix}${entry.id}`)
+        }
+      }
+    } catch {
+      // skip if file unreadable
+    }
+  }
+
+  updateBadge(value: number, tooltip?: string): void {
+    if (this._view) {
+      this._view.badge = { value, tooltip: tooltip ?? `${value} notification(s) pending` }
+      this._view.description = value > 0 ? `${value} pending` : ''
+    }
+  }
+
+  private _updateBadgeFromNotifications(): void {
+    if (!this._notificationService) {
+      this.updateBadge(0)
+      return
+    }
+    const count = this._notificationService.getPendingCount()
+    this.updateBadge(count, `${count} notification(s) pending`)
   }
 
   resolveWebviewView(
@@ -30,6 +110,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider {
     _token: vscode.CancellationToken,
   ): void {
     this._view = webviewView
+    this._updateBadgeFromNotifications()
 
     webviewView.webview.options = {
       enableScripts: true,
@@ -48,10 +129,21 @@ export class NotesViewProvider implements vscode.WebviewViewProvider {
     )
   }
 
+  postSetLocale(locale: string): void {
+    this._postMessage({ command: 'setLocale', locale })
+  }
+
   private async _handleMessage(message: WebviewMessage): Promise<void> {
     switch (message.command) {
       case 'ready':
         this._loadCategories()
+        this._sendNotifications()
+        const storedLocale = this._globalState?.get<string>('locale', 'auto') || 'auto'
+        let resolvedLocale = storedLocale
+        if (storedLocale === 'auto') {
+          resolvedLocale = vscode.env.language === 'es' ? 'es' : 'en'
+        }
+        this._postMessage({ command: 'setLocale', locale: resolvedLocale })
         break
 
       case 'selectCategory':
@@ -225,6 +317,13 @@ export class NotesViewProvider implements vscode.WebviewViewProvider {
         )
         break
 
+      case 'saveReminderEntries':
+        await this._saveReminderEntries(
+          message.notePath as string,
+          message.entries as any[],
+        )
+        break
+
       case 'searchGlobal':
         await this._searchGlobal(String(message.query || ''))
         break
@@ -235,6 +334,134 @@ export class NotesViewProvider implements vscode.WebviewViewProvider {
 
       case 'getRecentFolders':
         await this._sendRecentFolders()
+        break
+
+      case 'getNotifications':
+        this._sendNotifications()
+        break
+
+      case 'markNotificationRead':
+        if (this._notificationService) {
+          this._notificationService.markRead(message.id as string)
+          this._sendNotifications()
+        }
+        break
+
+      case 'unreadNotification':
+        if (this._notificationService) {
+          this._notificationService.markUnread(message.id as string)
+          this._sendNotifications()
+        }
+        break
+
+      case 'deleteHistoryNotification':
+        if (this._notificationService) {
+          this._notificationService.deleteNotification(message.id as string)
+          this._sendNotifications()
+        }
+        break
+
+      case 'openNotification':
+        if (this._notificationService) {
+          const all = this._notificationService.getAll()
+          const n = all.find(n => n.id === message.id)
+          if (n?.action) {
+            await this._executeNotificationAction(n.action)
+          }
+        }
+        break
+
+      case 'loadHistoryPage':
+        if (this._notificationService) {
+          const page = Number(message.page) || 0
+          if (page > 0) {
+            const items = this._notificationService.getHistoryPage(page)
+            this._postMessage({
+              command: 'historyPageLoaded',
+              page,
+              items,
+            })
+          }
+        }
+        break
+    }
+  }
+
+  private async _executeNotificationAction(action: { type: string; target: string }): Promise<void> {
+    switch (action.type) {
+      case 'task': {
+        const match = this._findTodoNotePathByTaskId(action.target)
+        if (match) {
+          await this._openNoteFromPath(match)
+        }
+        break
+      }
+      case 'file':
+        await this._openFileAction(action.target)
+        break
+      case 'url':
+        vscode.env.openExternal(vscode.Uri.parse(action.target))
+        break
+      case 'command':
+        if (action.target.startsWith('anemonaVault.')) {
+          vscode.commands.executeCommand(action.target)
+        }
+        break
+      case 'system':
+        this._executeSystemAction(action.target)
+        break
+    }
+  }
+
+  private _findTodoNotePathByTaskId(taskId: string): string | null {
+    const root = this._notesService.getStoragePath()
+    if (!root) return null
+
+    try {
+      for (const cat of this._notesService.getCategories()) {
+        for (const note of this._notesService.getNotesRecursive(cat.path)) {
+          if (note.fileType !== 'todo') continue
+          try {
+            const entries = JSON.parse(fs.readFileSync(note.filePath, 'utf-8'))
+            if (Array.isArray(entries) && entries.some((e: any) => String(e?.id || '') === taskId)) {
+              return note.filePath
+            }
+          } catch {
+            // skip unreadable todo files
+          }
+        }
+      }
+    } catch {
+      // skip if vault is not ready
+    }
+
+    return null
+  }
+
+  private _resolveVaultFile(filePath: string): string {
+    if (path.isAbsolute(filePath)) return filePath
+    const storagePath = this._notesService.getStoragePath()
+    return storagePath ? path.join(storagePath, filePath) : filePath
+  }
+
+  private async _openFileAction(filePath: string): Promise<void> {
+    const resolved = this._resolveVaultFile(filePath)
+    const fileType = this._notesService.getFileType(path.basename(resolved))
+    if (fileType !== 'md' || resolved.endsWith('.md')) {
+      await this._openNoteFromPath(resolved)
+      return
+    }
+    await vscode.commands.executeCommand('vscode.open', vscode.Uri.file(resolved))
+  }
+
+  private _executeSystemAction(target: string): void {
+    switch (target) {
+      case 'changelog':
+        vscode.env.openExternal(
+          vscode.Uri.parse('https://github.com/mygnet/anemona-vault/blob/main/CHANGELOG.md')
+        )
+        break
+      default:
         break
     }
   }
@@ -326,6 +553,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider {
     await ConfigService.setStoragePath(folderPath)
     this._notesService.setStoragePath(folderPath)
     this._addRecentFolder(folderPath)
+    this._onVaultSwitch?.(folderPath)
     this._updateViewTitle()
     this._loadCategories()
   }
@@ -335,6 +563,21 @@ export class NotesViewProvider implements vscode.WebviewViewProvider {
       command: 'recentFolders',
       recentFolders: this._getRecentFolders(),
     })
+  }
+
+  private _sendNotifications(): void {
+    if (!this._notificationService) return
+    const historyIndex = this._notificationService.getHistoryIndex()
+    const history = historyIndex.currentPage > 0
+      ? this._notificationService.getHistoryPage(historyIndex.currentPage)
+      : []
+    this._postMessage({
+      command: 'notificationsLoaded',
+      notifications: this._notificationService.getInbox(),
+      history,
+      historyIndex,
+    })
+    this._updateBadgeFromNotifications()
   }
 
   private async _loadNotes(categoryName: string, folderPath?: string): Promise<void> {
@@ -373,11 +616,12 @@ export class NotesViewProvider implements vscode.WebviewViewProvider {
   private async _loadNoteContent(
     categoryName: string,
     noteName: string,
+    notePath?: string,
   ): Promise<void> {
     try {
       const categoryPath = path.join(this._notesService.getStoragePath() || '', categoryName)
       const allNotes = this._notesService.getNotesRecursive(categoryPath)
-      const note = allNotes.find((n) => n.name === noteName)
+      const note = allNotes.find((n) => (notePath ? n.filePath === notePath : n.name === noteName))
 
       if (!note) return
 
@@ -436,6 +680,12 @@ export class NotesViewProvider implements vscode.WebviewViewProvider {
         const entries = await this._notesService.readSnippetEntries(note.filePath)
         postNoteContent({
           fileType: 'snippet',
+          entries,
+        })
+      } else if (fileType === 'reminder') {
+        const entries = await this._notesService.readReminderEntries(note.filePath)
+        postNoteContent({
+          fileType: 'reminder',
           entries,
         })
       } else {
@@ -538,6 +788,8 @@ export class NotesViewProvider implements vscode.WebviewViewProvider {
   ): Promise<void> {
     try {
       await this._notesService.saveTodoEntries(notePath, entries)
+      this._cleanupTodoKeys(entries)
+      this._syncScheduledEventsFile(notePath)
       const activeEntries = (entries as any[]).filter(
         (e: any) => e.status !== 'cancelled',
       )
@@ -579,6 +831,23 @@ export class NotesViewProvider implements vscode.WebviewViewProvider {
     }
   }
 
+  private async _saveReminderEntries(
+    notePath: string,
+    entries: any[],
+  ): Promise<void> {
+    try {
+      await this._notesService.saveReminderEntries(notePath, entries)
+      this._cleanupReminderKeys(entries)
+      this._syncScheduledEventsFile(notePath)
+      this._postMessage({ command: 'noteSaved' })
+    } catch (err) {
+      this._postMessage({
+        command: 'error',
+        message: err instanceof Error ? err.message : 'Failed to save reminder entries',
+      })
+    }
+  }
+
   private async _searchGlobal(query: string): Promise<void> {
     try {
       const results = await this._notesService.searchAll(query)
@@ -598,6 +867,8 @@ export class NotesViewProvider implements vscode.WebviewViewProvider {
   private async _deleteNote(notePath: string): Promise<void> {
     try {
       await this._notesService.deleteNote(notePath)
+      this._cleanupFileKeys(notePath, this._notesService.getFileType(path.basename(notePath)))
+      this._cancelScheduledEventsFile(notePath)
       if (this._currentNotePath === notePath) {
         this._currentNotePath = null
       }
@@ -618,6 +889,9 @@ export class NotesViewProvider implements vscode.WebviewViewProvider {
   private async _renameNote(notePath: string, title: string): Promise<void> {
     try {
       const newPath = await this._notesService.renameNote(notePath, title)
+      this._cleanupFileKeys(notePath, this._notesService.getFileType(path.basename(notePath)))
+      this._cancelScheduledEventsFile(notePath)
+      this._syncScheduledEventsFile(newPath)
       const category = this._getCategoryFromNotePath(newPath)
 
       if (this._currentNotePath === notePath) {
@@ -640,14 +914,21 @@ export class NotesViewProvider implements vscode.WebviewViewProvider {
   private async _moveNote(notePath: string, targetCategory: string, targetFolderPath?: string): Promise<void> {
     try {
       const sourceCategory = this._getCategoryFromNotePath(notePath)
+      let newPath: string
       if (targetFolderPath) {
         const rootPath = this._notesService.getStoragePath()
         const storagePath = rootPath || ''
         const targetDir = path.join(storagePath, targetCategory, targetFolderPath)
         await this._notesService.moveItem(notePath, targetDir)
+        newPath = path.join(targetDir, path.basename(notePath))
       } else {
         await this._notesService.moveNote(notePath, targetCategory)
+        const rootPath = this._notesService.getStoragePath() || ''
+        newPath = path.join(rootPath, targetCategory, path.basename(notePath))
       }
+      this._cleanupFileKeys(notePath, this._notesService.getFileType(path.basename(notePath)))
+      this._cancelScheduledEventsFile(notePath)
+      this._syncScheduledEventsFile(newPath)
       this._postMessage({ command: 'noteMoved', notePath, targetCategory })
       if (sourceCategory) {
         this._loadNotes(sourceCategory, this._currentFolderPath)
@@ -679,6 +960,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider {
   private async _deleteFolder(folderPath: string): Promise<void> {
     try {
       await this._notesService.deleteFolder(folderPath)
+      this._scheduledEventsCache?.rebuild()
       const category = this._getCategoryFromNotePath(folderPath) || this._currentCategory
       if (category) {
         this._loadNotes(category, this._currentFolderPath)
@@ -696,6 +978,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider {
   private async _renameFolder(folderPath: string, name: string): Promise<void> {
     try {
       await this._notesService.renameFolder(folderPath, name)
+      this._scheduledEventsCache?.rebuild()
       const category = this._getCategoryFromNotePath(folderPath) || this._currentCategory
       if (category) {
         this._loadNotes(category, this._currentFolderPath)
@@ -712,6 +995,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider {
   private async _moveFolder(sourcePath: string, targetDir: string): Promise<void> {
     try {
       await this._notesService.moveItem(sourcePath, targetDir)
+      this._scheduledEventsCache?.rebuild()
       const sourceCategory = this._getCategoryFromNotePath(sourcePath) || this._currentCategory
       this._postMessage({ command: 'folderMoved', sourcePath, targetDir })
       if (sourceCategory) {
@@ -728,7 +1012,15 @@ export class NotesViewProvider implements vscode.WebviewViewProvider {
 
   private async _handleDropItem(sourcePath: string, targetPath: string): Promise<void> {
     try {
+      const wasDirectory = fs.existsSync(sourcePath) && fs.statSync(sourcePath).isDirectory()
       await this._notesService.moveItem(sourcePath, targetPath)
+      if (wasDirectory) {
+        this._scheduledEventsCache?.rebuild()
+      } else {
+        this._cleanupFileKeys(sourcePath, this._notesService.getFileType(path.basename(sourcePath)))
+        this._cancelScheduledEventsFile(sourcePath)
+        this._syncScheduledEventsFile(path.join(targetPath, path.basename(sourcePath)))
+      }
       const sourceCategory = this._getCategoryFromNotePath(sourcePath) || this._currentCategory
       this._postMessage({ command: 'itemMoved', sourcePath, targetPath })
       if (sourceCategory) {
@@ -767,12 +1059,13 @@ export class NotesViewProvider implements vscode.WebviewViewProvider {
       }
 
       const text = editor.document.getText(editor.selection)
+      const languageId = editor.document.languageId
       const suggestion = this._notesService.analyzeSelection(text)
 
       this._postMessage({
         command: 'selectionAnalysis',
         requestId,
-        suggestion: suggestion ? { title: suggestion.title, type: suggestion.type, text } : null,
+        suggestion: suggestion ? { title: suggestion.title, type: suggestion.type, text, languageId } : null,
       })
     } catch {
       this._postMessage({ command: 'selectionAnalysis', requestId, suggestion: null })
@@ -814,7 +1107,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider {
           openLabel: 'Import file',
           filters: {
             'All Files': ['*'],
-            'Anemona Vault': ['*anemona-key', '*anemona-lock', '*anemona-command', '*anemona-todo', '*anemona-snippet', '*.md'],
+            'Anemona Vault': ['*anemona-key', '*anemona-lock', '*anemona-command', '*anemona-todo', '*anemona-snippet', '*anemona-reminder', '*.md'],
           },
         })
         if (!files || files.length === 0) return
@@ -876,6 +1169,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider {
       }
 
       await this._notesService.importContent(content, notePath)
+      this._syncScheduledEventsFile(notePath)
 
       const category = this._getCategoryFromNotePath(notePath) || this._currentCategory
       this._postMessage({ command: 'contentImported', notePath })
@@ -1086,14 +1380,41 @@ export class NotesViewProvider implements vscode.WebviewViewProvider {
   }
 
   refresh(): void {
+    this._postMessage({ command: 'beginReload' })
     this._loadCategories()
     if (this._currentCategory) {
       this._loadNotes(this._currentCategory, this._currentFolderPath)
     }
+    this._notificationService?.reload()
+    this._sendNotifications()
+  }
+
+  private async _openNoteFromPath(notePath: string): Promise<void> {
+    const storagePath = this._notesService.getStoragePath()
+    if (!storagePath) return
+    const relative = path.relative(storagePath, notePath)
+    const parts = relative.split(path.sep)
+    const categoryName = parts[0]
+    const relativeFolder = parts.slice(1, -1).join('/')
+    const noteName = path.basename(notePath)
+
+    vscode.commands.executeCommand('anemonaVault.view.focus')
+    this._currentCategory = categoryName
+    this._currentFolderPath = relativeFolder
+    this._postMessage({ command: 'activateNotes', category: categoryName, folderPath: relativeFolder })
+    this._loadCategories()
+    await this._loadNotes(categoryName, relativeFolder)
+    this._currentNotePath = notePath
+    await this._loadNoteContent(categoryName, noteName, notePath)
   }
 
   postSearchCommand(): void {
     this._postMessage({ command: 'activateSearch' })
+  }
+
+  postShowNotifications(): void {
+    this._postMessage({ command: 'activateNotifications' })
+    this._sendNotifications()
   }
 
   handleRecentFoldersCommand(): void {
@@ -1149,6 +1470,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider {
       await ConfigService.setStoragePath(folderPath)
       this._notesService.setStoragePath(folderPath)
       this._addRecentFolder(folderPath)
+      this._onVaultSwitch?.(folderPath)
       this._updateViewTitle()
       this._loadCategories()
     }

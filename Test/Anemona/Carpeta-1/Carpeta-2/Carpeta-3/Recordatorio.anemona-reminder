@@ -1,0 +1,67 @@
+[
+  {
+    "id": "9f464836-ae0b-4c9b-8a6f-96633a3482a8",
+    "title": "Recodatorio",
+    "text": "Hacer la tareas",
+    "dueAt": "2026-06-18T16:55:00.000Z",
+    "status": "completed",
+    "action": {
+      "type": "none",
+      "target": ""
+    },
+    "createdAt": "2026-06-18T04:06:22.695Z",
+    "updatedAt": "2026-06-18T18:57:50.285Z"
+  },
+  {
+    "id": "049f7b05-1f6e-42cc-8543-ee72da33d890",
+    "title": "Demostracion",
+    "text": "",
+    "dueAt": "2026-06-18T16:58:00.000Z",
+    "status": "completed",
+    "action": {
+      "type": "none",
+      "target": ""
+    },
+    "createdAt": "2026-06-18T16:56:58.779Z",
+    "updatedAt": "2026-06-18T18:57:50.285Z"
+  },
+  {
+    "id": "e4101067-a016-4f42-8715-e02eb569c74d",
+    "title": "llamar a mama",
+    "text": "ssss",
+    "dueAt": "2026-06-18T19:53:00.000Z",
+    "status": "completed",
+    "action": {
+      "type": "none",
+      "target": ""
+    },
+    "createdAt": "2026-06-18T18:49:36.002Z",
+    "updatedAt": "2026-06-18T18:57:50.285Z"
+  },
+  {
+    "id": "1ac7fdb8-9f0d-49b0-8443-dc93dfa8992b",
+    "title": "Parav papa",
+    "text": "",
+    "dueAt": "2026-06-18T18:54:00.000Z",
+    "status": "completed",
+    "action": {
+      "type": "none",
+      "target": ""
+    },
+    "createdAt": "2026-06-18T18:53:01.684Z",
+    "updatedAt": "2026-06-18T18:57:50.285Z"
+  },
+  {
+    "id": "9f88ac16-8cd8-445d-8d63-56938a6624d3",
+    "title": "Realizar actividades",
+    "text": "Hacer la migracion",
+    "dueAt": "2026-06-18T18:57:00.000Z",
+    "status": "completed",
+    "action": {
+      "type": "none",
+      "target": ""
+    },
+    "createdAt": "2026-06-18T18:56:51.984Z",
+    "updatedAt": "2026-06-18T18:57:50.285Z"
+  }
+]

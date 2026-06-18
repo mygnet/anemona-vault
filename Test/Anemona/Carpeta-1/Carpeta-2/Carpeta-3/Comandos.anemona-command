@@ -1,0 +1,18 @@
+[
+  {
+    "title": "Coamndo 1",
+    "command": "ls"
+  },
+  {
+    "title": "demo",
+    "command": "ls -ladir * dir *\n\n\ndir * dir *"
+  },
+  {
+    "title": "dir",
+    "command": "dir * dir *"
+  },
+  {
+    "title": "Nuevo comando",
+    "command": "ls dir papa"
+  }
+]

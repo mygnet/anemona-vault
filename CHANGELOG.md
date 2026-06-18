@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.0.4 — 2026-06-18
+
+- **Notification system** — New local notification module for task reminders (due soon, overdue) and system messages. Persistent `.anemona/notifications/` storage with inbox/history/index structure. Badge counter on Activity Bar icon, bell icon in sidebar header with badge, and notification panel with Inbox/History tabs.
+- **View state persistence for notifications** — Notification panel remembers active tab (Inbox/History) across view switches.
+- **i18n / Internationalization** — Full language support with auto-detect from VS Code (`vscode.env.language`). English (en) and Spanish (es) included. Centralized `t()` function with Svelte reactive store and `{{variable}}` interpolation. Fallback: selected locale → English → raw key. Language selector in the More Actions menu (Auto / Español / English) with persistence via `globalState`. New `webview/src/i18n/` module — adding a new language only requires a JSON file.
+- **Reminder notes** — New `.anemona-reminder` note type. JSON-based file format with `text`, `dueAt`, `status` (pending/completed), and action (none/file/url/command/task). Dedicated editor with add/edit/delete/complete, due date picker (hours/days/weeks/months/specific date), and action configuration.
+- **Reminder notification support** — Task provider now scans `.anemona-reminder` files and generates due-soon/overdue notifications via the existing scheduler.
+- **Scheduled events cache** — New `.anemona/cache/scheduled-events.json` cache for reminders and tasks with due dates. Scheduler now reads only the cache on each check instead of scanning every vault file. Includes automatic initial rebuild, incremental updates on save/delete/move/import, file watchers for `.anemona-reminder` and `.anemona-todo`, and `anemonaVault.rebuildScheduledEventsCache` command.
+- **Minute-level due checks** — Scheduler now keeps scheduled events in memory and compares due timestamps every minute. The JSON cache is reloaded on cache changes and periodically via `notifications.checkIntervalMinutes` as a fallback refresh interval.
+- **Reminder search & export** — Full-text search across reminder text/status, and export as JSON/plain-text/markdown.
+- **UI improvements** — Reload overlay with spinner animation, initial loading indicator on startup, larger sidebar icons, subtle divider between icon toolbar and category tabs, visual type selector grid replacing dropdowns, editor header icons per file type, form validation with red borders on empty required fields, clickable URL globe icon on reminder cards, sticky Add button in editors, simplified reminder form, and normalized notification history order.
+- **Fix: Filtered list actions** — edit, delete, copy, and insert now target the correct item when a search/filter is active, instead of always acting on the first unfiltered entry.
+- **Fix: Global search includes new fields** — Global search now finds reminders by title and tasks by description.
+- **Fix: Import success toast** — Shows a confirmation message when content import completes.
+- **UI: Search clear button** — Search inputs now show an X button to clear the filter.
+- **UI: Priority filter in tasks** — Priority filter button (P/H/M/L) restored alongside the search bar.
+- **UI: Unified editor styles** — Editors now share common styles for a more consistent appearance.
+
 ## 1.0.3 — 2026-06-15
 
 - **Drag-and-drop to move files & folders** — Grab any note or folder and drop it onto a target folder to move it instantly. Visual highlight on hover, works like a file explorer. Drop also works on breadcrumb segments (Home icon or any intermediate folder in the path).

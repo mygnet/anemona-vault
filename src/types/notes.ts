@@ -5,7 +5,7 @@ export interface Note {
   fileType: FileType
 }
 
-export type FileType = 'md' | 'key' | 'command' | 'todo' | 'snippet'
+export type FileType = 'md' | 'key' | 'command' | 'todo' | 'snippet' | 'reminder'
 
 export interface CategoryConfig {
   color?: string
@@ -41,6 +41,7 @@ export interface CommandEntry {
 export interface TodoEntry {
   id?: string
   title: string
+  text?: string
   progress: number
   status: 'open' | 'done' | 'cancelled'
   priority: 'low' | 'medium' | 'high'
@@ -91,6 +92,22 @@ export interface RecentFolderData {
   name: string
   icon?: string
   lastOpened: string
+}
+
+export interface AnemonaReminderAction {
+  type: 'none' | 'file' | 'url' | 'command' | 'task'
+  target: string
+}
+
+export interface AnemonaReminder {
+  id: string
+  title?: string
+  text: string
+  dueAt: string
+  status: 'pending' | 'completed'
+  action: AnemonaReminderAction
+  createdAt: string
+  updatedAt: string
 }
 
 export interface WebviewMessage {

@@ -1,0 +1,41 @@
+[
+  {
+    "id": "fcedce2d-83ae-4152-8e6f-7ce47430ea00",
+    "title": "Renovar SSL",
+    "text": "Renovar SSL",
+    "dueAt": "2026-06-17T19:14:54.851Z",
+    "status": "completed",
+    "action": {
+      "type": "url",
+      "target": "https://icomoon.io/new-app/anemona"
+    },
+    "createdAt": "2026-06-16T23:58:34.345Z",
+    "updatedAt": "2026-06-18T18:27:48.876Z"
+  },
+  {
+    "id": "3f03cece-cf0f-4e2c-8166-e48b67df88c9",
+    "title": "wwwwww",
+    "text": "wwwwww",
+    "dueAt": "2026-06-17T19:20:50.168Z",
+    "status": "completed",
+    "action": {
+      "type": "none",
+      "target": ""
+    },
+    "createdAt": "2026-06-17T01:01:54.324Z",
+    "updatedAt": "2026-06-18T18:27:48.876Z"
+  },
+  {
+    "id": "370d1a02-bdee-4973-8c6c-72b65a4f072d",
+    "title": "sssss",
+    "text": "sssss",
+    "dueAt": "2026-06-17T19:30:00.000Z",
+    "status": "completed",
+    "action": {
+      "type": "url",
+      "target": "https://github.com/mygnet/anemona-vault/blob/main/CHANGELOG.md"
+    },
+    "createdAt": "2026-06-17T01:27:28.001Z",
+    "updatedAt": "2026-06-18T18:27:48.876Z"
+  }
+]

@@ -5,6 +5,7 @@
 <script lang="ts">
   import { tick } from "svelte";
   import { smartPopover } from "../utils/smartPopover";
+  import { t } from '../i18n';
 
   export let notes: {
     name: string;
@@ -34,6 +35,7 @@
   export let onOpenFolder: (folder: { name: string; path: string }) => void;
   export let onFolderBack: () => void;
   export let onBreadcrumbClick: (index: number) => void;
+
   export let onDeleteFolder: (folder: { name: string; path: string }) => void;
   export let onRenameFolder: (
     folder: { name: string; path: string },
@@ -72,6 +74,7 @@
   let showInput = false;
   let addTitleInput: HTMLInputElement;
   let selectedType: string = "md";
+  let nameError = false;
   let isCategoryMenuOpen = false;
   let activeNoteMenu: string | null = null;
   let activeFolderMenu: string | null = null;
@@ -86,39 +89,39 @@
     {
       value: "vscode-default",
       swatch: "var(--vscode-sideBarTitle-foreground)",
-      title: "VS Code default",
+      title: 'notesList.colorDefault',
     },
     {
       value: "vscode-muted",
       swatch:
         "color-mix(in srgb, var(--vscode-sideBarTitle-foreground) 76%, transparent)",
-      title: "VS Code muted",
+      title: 'notesList.colorMuted',
     },
     {
       value: "vscode-soft",
       swatch: "var(--vscode-editor-background)",
-      title: "VS Code surface",
+      title: 'notesList.colorSurface',
     },
-    { value: "#fc5c65", swatch: "#fc5c65", title: "Red" },
-    { value: "#fd9644", swatch: "#fd9644", title: "Orange" },
-    { value: "#fed330", swatch: "#fed330", title: "Gold" },
-    { value: "#26de81", swatch: "#26de81", title: "Green" },
-    { value: "#2bcbba", swatch: "#2bcbba", title: "Turquoise" },
-    { value: "#eb3b5a", swatch: "#eb3b5a", title: "Crimson" },
-    { value: "#fa8231", swatch: "#fa8231", title: "Tangerine" },
-    { value: "#f7b731", swatch: "#f7b731", title: "Amber" },
-    { value: "#20bf6b", swatch: "#20bf6b", title: "Emerald" },
-    { value: "#0fb9b1", swatch: "#0fb9b1", title: "Teal" },
-    { value: "#45aaf2", swatch: "#45aaf2", title: "Sky" },
-    { value: "#4b7bec", swatch: "#4b7bec", title: "Blue" },
-    { value: "#a55eea", swatch: "#a55eea", title: "Purple" },
-    { value: "#d1d8e0", swatch: "#d1d8e0", title: "Silver" },
-    { value: "#778ca3", swatch: "#778ca3", title: "Steel" },
-    { value: "#2d98da", swatch: "#2d98da", title: "Ocean" },
-    { value: "#3867d6", swatch: "#3867d6", title: "Royal blue" },
-    { value: "#8854d0", swatch: "#8854d0", title: "Violet" },
-    { value: "#a5b1c2", swatch: "#a5b1c2", title: "Cloud" },
-    { value: "#4b6584", swatch: "#4b6584", title: "Slate" },
+    { value: "#fc5c65", swatch: "#fc5c65", title: 'notesList.colorRed' },
+    { value: "#fd9644", swatch: "#fd9644", title: 'notesList.colorOrange' },
+    { value: "#fed330", swatch: "#fed330", title: 'notesList.colorGold' },
+    { value: "#26de81", swatch: "#26de81", title: 'notesList.colorGreen' },
+    { value: "#2bcbba", swatch: "#2bcbba", title: 'notesList.colorTurquoise' },
+    { value: "#eb3b5a", swatch: "#eb3b5a", title: 'notesList.colorCrimson' },
+    { value: "#fa8231", swatch: "#fa8231", title: 'notesList.colorTangerine' },
+    { value: "#f7b731", swatch: "#f7b731", title: 'notesList.colorAmber' },
+    { value: "#20bf6b", swatch: "#20bf6b", title: 'notesList.colorEmerald' },
+    { value: "#0fb9b1", swatch: "#0fb9b1", title: 'notesList.colorTeal' },
+    { value: "#45aaf2", swatch: "#45aaf2", title: 'notesList.colorSky' },
+    { value: "#4b7bec", swatch: "#4b7bec", title: 'notesList.colorBlue' },
+    { value: "#a55eea", swatch: "#a55eea", title: 'notesList.colorPurple' },
+    { value: "#d1d8e0", swatch: "#d1d8e0", title: 'notesList.colorSilver' },
+    { value: "#778ca3", swatch: "#778ca3", title: 'notesList.colorSteel' },
+    { value: "#2d98da", swatch: "#2d98da", title: 'notesList.colorOcean' },
+    { value: "#3867d6", swatch: "#3867d6", title: 'notesList.colorRoyalBlue' },
+    { value: "#8854d0", swatch: "#8854d0", title: 'notesList.colorViolet' },
+    { value: "#a5b1c2", swatch: "#a5b1c2", title: 'notesList.colorCloud' },
+    { value: "#4b6584", swatch: "#4b6584", title: 'notesList.colorSlate' },
   ];
 
   const systemCategoryColors = categoryColors.slice(0, 3);
@@ -141,11 +144,15 @@
   }
 
   function create() {
-    if (newNoteName.trim()) {
-      onCreate(newNoteName.trim(), selectedType);
-      newNoteName = "";
-      showInput = false;
+    const name = newNoteName.trim()
+    if (!name) {
+      nameError = true
+      return
     }
+    nameError = false
+    onCreate(name, selectedType)
+    newNoteName = ""
+    showInput = false
   }
 
   async function toggleInput() {
@@ -155,6 +162,7 @@
     if (showInput) {
       newNoteName = "";
       selectedType = "md";
+      nameError = false;
       showInput = false;
       selectionCheckPending = true;
       if (selectionCheckTimer) clearTimeout(selectionCheckTimer);
@@ -162,11 +170,13 @@
       selectionCheckTimer = setTimeout(() => {
         if (selectionCheckPending) {
           selectionCheckPending = false;
+          newNoteName = "";
           showInput = true;
           tick().then(() => addTitleInput?.focus());
         }
       }, 250);
     } else {
+      newNoteName = "";
       selectionCheckPending = false;
       if (selectionCheckTimer) clearTimeout(selectionCheckTimer);
     }
@@ -233,10 +243,11 @@
 
   function getIconClass(note: { fileType?: string; name?: string }): string {
     if (note.name?.endsWith(".anemona-lock")) return "icon-file-lock";
-    if (note.fileType === "key") return "icon-file-key";
-    if (note.fileType === "command") return "icon-file-terminal";
+    if (note.fileType === "key") return "icon-key-solid";
+    if (note.fileType === "command") return "icon-terminal";
     if (note.fileType === "todo") return "icon-list-todo";
-    if (note.fileType === "snippet") return "icon-file-snippet";
+    if (note.fileType === "snippet") return "icon-code-xml";
+    if (note.fileType === "reminder") return "icon-alarm-clock";
     return "icon-file-text";
   }
 
@@ -357,7 +368,7 @@
         <button
           class="icon-btn back-btn"
           on:click={guard(onFolderBack)}
-          title="Back to parent folder"
+          title={$t('common.back')}
           ><span class="anemona icon-chevron-left"></span></button
         >
       {/if}
@@ -367,13 +378,13 @@
       <button
         class="icon-btn primary-action"
         on:click={toggleInput}
-        title="Add file"><span class="anemona icon-plus"></span></button
+        title={$t('notesList.addFile')}><span class="anemona icon-plus"></span></button
       >
       <div class="menu-wrap" class:menu-open={isCategoryMenuOpen}>
         <button
           class="icon-btn menu-trigger"
           on:click={toggleCategoryMenu}
-          title="Category options"
+          title={$t('notesList.categoryOptions')}
           ><span class="anemona icon-cog"></span></button
         >
         {#if isCategoryMenuOpen}
@@ -385,12 +396,12 @@
             }}
           >
             <button class="menu-item" on:click={requestRenameCategory}
-              ><span class="anemona icon-edit-alt"></span><span>Rename</span
+              ><span class="anemona icon-edit-alt"></span><span>{$t('notesList.rename')}</span
               ></button
             >
             {#if canDeleteCategory}
               <button class="menu-item danger" on:click={requestDeleteCategory}
-                ><span class="anemona icon-trash-alt"></span><span>Delete</span
+                ><span class="anemona icon-trash-alt"></span><span>{$t('notesList.delete')}</span
                 ></button
               >
             {/if}
@@ -402,7 +413,7 @@
                   class:active={selectedCategoryConfig.color === color.value}
                   style={`--swatch:${color.swatch}`}
                   on:click={() => updateCategoryColor(color.value)}
-                  title={color.title}
+                  title={$t(color.title)}
                 ></button>
               {/each}
             </div>
@@ -414,7 +425,7 @@
                   class:active={selectedCategoryConfig.color === color.value}
                   style={`--swatch:${color.swatch}`}
                   on:click={() => updateCategoryColor(color.value)}
-                  title={color.title}
+                  title={$t(color.title)}
                 ></button>
               {/each}
             </div>
@@ -429,7 +440,7 @@
       <button
         class="breadcrumb-item icon-btn"
         class:drag-over={dragOverFolder === categoryPath}
-        aria-label="Root"
+        aria-label={$t('notesList.root')}
         on:click={guard(() => onBreadcrumbClick(-1))}
         on:dragover={handleDragOver}
         on:dragenter={(e) => handleDragEnter(e, categoryPath)}
@@ -512,27 +523,27 @@
               <button
                 class="menu-item"
                 on:click|stopPropagation={() => requestFolderRename(folder)}
-                ><span class="anemona icon-edit-alt"></span><span>Rename</span
+                ><span class="anemona icon-edit-alt"></span><span>{$t('notesList.rename')}</span
                 ></button
               >
               <button
                 class="menu-item"
                 on:click|stopPropagation={() => requestFolderMove(folder)}
-                ><span class="anemona icon-move"></span><span>Move to</span
+                ><span class="anemona icon-move"></span><span>{$t('notesList.moveTo')}</span
                 ></button
               >
               <button
                 class="menu-item"
                 on:click|stopPropagation={() =>
                   toggleFolderColorPicker(folder.path)}
-                ><span class="anemona icon-color-fill"></span><span>Color</span
+                ><span class="anemona icon-color-fill"></span><span>{$t('notesList.color')}</span
                 ></button
               >
               {#if folder.isEmpty !== false}
                 <button
                   class="menu-item danger"
                   on:click|stopPropagation={() => requestFolderDelete(folder)}
-                  ><span class="anemona icon-trash-alt"></span><span>Delete</span
+                  ><span class="anemona icon-trash-alt"></span><span>{$t('notesList.delete')}</span
                   ></button
                 >
               {/if}
@@ -550,7 +561,7 @@
                 style={`--swatch:${color.swatch}`}
                 on:click|stopPropagation={() =>
                   updateFolderColor(folder, color.value)}
-                title={color.title}
+                title={$t(color.title)}
               ></button>
             {/each}
           </div>
@@ -563,14 +574,14 @@
                 style={`--swatch:${color.swatch}`}
                 on:click|stopPropagation={() =>
                   updateFolderColor(folder, color.value)}
-                title={color.title}
+                title={$t(color.title)}
               ></button>
             {/each}
           </div>
           <button
             class="color-picker-cancel"
             on:click|stopPropagation={closeFolderColorPicker}
-            title="Close color picker">Cancel</button
+            title="Close color picker">{$t('notesList.colorCancel')}</button
           >
         </div>
       {/if}
@@ -611,31 +622,31 @@
               <button
                 class="menu-item"
                 on:click|stopPropagation={() => requestRenameFromMenu(note)}
-                ><span class="anemona icon-edit-alt"></span><span>Rename</span
+                ><span class="anemona icon-edit-alt"></span><span>{$t('notesList.rename')}</span
                 ></button
               >
               <button
                 class="menu-item"
                 on:click|stopPropagation={() => requestMoveFromMenu(note)}
-                ><span class="anemona icon-move"></span><span>Move to</span
+                ><span class="anemona icon-move"></span><span>{$t('notesList.moveTo')}</span
                 ></button
               >
               <button
                 class="menu-item"
                 on:click|stopPropagation={() => requestImportFromMenu(note)}
-                ><span class="anemona icon-import"></span><span>Import</span
+                ><span class="anemona icon-import"></span><span>{$t('notesList.import')}</span
                 ></button
               >
               <button
                 class="menu-item"
                 on:click|stopPropagation={() => requestExportFromMenu(note)}
-                ><span class="anemona icon-export"></span><span>Export</span
+                ><span class="anemona icon-export"></span><span>{$t('notesList.export')}</span
                 ></button
               >
               <button
                 class="menu-item danger"
                 on:click|stopPropagation={() => requestDeleteFromMenu(note)}
-                ><span class="anemona icon-trash-alt"></span><span>Delete</span
+                ><span class="anemona icon-trash-alt"></span><span>{$t('notesList.delete')}</span
                 ></button
               >
             </div>
@@ -655,34 +666,48 @@
     class="add-entry-btn"
     class:no-entries={notes.length === 0 && folders.length === 0}
     on:click={toggleInput}
-    ><span class="anemona icon-plus"></span> Add entry</button
+    ><span class="anemona icon-plus"></span> {$t('notesList.addEntry')}</button
   >
 </div>
 
 {#if showInput}
-  <button class="modal-backdrop" on:click={toggleInput} aria-label="Close"
+  <button class="modal-backdrop" on:click={toggleInput} aria-label={$t('common.close')}
   ></button>
   <div class="add-modal">
-    <h3>Add entry</h3>
+    <h3>{$t('notesList.addEntryTitle')}</h3>
     <input
       class="modal-field"
+      class:field-error={nameError}
       type="text"
-      placeholder="Name"
+      placeholder={$t('notesList.entryNamePlaceholder')}
       bind:this={addTitleInput}
       bind:value={newNoteName}
       on:keydown={(e) => e.key === "Enter" && create()}
     />
-    <select class="modal-field" bind:value={selectedType}>
-      <option value="md">Text</option>
-      <option value="key">Key</option>
-      <option value="command">Cmd</option>
-      <option value="todo">Todo</option>
-      <option value="snippet">Snip</option>
-      <option value="folder">Folder</option>
-    </select>
+    <div class="type-grid">
+      {#each [
+        { value: 'md', icon: 'icon-file-text', label: 'notesList.typeText' },
+        { value: 'key', icon: 'icon-key-solid', label: 'notesList.typeKey' },
+        { value: 'command', icon: 'icon-terminal', label: 'notesList.typeCmd' },
+        { value: 'todo', icon: 'icon-list-todo', label: 'notesList.typeTodo' },
+        { value: 'snippet', icon: 'icon-code-xml', label: 'notesList.typeSnip' },
+        { value: 'reminder', icon: 'icon-alarm-clock', label: 'notesList.typeRemind' },
+        { value: 'folder', icon: 'icon-folder', label: 'notesList.typeFolder' },
+      ] as opt}
+        <button
+          class="type-option"
+          class:active={selectedType === opt.value}
+          on:click={() => (selectedType = opt.value)}
+          title={$t(opt.label)}
+        >
+          <span class="type-option-icon anemona {opt.icon}"></span>
+          <span class="type-option-label">{$t(opt.label)}</span>
+        </button>
+      {/each}
+    </div>
     <div class="modal-actions">
-      <button class="btn" on:click={toggleInput}>Cancel</button>
-      <button class="btn primary" on:click={create}>Add</button>
+      <button class="btn" on:click={toggleInput}>{$t('common.cancel')}</button>
+      <button class="btn primary" on:click={create}>{$t('common.add')}</button>
     </div>
   </div>
 {/if}
@@ -691,20 +716,20 @@
   <button
     class="modal-backdrop"
     on:click={cancelFolderRename}
-    aria-label="Close"
+    aria-label={$t('common.close')}
   ></button>
   <div class="add-modal">
-    <h3>Rename folder</h3>
+    <h3>{$t('notesList.renameFolderTitle')}</h3>
     <input
       class="modal-field"
       type="text"
-      placeholder="New name"
+      placeholder={$t('notesList.renameFolderPlaceholder')}
       bind:value={folderRenameInput}
       on:keydown={(e) => e.key === "Enter" && confirmFolderRename()}
     />
     <div class="modal-actions">
-      <button class="btn" on:click={cancelFolderRename}>Cancel</button>
-      <button class="btn primary" on:click={confirmFolderRename}>Save</button>
+      <button class="btn" on:click={cancelFolderRename}>{$t('common.cancel')}</button>
+      <button class="btn primary" on:click={confirmFolderRename}>{$t('common.save')}</button>
     </div>
   </div>
 {/if}
@@ -1035,13 +1060,6 @@
     outline-offset: -2px;
   }
 
-  .modal-backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.45);
-    z-index: 30;
-  }
-
   .add-modal {
     position: fixed;
     top: 50%;
@@ -1082,6 +1100,65 @@
   .modal-field:focus {
     outline: none;
     border-color: var(--vscode-focusBorder);
+  }
+
+  .modal-field.field-error {
+    border-color: #e87070;
+  }
+
+  .modal-field.field-error:focus {
+    border-color: #e87070;
+    box-shadow: 0 0 0 1px #e87070;
+  }
+
+  .type-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(4.2rem, 1fr));
+    gap: 0.3rem;
+  }
+
+  .type-option {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.26rem;
+    padding: 0.2rem 0.36rem;
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius-sm);
+    background: transparent;
+    color: var(--vscode-foreground);
+    cursor: pointer;
+    transition: background 0.12s, border-color 0.12s;
+  }
+
+  .type-option:hover {
+    background: var(--ui-hover);
+    border-color: color-mix(in srgb, var(--accent-color) 26%, transparent);
+  }
+
+  .type-option.active {
+    background: var(--ui-active);
+    border-color: color-mix(in srgb, var(--accent-color) 40%, transparent);
+  }
+
+  .type-option-icon {
+    font-size: 0.82rem;
+    opacity: 0.75;
+    line-height: 1;
+  }
+
+  .type-option.active .type-option-icon {
+    opacity: 1;
+  }
+
+  .type-option-label {
+    font-size: var(--ui-font-xs);
+    line-height: 1;
+    opacity: 0.75;
+  }
+
+  .type-option.active .type-option-label {
+    opacity: 1;
   }
 
   .modal-actions {

@@ -1,0 +1,22 @@
+[
+  {
+    "title": "tan name necesario..",
+    "language": "xml",
+    "code": "<env name=\"APP_ENV\" value=\"testing\"/>"
+  },
+  {
+    "title": "<testsuite name=\"Unit\">",
+    "language": "xml",
+    "code": "<testsuite name=\"Unit\">\n            <directory>tests/Unit</directory>\n        </testsuite>"
+  },
+  {
+    "title": "Route::prefix('v2')->group(function () {",
+    "language": "php",
+    "code": "Route::prefix('v2')->group(function () {\n    Route::post('/login', [LoginController::class, 'index']);\n    Route::get('/login', [LoginController::class, 'unauthorized'])->name('login');\n    Route::any('/{a}/{b?}/{c?}', [AifRoute::class, 'handle2'])\n        ->where('c', '.*')\n    ->middleware('auth:api');\n});"
+  },
+  {
+    "title": "Import",
+    "language": "javascript",
+    "code": "import { defineConfig } from 'vite';\nimport laravel from 'laravel-vite-plugin';\nimport tailwindcss from '@tailwindcss/vite';"
+  }
+]

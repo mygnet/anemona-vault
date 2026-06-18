@@ -92,6 +92,8 @@ class NotesService {
             return 'todo';
         if (fileName.endsWith('.anemona-snippet'))
             return 'snippet';
+        if (fileName.endsWith('.anemona-reminder'))
+            return 'reminder';
         return 'md';
     }
     getFileIcon(fileName) {
@@ -103,6 +105,7 @@ class NotesService {
             case 'command': return '⌘';
             case 'todo': return '☑️';
             case 'snippet': return '📋';
+            case 'reminder': return '🔔';
             default: return '📄';
         }
     }
@@ -113,6 +116,7 @@ class NotesService {
             .replace(/\.anemona-command$/, '')
             .replace(/\.anemona-todo$/, '')
             .replace(/\.anemona-snippet$/, '')
+            .replace(/\.anemona-reminder$/, '')
             .replace(/\.md$/, '');
     }
     async initializeDefaultCategories(rootPath) {
@@ -265,7 +269,7 @@ class NotesService {
             for (const entry of entries) {
                 if (entry.isFile() && !entry.name.startsWith('.')) {
                     const ext = path.extname(entry.name);
-                    if (ext === '.md' || ext === '.anemona-key' || ext === '.anemona-command' || ext === '.anemona-lock' || ext === '.anemona-todo' || ext === '.anemona-snippet') {
+                    if (ext === '.md' || ext === '.anemona-key' || ext === '.anemona-command' || ext === '.anemona-lock' || ext === '.anemona-todo' || ext === '.anemona-snippet' || ext === '.anemona-reminder') {
                         const filePath = path.join(categoryPath, entry.name);
                         notes.push({
                             name: entry.name,
@@ -309,7 +313,7 @@ class NotesService {
                 }
                 else if (entry.isFile()) {
                     const ext = path.extname(entry.name);
-                    if (ext === '.md' || ext === '.anemona-key' || ext === '.anemona-command' || ext === '.anemona-lock' || ext === '.anemona-todo' || ext === '.anemona-snippet') {
+                    if (ext === '.md' || ext === '.anemona-key' || ext === '.anemona-command' || ext === '.anemona-lock' || ext === '.anemona-todo' || ext === '.anemona-snippet' || ext === '.anemona-reminder') {
                         notes.push({
                             name: entry.name,
                             filePath: fullPath,
@@ -344,7 +348,9 @@ class NotesService {
                     ? '.anemona-todo'
                     : fileType === 'snippet'
                         ? '.anemona-snippet'
-                        : '.md';
+                        : fileType === 'reminder'
+                            ? '.anemona-reminder'
+                            : '.md';
         const fileName = this.sanitizePathName(title) + ext;
         const filePath = path.join(categoryPath, fileName);
         if (fs.existsSync(filePath)) {
@@ -358,6 +364,9 @@ class NotesService {
             content = JSON.stringify([], null, 2);
         }
         else if (fileType === 'todo') {
+            content = JSON.stringify([], null, 2);
+        }
+        else if (fileType === 'reminder') {
             content = JSON.stringify([], null, 2);
         }
         else {
@@ -446,6 +455,7 @@ class NotesService {
         return data.map((entry) => ({
             id: String(entry?.id || '') || undefined,
             title: String(entry?.title || '').trim(),
+            text: String(entry?.text || '').trim() || undefined,
             progress: Math.max(0, Math.min(100, Number(entry?.progress) || 0)),
             status: entry?.status === 'done' || entry?.status === 'cancelled' ? entry.status : 'open',
             priority: entry?.priority === 'low' || entry?.priority === 'high' ? entry.priority : 'medium',
@@ -466,6 +476,7 @@ class NotesService {
         const normalized = entries.map((entry) => ({
             id: entry.id || this.generateUUID(),
             title: String(entry.title || '').trim(),
+            text: String(entry.text || '').trim() || undefined,
             progress: Math.max(0, Math.min(100, Number(entry.progress) || 0)),
             status: entry.status === 'done' || entry.status === 'cancelled' ? entry.status : 'open',
             priority: entry.priority === 'low' || entry.priority === 'high' ? entry.priority : 'medium',
@@ -497,6 +508,51 @@ class NotesService {
             title: String(entry.title || '').trim(),
             language: String(entry.language || 'text').trim(),
             code: entry.code || '',
+        }));
+        fs.writeFileSync(notePath, JSON.stringify(normalized, null, 2), 'utf-8');
+    }
+    async readReminderEntries(notePath) {
+        if (!fs.existsSync(notePath))
+            return [];
+        try {
+            const raw = fs.readFileSync(notePath, 'utf-8').trim();
+            if (!raw)
+                return [];
+            const parsed = JSON.parse(raw);
+            if (!Array.isArray(parsed))
+                return [];
+            return parsed.map((r) => ({
+                id: String(r.id || ''),
+                title: String(r.title || '').trim() || undefined,
+                text: String(r.text || ''),
+                dueAt: String(r.dueAt || ''),
+                status: r.status === 'completed' ? 'completed' : 'pending',
+                action: {
+                    type: r.action?.type === 'file' || r.action?.type === 'url' || r.action?.type === 'command' || r.action?.type === 'task' ? r.action.type : 'none',
+                    target: String(r.action?.target || ''),
+                },
+                createdAt: String(r.createdAt || ''),
+                updatedAt: String(r.updatedAt || ''),
+            }));
+        }
+        catch {
+            return [];
+        }
+    }
+    async saveReminderEntries(notePath, entries) {
+        const now = new Date().toISOString();
+        const normalized = entries.map((entry) => ({
+            id: entry.id,
+            title: String(entry.title || '').trim() || undefined,
+            text: String(entry.text || '').trim(),
+            dueAt: this.normalizeTodoDueAt(entry.dueAt) || entry.dueAt,
+            status: entry.status === 'completed' ? 'completed' : 'pending',
+            action: {
+                type: entry.action?.type || 'none',
+                target: String(entry.action?.target || ''),
+            },
+            createdAt: entry.createdAt || now,
+            updatedAt: now,
         }));
         fs.writeFileSync(notePath, JSON.stringify(normalized, null, 2), 'utf-8');
     }
@@ -545,10 +601,10 @@ class NotesService {
         }
         if (note.fileType === 'todo') {
             const entries = await this.readTodoEntries(note.filePath);
-            const match = entries.find((entry) => [entry.title, entry.status, entry.priority].some((value) => String(value || '').toLowerCase().includes(normalizedQuery)));
+            const match = entries.find((entry) => [entry.title, entry.text, entry.status, entry.priority].some((value) => String(value || '').toLowerCase().includes(normalizedQuery)));
             if (!match)
                 return null;
-            return this.toSearchResult(categoryName, note, match.title || 'Task', `${match.title} ${match.priority} ${match.status}`);
+            return this.toSearchResult(categoryName, note, match.title || 'Task', `${match.title}${match.text ? ' — ' + match.text : ''}  (${match.priority}, ${match.status})`);
         }
         if (note.fileType === 'key') {
             try {
@@ -580,6 +636,13 @@ class NotesService {
             if (!match)
                 return null;
             return this.toSearchResult(categoryName, note, match.title || 'Snippet', match.code);
+        }
+        if (note.fileType === 'reminder') {
+            const entries = await this.readReminderEntries(note.filePath);
+            const match = entries.find((entry) => [entry.title, entry.text, entry.status].some((value) => String(value || '').toLowerCase().includes(normalizedQuery)));
+            if (!match)
+                return null;
+            return this.toSearchResult(categoryName, note, match.title || match.text || 'Reminder', `${match.title ? match.title + ' — ' : ''}${match.text}`);
         }
         const content = await this.readNote(note.filePath);
         const matchLine = content
@@ -742,6 +805,21 @@ class NotesService {
             }
             return { content: JSON.stringify(entries, null, 2), language: 'json' };
         }
+        if (fileType === 'reminder') {
+            const entries = await this.readReminderEntries(notePath);
+            if (format === 'texto') {
+                const lines = entries.map(e => {
+                    const status = e.status === 'completed' ? '[x]' : '[ ]';
+                    return `${status} ${e.text}${e.dueAt ? ` (due: ${e.dueAt})` : ''}`;
+                });
+                return { content: lines.join('\n'), language: 'plaintext' };
+            }
+            if (format === 'markdown') {
+                const md = entries.map(e => `- ${e.status === 'completed' ? '[x]' : '[ ]'} **${e.text}**${e.dueAt ? ` — ${e.dueAt}` : ''}`).join('\n');
+                return { content: `# ${displayName}\n\n${md}`, language: 'markdown' };
+            }
+            return { content: JSON.stringify(entries, null, 2), language: 'json' };
+        }
         const content = await this.readNote(notePath);
         return { content, language: 'markdown' };
     }
@@ -847,7 +925,6 @@ class NotesService {
             throw new Error(`Folder "${name}" already exists`);
         }
         fs.mkdirSync(folderPath, { recursive: true });
-        this.writeCategoryConfigSync(folderPath, { color: this.defaultCategoryColor });
         return folderPath;
     }
     _isFolderEmpty(dirPath) {
@@ -937,6 +1014,12 @@ class NotesService {
                 const current = await this.readSnippetEntries(notePath);
                 const merged = [...current, ...newEntries];
                 await this.saveSnippetEntries(notePath, merged);
+                break;
+            }
+            case 'reminder': {
+                const current = await this.readReminderEntries(notePath);
+                const merged = [...current, ...newEntries];
+                await this.saveReminderEntries(notePath, merged);
                 break;
             }
         }
@@ -1175,6 +1258,9 @@ class NotesService {
         else if (fileType === 'snippet') {
             entry.title = entry.title || (entry.code || '').split('\n')[0]?.slice(0, 60) || 'Imported snippet';
         }
+        else if (fileType === 'reminder') {
+            entry.title = entry.text || entry.title || 'Reminder';
+        }
         return entry;
     }
     _extractTitle(text) {
@@ -1207,11 +1293,13 @@ class NotesService {
                     const commandPatterns = ['command', 'cmd', 'script'];
                     const todoPatterns = ['progress', 'status', 'priority', 'due'];
                     const snippetPatterns = ['language', 'lang', 'code', 'snippet'];
+                    const reminderPatterns = ['dueat', 'text', 'action'];
                     const hasKey = keyPatterns.some((p) => keys.includes(p));
                     const hasCommand = commandPatterns.some((p) => keys.includes(p));
                     const hasTodo = todoPatterns.some((p) => keys.includes(p));
                     const hasSnippet = snippetPatterns.some((p) => keys.includes(p));
-                    if (hasKey && !hasCommand && !hasSnippet) {
+                    const hasReminder = reminderPatterns.some((p) => keys.includes(p));
+                    if (hasKey && !hasCommand && !hasSnippet && !hasReminder) {
                         return { title: items[0].title || items[0].name || items[0].username || items[0].email || 'Imported', type: 'key' };
                     }
                     if (hasSnippet) {
@@ -1222,6 +1310,9 @@ class NotesService {
                     }
                     if (hasTodo) {
                         return { title: items[0].title || 'Task', type: 'todo' };
+                    }
+                    if (hasReminder) {
+                        return { title: items[0].text || items[0].title || 'Reminder', type: 'reminder' };
                     }
                     return { title: items[0].title || items[0].name || 'Entry', type: 'key' };
                 }
@@ -1315,7 +1406,7 @@ class NotesService {
             }
             else if (entry.isFile()) {
                 const ext = path.extname(entry.name);
-                if (ext === '.md' || ext === '.anemona-key' || ext === '.anemona-command' || ext === '.anemona-lock' || ext === '.anemona-todo' || ext === '.anemona-snippet') {
+                if (ext === '.md' || ext === '.anemona-key' || ext === '.anemona-command' || ext === '.anemona-lock' || ext === '.anemona-todo' || ext === '.anemona-snippet' || ext === '.anemona-reminder') {
                     result.push({
                         name: entry.name,
                         filePath: fullPath,
@@ -1434,6 +1525,10 @@ class NotesService {
             return '.anemona-command';
         if (fileName.endsWith('.anemona-todo'))
             return '.anemona-todo';
+        if (fileName.endsWith('.anemona-snippet'))
+            return '.anemona-snippet';
+        if (fileName.endsWith('.anemona-reminder'))
+            return '.anemona-reminder';
         if (fileName.endsWith('.md'))
             return '.md';
         return path.extname(fileName);

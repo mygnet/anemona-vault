@@ -1,5 +1,13 @@
 <script lang="ts">
   import { createEventDispatcher, tick } from "svelte";
+  import { t } from "../i18n";
+  import { getDisplayName, getFileIconClass } from "../lib/fileUtils";
+  import type { SortDirection } from "../lib/sortUtils";
+  import EditorHeader from "../lib/EditorHeader.svelte";
+  import EntryTitleBar from "../lib/EntryTitleBar.svelte";
+  import KeyPasswordRow from "../lib/KeyPasswordRow.svelte";
+  import SearchToolbar from "../lib/SearchToolbar.svelte";
+  import DeleteConfirmModal from "../lib/DeleteConfirmModal.svelte";
 
   type Entry = {
     title: string;
@@ -17,7 +25,12 @@
   export let locked = false;
   export let selectedNote: { name: string; filePath: string };
   export let initialFilterText = "";
-  export let selectionSuggestion: { title?: string; type?: string; text?: string; requestId?: number } | null = null;
+  export let selectionSuggestion: {
+    title?: string;
+    type?: string;
+    text?: string;
+    requestId?: number;
+  } | null = null;
   export let onRequestSelectionCheck: () => number;
 
   const dispatch = createEventDispatcher<{
@@ -29,32 +42,36 @@
   }>();
 
   const extraFields = [
-    { key: "url", label: "URL" },
-    { key: "email", label: "Email" },
-    { key: "username", label: "User" },
-    { key: "host", label: "Host" },
-    { key: "port", label: "Port" },
-    { key: "note", label: "Note" },
-    { key: "token", label: "Token" },
+    { key: "url", labelKey: "keyEditor.urlLabel" },
+    { key: "email", labelKey: "keyEditor.emailLabel" },
+    { key: "username", labelKey: "keyEditor.userLabel" },
+    { key: "host", labelKey: "keyEditor.hostLabel" },
+    { key: "port", labelKey: "keyEditor.portLabel" },
+    { key: "note", labelKey: "keyEditor.noteLabel" },
+    { key: "token", labelKey: "keyEditor.tokenLabel" },
   ] as const;
 
   let localEntries = entries.map((e) => ({ ...e }));
   let expanded: Set<number> = new Set();
+  let openMenuIndex: number | null = null;
   let visiblePasswords: Set<number> = new Set();
   let unlockPassword = "";
+  let unlockError = false;
   let copiedKey = "";
   let copyTimer: ReturnType<typeof setTimeout> | null = null;
 
-  let keyModalMode: 'add' | 'edit' | null = null;
-  let modalTitle = '';
-  let modalPassword = '';
-  let modalUrl = '';
-  let modalEmail = '';
-  let modalUsername = '';
-  let modalHost = '';
-  let modalPort = '';
-  let modalToken = '';
-  let modalNote = '';
+  let keyModalMode: "add" | "edit" | null = null;
+  let modalTitle = "";
+  let modalPassword = "";
+  let modalUrl = "";
+  let modalEmail = "";
+  let modalUsername = "";
+  let modalHost = "";
+  let modalPort = "";
+  let modalToken = "";
+  let modalNote = "";
+  let keyTitleError = false;
+  let keyPassError = false;
   let modalTitleInput: HTMLInputElement;
   let editingKeyIndex: number | null = null;
 
@@ -62,11 +79,12 @@
   let lockPassInput = "";
   let lockPassConfirm = "";
   let lockPassError = "";
-  let deletePrompt: { index: number; title: string; code: string } | null =
-    null;
-  let deleteCodeInput = "";
-  let sortDirection: "asc" | "desc" | null = null;
+  let lockInputError = false;
+  let lockConfirmError = false;
+  let deletePrompt: { index: number; title: string } | null = null;
+  let sortDirection: SortDirection = null;
   let _isSorting = false;
+  let _prevEntries = entries;
   let filterText = "";
   let lastAppliedInitialFilter = "";
   let entriesContainerElem: HTMLDivElement;
@@ -74,7 +92,12 @@
   let filledFromSuggestion = false;
   let activeSelectionRequestId = 0;
 
-  $: if (selectionSuggestion?.text && selectionSuggestion.requestId === activeSelectionRequestId && keyModalMode === 'add' && !filledFromSuggestion) {
+  $: if (
+    selectionSuggestion?.text &&
+    selectionSuggestion.requestId === activeSelectionRequestId &&
+    keyModalMode === "add" &&
+    !filledFromSuggestion
+  ) {
     filledFromSuggestion = true;
     const parsed = parseKeyText(selectionSuggestion.text);
     if (parsed.title) modalTitle = parsed.title;
@@ -159,7 +182,8 @@
     _isSorting = false;
   }
 
-  $: if (sortDirection === null) {
+  $: if (sortDirection === null && entries !== _prevEntries) {
+    _prevEntries = entries;
     if (entries !== localEntries) {
       localEntries = entries.map((e) => ({ ...e }));
     }
@@ -172,6 +196,18 @@
       expanded.add(index);
     }
     expanded = expanded;
+  }
+
+  function hasExtraFields(entry: Entry): boolean {
+    return extraFields.some((def) => !!getField(entry, def.key));
+  }
+
+  function toggleEntryMenu(index: number) {
+    openMenuIndex = openMenuIndex === index ? null : index;
+  }
+
+  function closeEntryMenu() {
+    openMenuIndex = null;
   }
 
   function getField(entry: Entry, key: string): string {
@@ -215,18 +251,18 @@
 
   async function openAddModal() {
     activeSelectionRequestId = 0;
-    keyModalMode = 'add';
+    keyModalMode = "add";
     activeSelectionRequestId = onRequestSelectionCheck();
     filledFromSuggestion = false;
-    modalTitle = '';
-    modalPassword = '';
-    modalUrl = '';
-    modalEmail = '';
-    modalUsername = '';
-    modalHost = '';
-    modalPort = '';
-    modalToken = '';
-    modalNote = '';
+    modalTitle = "";
+    modalPassword = "";
+    modalUrl = "";
+    modalEmail = "";
+    modalUsername = "";
+    modalHost = "";
+    modalPort = "";
+    modalToken = "";
+    modalNote = "";
     await tick();
     modalTitleInput?.focus();
   }
@@ -234,27 +270,53 @@
   function parseKeyText(text: string): Record<string, string> {
     const result: Record<string, string> = {};
     const knownFields: Record<string, string> = {
-      username: 'username', user: 'username', nick: 'username', login: 'username',
-      password: 'password', pass: 'password', pw: 'password', passwd: 'password',
-      email: 'email', mail: 'email', e: 'email',
-      url: 'url', uri: 'url', website: 'url', site: 'url', link: 'url',
-      host: 'host', server: 'host', hostname: 'host',
-      port: 'port',
-      token: 'token', api_key: 'token', apikey: 'token', api: 'token', key: 'token',
-      note: 'note', notes: 'note', description: 'note', desc: 'note', comment: 'note',
-      title: 'title', name: 'title', label: 'title', service: 'title', account: 'title',
+      username: "username",
+      user: "username",
+      nick: "username",
+      login: "username",
+      password: "password",
+      pass: "password",
+      pw: "password",
+      passwd: "password",
+      email: "email",
+      mail: "email",
+      e: "email",
+      url: "url",
+      uri: "url",
+      website: "url",
+      site: "url",
+      link: "url",
+      host: "host",
+      server: "host",
+      hostname: "host",
+      port: "port",
+      token: "token",
+      api_key: "token",
+      apikey: "token",
+      api: "token",
+      key: "token",
+      note: "note",
+      notes: "note",
+      description: "note",
+      desc: "note",
+      comment: "note",
+      title: "title",
+      name: "title",
+      label: "title",
+      service: "title",
+      account: "title",
     };
 
     const trimmed = text.trim();
-    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+    if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
       try {
         const parsed = JSON.parse(trimmed);
         const obj = Array.isArray(parsed) ? parsed[0] : parsed;
-        if (obj && typeof obj === 'object') {
+        if (obj && typeof obj === "object") {
           const unknown: string[] = [];
           for (const [k, v] of Object.entries(obj)) {
             const key = k.toLowerCase();
-            const value = String(v ?? '');
+            const value = String(v ?? "");
             const mapped = knownFields[key];
             if (mapped) {
               if (!result[mapped]) result[mapped] = value;
@@ -262,25 +324,34 @@
               unknown.push(`${k}: ${value}`);
             }
           }
-          if (unknown.length > 0) result.note = unknown.join('\n');
+          if (unknown.length > 0) result.note = unknown.join("\n");
           return result;
         }
-      } catch { /* fall through to lenient parsing */ }
+      } catch {
+        /* fall through to lenient parsing */
+      }
     }
 
     // Lenient JSON-like: strip braces, trailing commas, and surrounding quotes
     const cleaned = trimmed
-      .replace(/^[\{\[]\s*/, '')
-      .replace(/\s*[\}\]]$/, '')
+      .replace(/^[\{\[]\s*/, "")
+      .replace(/\s*[\}\]]$/, "")
       .trim();
 
-    for (const line of cleaned.split('\n')) {
-      const raw = line.trim().replace(/,$/, '');
-      if (!raw || raw === '---') continue;
-      const idx = raw.indexOf(':');
+    for (const line of cleaned.split("\n")) {
+      const raw = line.trim().replace(/,$/, "");
+      if (!raw || raw === "---") continue;
+      const idx = raw.indexOf(":");
       if (idx > 0) {
-        let key = raw.slice(0, idx).trim().toLowerCase().replace(/^["']|["']$/g, '');
-        let value = raw.slice(idx + 1).trim().replace(/^["']|["']$/g, '');
+        let key = raw
+          .slice(0, idx)
+          .trim()
+          .toLowerCase()
+          .replace(/^["']|["']$/g, "");
+        let value = raw
+          .slice(idx + 1)
+          .trim()
+          .replace(/^["']|["']$/g, "");
         const mapped = knownFields[key];
         if (mapped && !result[mapped]) result[mapped] = value;
       }
@@ -289,22 +360,31 @@
   }
 
   function openEditModal(index: number) {
-    keyModalMode = 'edit';
+    openMenuIndex = null;
+    keyModalMode = "edit";
     editingKeyIndex = index;
     const e = localEntries[index];
     modalTitle = e.title;
     modalPassword = e.password;
-    modalUrl = e.url || '';
-    modalEmail = e.email || '';
-    modalUsername = e.username || '';
-    modalHost = e.host || '';
-    modalPort = e.port || '';
-    modalToken = e.token || '';
-    modalNote = e.note || '';
+    modalUrl = e.url || "";
+    modalEmail = e.email || "";
+    modalUsername = e.username || "";
+    modalHost = e.host || "";
+    modalPort = e.port || "";
+    modalToken = e.token || "";
+    modalNote = e.note || "";
   }
 
   function collectModalEntry(): {
-    title: string; password: string; note?: string; url?: string; email?: string; username?: string; host?: string; port?: string; token?: string
+    title: string;
+    password: string;
+    note?: string;
+    url?: string;
+    email?: string;
+    username?: string;
+    host?: string;
+    port?: string;
+    token?: string;
   } {
     const e: any = { title: modalTitle.trim(), password: modalPassword.trim() };
     if (modalUrl.trim()) e.url = modalUrl.trim();
@@ -318,12 +398,17 @@
   }
 
   function saveModal() {
-    if (!modalTitle.trim() || !modalPassword.trim()) return;
-    if (keyModalMode === 'add') {
+    const titleOk = modalTitle.trim();
+    const passOk = modalPassword.trim();
+    keyTitleError = !titleOk;
+    keyPassError = !passOk;
+    if (!titleOk || !passOk) return;
+    if (keyModalMode === "add") {
       localEntries = [...localEntries, collectModalEntry()];
       tick().then(() => {
-        if (entriesContainerElem) entriesContainerElem.scrollTop = entriesContainerElem.scrollHeight
-      })
+        if (entriesContainerElem)
+          entriesContainerElem.scrollTop = entriesContainerElem.scrollHeight;
+      });
     } else if (editingKeyIndex !== null) {
       localEntries[editingKeyIndex] = collectModalEntry();
       localEntries = localEntries;
@@ -335,15 +420,17 @@
   function cancelModal() {
     keyModalMode = null;
     editingKeyIndex = null;
-    modalTitle = '';
-    modalPassword = '';
-    modalUrl = '';
-    modalEmail = '';
-    modalUsername = '';
-    modalHost = '';
-    modalPort = '';
-    modalToken = '';
-    modalNote = '';
+    modalTitle = "";
+    modalPassword = "";
+    modalUrl = "";
+    modalEmail = "";
+    modalUsername = "";
+    modalHost = "";
+    modalPort = "";
+    keyTitleError = false;
+    keyPassError = false;
+    modalToken = "";
+    modalNote = "";
     activeSelectionRequestId = 0;
     filledFromSuggestion = false;
   }
@@ -354,38 +441,23 @@
     saveEntries();
   }
 
-  function generateDeleteCode(): string {
-    const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-    let code = "";
-
-    for (let i = 0; i < 4; i += 1) {
-      code += alphabet[Math.floor(Math.random() * alphabet.length)];
-    }
-
-    return code;
-  }
-
   function requestDeleteEntry(index: number) {
+    openMenuIndex = null;
     deletePrompt = {
       index,
       title: localEntries[index].title,
-      code: generateDeleteCode(),
     };
-    deleteCodeInput = "";
   }
 
   function cancelDeletePrompt() {
     deletePrompt = null;
-    deleteCodeInput = "";
   }
 
   function confirmDeletePrompt() {
     if (!deletePrompt) return;
-    if (deleteCodeInput.trim().toUpperCase() !== deletePrompt.code) return;
-
-    const index = deletePrompt.index;
-    cancelDeletePrompt();
-    deleteEntry(index);
+    localEntries = localEntries.filter((_, i) => i !== deletePrompt.index);
+    saveEntries();
+    deletePrompt = null;
   }
 
   function saveEntries() {
@@ -408,8 +480,11 @@
 
   function handleUnlock() {
     if (unlockPassword.trim()) {
+      unlockError = false;
       dispatch("unlock", unlockPassword.trim());
       unlockPassword = "";
+    } else {
+      unlockError = true;
     }
   }
 
@@ -418,6 +493,8 @@
     lockPassInput = "";
     lockPassConfirm = "";
     lockPassError = "";
+    lockInputError = false;
+    lockConfirmError = false;
   }
 
   function cancelLockForm() {
@@ -425,9 +502,15 @@
     lockPassInput = "";
     lockPassConfirm = "";
     lockPassError = "";
+    lockInputError = false;
+    lockConfirmError = false;
   }
 
   function submitLockForm() {
+    const passOk = lockPassInput.length >= 4;
+    const confirmOk = lockPassInput === lockPassConfirm;
+    lockInputError = !lockPassInput || lockPassInput.length < 4;
+    lockConfirmError = !lockPassConfirm || !confirmOk;
     if (!lockPassInput) {
       lockPassError = "Password is required";
       return;
@@ -440,23 +523,24 @@
       lockPassError = "Passwords do not match";
       return;
     }
+    lockInputError = false;
+    lockConfirmError = false;
     lockPassError = "";
     showLockForm = false;
     dispatch("lock", lockPassInput);
   }
-
-
 </script>
 
-<div class="key-editor">
-  <div class="editor-header">
-    <button class="icon-btn" on:click={() => dispatch("back")} title="Back"
-      ><span class="anemona icon-arrow-back"></span></button
-    >
-    <span class="note-title">{selectedNote.name}</span>
+<div class="key-editor editor-shell compact">
+  <EditorHeader noteName={selectedNote.name} on:back={() => dispatch("back")}>
     <div class="header-actions">
       {#if !locked}
-        <button class="icon-btn primary-btn" on:click={openAddModal} title="Add entry"><span class="anemona icon-plus"></span></button>
+        <button
+          class="icon-btn primary-btn"
+          on:click={openAddModal}
+          title={$t("keyEditor.addEntry")}
+          ><span class="anemona icon-plus"></span></button
+        >
       {/if}
       {#if locked}
         <span class="lock-icon anemona icon-book-lock" title="Locked"></span>
@@ -464,29 +548,31 @@
         <button
           class="icon-btn lock-btn"
           on:click={openLockForm}
-          title="Lock file"><span class="anemona icon-lock-alt"></span></button
+          title={$t("keyEditor.lockFile")}
+          ><span class="anemona icon-lock-alt"></span></button
         >
       {/if}
     </div>
-  </div>
+  </EditorHeader>
 
   {#if showLockForm}
     <div class="set-password-area">
       <p class="warning-text">
-        <span class="anemona icon-slider-alt warning-icon"></span> This password
-        locks the whole file and is never stored. If you forget it, the file
-        <strong>cannot be recovered</strong>.
+        <span class="anemona icon-slider-alt warning-icon"></span>
+        {$t("keyEditor.lockWarning")}
       </p>
       <input
         class="field"
+        class:field-error={lockInputError}
         type="password"
-        placeholder="File password"
+        placeholder={$t("keyEditor.lockPasswordPlaceholder")}
         bind:value={lockPassInput}
       />
       <input
         class="field"
+        class:field-error={lockConfirmError}
         type="password"
-        placeholder="Confirm password"
+        placeholder={$t("keyEditor.lockConfirmPlaceholder")}
         bind:value={lockPassConfirm}
         on:keydown={(e) => e.key === "Enter" && submitLockForm()}
       />
@@ -495,295 +581,230 @@
       {/if}
       <div class="form-actions">
         <button class="btn small primary" on:click={submitLockForm}
-          >Lock File</button
+          >{$t("keyEditor.lockFileButton")}</button
         >
-        <button class="btn small" on:click={cancelLockForm}>Cancel</button>
+        <button class="btn small" on:click={cancelLockForm}
+          >{$t("keyEditor.cancel")}</button
+        >
       </div>
     </div>
   {:else if locked}
     <div class="unlock-area">
-      <p class="unlock-hint">This file is locked</p>
+      <p class="unlock-hint">{$t("keyEditor.fileLocked")}</p>
       <div class="unlock-row">
         <input
           class="unlock-input"
+          class:field-error={unlockError}
           type="password"
-          placeholder="Enter file password"
+          placeholder={$t("keyEditor.passwordPlaceholder")}
           bind:value={unlockPassword}
           on:keydown={(e) => e.key === "Enter" && handleUnlock()}
         />
-        <button class="btn primary" on:click={handleUnlock}>Unlock</button>
+        <button class="btn primary" on:click={handleUnlock}
+          >{$t("keyEditor.unlock")}</button
+        >
       </div>
     </div>
   {:else}
-    <div class="editor-toolbar">
-      <div class="search-field">
-        <span class="search-icon anemona icon-search-alt"></span>
-        <input
-          class="field toolbar-search"
-          type="text"
-          placeholder="Filter entries..."
-          bind:value={filterText}
-        />
-      </div>
-      <button
-        class="icon-btn sort-btn"
-        on:click={toggleSort}
-        title={sortDirection === "asc" ? "Sort Descending" : "Sort Ascending"}
-        ><span
-          class={`anemona ${sortDirection === "asc" ? "icon-sort-a-z" : "icon-sort-z-a"}`}
-        ></span></button
-      >
-    </div>
+    <SearchToolbar
+      value={filterText}
+      placeholder={$t("keyEditor.filterPlaceholder")}
+      {sortDirection}
+      showSort={true}
+      sortTitleAsc={$t("keyEditor.sortAscending")}
+      sortTitleDesc={$t("keyEditor.sortDescending")}
+      on:input={(e) => {
+        filterText = e.detail;
+      }}
+      on:toggleSort={toggleSort}
+    />
     <div class="entries" bind:this={entriesContainerElem}>
       {#each filteredEntries as entry, i}
+        {@const realIndex = localEntries.indexOf(entry)}
+        {@const canExpand = hasExtraFields(entry)}
         <div class="entry">
-            <div
-              class="entry-header"
-              on:click={() => toggleExpand(i)}
-              role="button"
-              tabindex="0"
-              on:keydown={(e) => e.key === "Enter" && toggleExpand(i)}
-            >
-              <div class="entry-summary">
-                <span class="entry-title">{entry.title}</span>
-                <div class="entry-password-row">
-                  <button
-                    class="icon-btn password-copy-btn"
-                    on:click|stopPropagation={() =>
-                      doCopy(i, "password", entry.password)}
-                    title="Copy password"
-                    ><span
-                      class={`anemona ${copiedKey === `${i}:password` ? "icon-check" : "icon-copy"}`}
-                    ></span></button
-                  >
-                  <button
-                    class="icon-btn password-visibility-btn"
-                    on:click|stopPropagation={(event) =>
-                      togglePasswordVisibility(i, event)}
-                    title={visiblePasswords.has(i)
-                      ? "Hide password"
-                      : "Show password"}
-                    ><span
-                      class={`anemona ${visiblePasswords.has(i) ? "icon-hide" : "icon-show"}`}
-                    ></span></button
-                  >
-                  <span class="entry-password"
-                    >{visiblePasswords.has(i)
-                      ? entry.password
-                      : getMaskedPassword(entry.password || "")}</span
-                  >
-                </div>
-              </div>
-              <div class="entry-actions">
-                <button
-                  class="icon-btn expand-btn"
-                  title={expanded.has(i) ? "Collapse" : "Expand"}
-                  ><span
-                    class={`anemona ${expanded.has(i) ? "icon-chevron-up" : "icon-chevron-down"}`}
-                  ></span></button
-                >
-              </div>
-            </div>
-            {#if expanded.has(i)}
-              <div class="entry-details">
-                <div class="detail-toolbar">
-                  <button
-                    class="icon-btn detail-action-btn"
-                    on:click|stopPropagation={() => openEditModal(i)}
-                    title="Edit"
-                    ><span class="anemona icon-edit-alt"></span></button
-                  >
-                  <button
-                    class="icon-btn detail-action-btn"
-                    on:click|stopPropagation={() => requestDeleteEntry(i)}
-                    title="Delete"
-                    ><span class="anemona icon-trash-alt"></span></button
-                  >
-                </div>
-                {#each extraFields as def}
-                  {@const val = getField(entry, def.key)}
-                  {#if val}
-                    <div class="detail-row">
-                      <button
-                        class="icon-btn copy-btn"
-                        on:click|stopPropagation={() => doCopy(i, def.key, val)}
-                        title="Copy {def.label}"
-                        ><span
-                          class={`anemona ${copiedKey === `${i}:${def.key}` ? "icon-check" : "icon-copy"}`}
-                        ></span></button
+          <div class="entry-row">
+            <EntryTitleBar
+              title={entry.title}
+              menuOpen={openMenuIndex === i}
+              menuTitle={$t("keyEditor.entryOptions")}
+              editLabel={$t("keyEditor.edit")}
+              deleteLabel={$t("keyEditor.delete")}
+              on:toggleMenu={() => toggleEntryMenu(i)}
+              on:closeMenu={closeEntryMenu}
+              on:edit={() => openEditModal(realIndex)}
+              on:delete={() => requestDeleteEntry(realIndex)}
+            ></EntryTitleBar>
+            <KeyPasswordRow
+              password={entry.password}
+              maskedPassword={getMaskedPassword(entry.password || "")}
+              copied={copiedKey === `${realIndex}:password`}
+              visible={visiblePasswords.has(realIndex)}
+              {canExpand}
+              expanded={expanded.has(realIndex)}
+              copyTitle={$t("keyEditor.copyPassword")}
+              showTitle={$t("keyEditor.showPassword")}
+              hideTitle={$t("keyEditor.hidePassword")}
+              expandTitle={$t("keyEditor.expand")}
+              collapseTitle={$t("keyEditor.collapse")}
+              on:copy={() => doCopy(realIndex, "password", entry.password)}
+              on:toggleVisibility={() => togglePasswordVisibility(realIndex)}
+              on:toggleExpand={() => toggleExpand(realIndex)}
+            />
+          </div>
+          {#if canExpand && expanded.has(realIndex)}
+            <div class="entry-details">
+              {#each extraFields as def}
+                {@const val = getField(entry, def.key)}
+                {#if val}
+                  <div class="detail-row">
+                    <span
+                      class="icon-action"
+                      role="button"
+                      tabindex="0"
+                      on:click|stopPropagation={() =>
+                        doCopy(realIndex, def.key, val)}
+                      on:keydown={(e) =>
+                        e.key === "Enter" && doCopy(realIndex, def.key, val)}
+                      title={$t("keyEditor.copyLabel", {
+                        label: $t(def.labelKey),
+                      })}
+                      ><span
+                        class={`anemona ${copiedKey === `${realIndex}:${def.key}` ? "icon-check" : "icon-copy"}`}
+                      ></span></span
+                    >
+                    {#if ["url", "host", "email"].includes(def.key)}
+                      <span
+                        class="icon-action"
+                        role="button"
+                        tabindex="0"
+                        on:click|stopPropagation={() => doOpen(def.key, val)}
+                        on:keydown={(e) =>
+                          e.key === "Enter" && doOpen(def.key, val)}
+                        title={$t("keyEditor.openLabel", {
+                          label: $t(def.labelKey),
+                        })}
+                        ><span class={`anemona ${getPropertyIcon(def.key)}`}
+                        ></span></span
                       >
-                      {#if ["url", "host", "email"].includes(def.key)}
-                        <button
-                          class="icon-btn action-icon"
-                          on:click|stopPropagation={() => doOpen(def.key, val)}
-                          title="Open {def.label}"
-                          ><span
-                            class={`anemona ${getPropertyIcon(def.key)}`}
-                          ></span></button
-                        >
-                      {:else}
-                        <span
-                          class={`action-icon anemona ${getPropertyIcon(def.key)}`}
-                        ></span>
-                      {/if}
-                      <div class="detail-copy-content">
-                        <span class="detail-label">{def.label}</span>
-                        <span class="detail-value">{val}</span>
-                      </div>
+                    {:else}
+                      <span
+                        class={`action-icon anemona ${getPropertyIcon(def.key)}`}
+                      ></span>
+                    {/if}
+                    <div class="detail-copy-content">
+                      <span class="detail-label">{$t(def.labelKey)}</span>
+                      <span class="detail-value">{val}</span>
                     </div>
-                  {/if}
-                {/each}
-              </div>
-            {/if}
+                  </div>
+                {/if}
+              {/each}
+            </div>
+          {/if}
         </div>
       {/each}
-      <button class="add-entry-btn" class:no-entries={localEntries.length === 0} on:click={openAddModal}><span class="anemona icon-plus"></span> Add entry</button>
+      <button
+        class="add-entry-btn"
+        class:no-entries={localEntries.length === 0}
+        on:click={openAddModal}
+        ><span class="anemona icon-plus"></span>
+        {$t("keyEditor.addEntry")}</button
+      >
     </div>
   {/if}
 </div>
 
-{#if deletePrompt}
-  <button
-    class="delete-modal-backdrop"
-    on:click={cancelDeletePrompt}
-    aria-label="Close key delete confirmation"
-  ></button>
-  <div class="delete-modal">
-    <h3>Delete entry</h3>
-    <p>
-      Confirm deletion of <strong>{deletePrompt.title}</strong> by typing
-      <strong>{deletePrompt.code}</strong>
-    </p>
-    <input
-      class="delete-code-input"
-      type="text"
-      bind:value={deleteCodeInput}
-      maxlength="4"
-      placeholder="Code"
-      on:keydown={(event) => event.key === "Enter" && confirmDeletePrompt()}
-    />
-    <div class="delete-modal-actions">
-      <button class="btn small" on:click={cancelDeletePrompt}>Cancel</button>
-      <button class="btn small danger" on:click={confirmDeletePrompt}
-        >Delete</button
-      >
-    </div>
-  </div>
-{/if}
+<DeleteConfirmModal
+  show={deletePrompt !== null}
+  title={$t("keyEditor.deleteEntryTitle")}
+  itemName={deletePrompt ? deletePrompt.title : ""}
+  on:confirm={confirmDeletePrompt}
+  on:cancel={cancelDeletePrompt}
+/>
 
 {#if keyModalMode}
-  <button class="modal-backdrop" on:click={cancelModal} aria-label="Close"></button>
+  <button class="modal-backdrop" on:click={cancelModal} aria-label="Close"
+  ></button>
   <div class="add-modal">
-    <h3>{keyModalMode === 'add' ? 'Add entry' : 'Edit entry'}</h3>
-    <input class="modal-field" type="text" placeholder="Title" bind:this={modalTitleInput} bind:value={modalTitle} />
-    <input class="modal-field" type="text" placeholder="Password" bind:value={modalPassword} />
-    <input class="modal-field" type="text" placeholder="URL (optional)" bind:value={modalUrl} />
-    <input class="modal-field" type="text" placeholder="Email (optional)" bind:value={modalEmail} />
-    <input class="modal-field" type="text" placeholder="User (optional)" bind:value={modalUsername} />
-    <input class="modal-field" type="text" placeholder="Host (optional)" bind:value={modalHost} />
-    <input class="modal-field" type="text" placeholder="Port (optional)" bind:value={modalPort} />
-    <input class="modal-field" type="text" placeholder="Token (optional)" bind:value={modalToken} />
-    <input class="modal-field" type="text" placeholder="Note (optional)" bind:value={modalNote} />
+    <h3>
+      {keyModalMode === "add"
+        ? $t("keyEditor.addEntryTitle")
+        : $t("keyEditor.editEntryTitle")}
+    </h3>
+    <input
+      class="modal-field"
+      class:field-error={keyTitleError}
+      type="text"
+      placeholder={$t("keyEditor.titlePlaceholder")}
+      bind:this={modalTitleInput}
+      bind:value={modalTitle}
+    />
+    <input
+      class="modal-field"
+      class:field-error={keyPassError}
+      type="text"
+      placeholder={$t("keyEditor.passwordFieldPlaceholder")}
+      bind:value={modalPassword}
+    />
+    <input
+      class="modal-field"
+      type="text"
+      placeholder={$t("keyEditor.urlPlaceholder")}
+      bind:value={modalUrl}
+    />
+    <input
+      class="modal-field"
+      type="text"
+      placeholder={$t("keyEditor.emailPlaceholder")}
+      bind:value={modalEmail}
+    />
+    <input
+      class="modal-field"
+      type="text"
+      placeholder={$t("keyEditor.userPlaceholder")}
+      bind:value={modalUsername}
+    />
+    <input
+      class="modal-field"
+      type="text"
+      placeholder={$t("keyEditor.hostPlaceholder")}
+      bind:value={modalHost}
+    />
+    <input
+      class="modal-field"
+      type="text"
+      placeholder={$t("keyEditor.portPlaceholder")}
+      bind:value={modalPort}
+    />
+    <input
+      class="modal-field"
+      type="text"
+      placeholder={$t("keyEditor.tokenPlaceholder")}
+      bind:value={modalToken}
+    />
+    <input
+      class="modal-field"
+      type="text"
+      placeholder={$t("keyEditor.notePlaceholder")}
+      bind:value={modalNote}
+    />
     <div class="modal-actions">
-      <button class="btn" on:click={cancelModal}>Cancel</button>
-      <button class="btn primary" on:click={saveModal}>{keyModalMode === 'add' ? 'Add' : 'Save'}</button>
+      <button class="btn" on:click={cancelModal}
+        >{$t("keyEditor.cancel")}</button
+      >
+      <button class="btn primary" on:click={saveModal}
+        >{keyModalMode === "add"
+          ? $t("keyEditor.add")
+          : $t("keyEditor.save")}</button
+      >
     </div>
   </div>
 {/if}
 
 <style>
-  .key-editor {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    overflow: hidden;
-    padding: 0.18rem;
-    box-sizing: border-box;
-  }
-
-  .editor-header {
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-    padding: 0.26rem 0.32rem;
-    flex-shrink: 0;
-    border: 1px solid
-      color-mix(in srgb, var(--accent-color) 14%, var(--ui-border));
-    border-radius: var(--ui-radius-md);
-    background: color-mix(
-      in srgb,
-      var(--accent-color) 4%,
-      var(--vscode-editor-background)
-    );
-  }
-
-  .note-title {
-    flex: 1;
-    font-size: var(--ui-font-title);
-    font-weight: 400;
-    color: var(--vscode-sideBarTitle-foreground);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .header-actions {
-    display: flex;
-    align-items: center;
-    gap: 0.2rem;
-    flex-shrink: 0;
-  }
-
   .lock-icon {
     font-size: 1.15em;
     opacity: 0.85;
-  }
-
-  .icon-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: transparent;
-    border: 1px solid transparent;
-    color: var(--vscode-sideBarTitle-foreground);
-    cursor: pointer;
-    font-size: 0.82em;
-    width: var(--ui-icon-btn-size);
-    height: var(--ui-icon-btn-size);
-    border-radius: 5px;
-    padding: 0;
-    line-height: 1;
-    opacity: 0.92;
-    flex-shrink: 0;
-  }
-
-  .icon-btn:hover {
-    opacity: 1;
-    color: var(--vscode-textLink-foreground);
-    background: color-mix(in srgb, var(--accent-color) 10%, transparent);
-    border-color: transparent;
-  }
-
-  .icon-btn:focus-visible {
-    outline: 1px solid color-mix(in srgb, var(--accent-color) 45%, transparent);
-    outline-offset: 1px;
-  }
-
-  .primary-btn {
-    color: color-mix(in srgb, var(--accent-color) 86%, white 14%);
-    border-color: transparent;
-    background: transparent;
-  }
-
-  .primary-btn:hover {
-    color: white;
-    background: color-mix(in srgb, var(--accent-color) 14%, transparent);
-    border-color: transparent;
-  }
-
-  .primary-btn span {
-    font-size: 0.88rem;
-    font-weight: 500;
   }
 
   .lock-btn {
@@ -819,11 +840,6 @@
     margin-right: 0.25rem;
     font-size: 1.05em;
     vertical-align: middle;
-  }
-
-  .field-error {
-    font-size: var(--ui-font-xs);
-    color: #e74c3c;
   }
 
   .unlock-area {
@@ -891,193 +907,21 @@
     padding: 0.12rem 0;
   }
 
-  .editor-toolbar {
-    display: flex;
-    align-items: center;
-    gap: 0.2rem;
-    margin-top: 0.22rem;
-    margin-bottom: 0.18rem;
-  }
-
-  .search-field {
-    flex: 1;
-    min-width: 0;
-    position: relative;
-    display: flex;
-    align-items: stretch;
-  }
-
-  .search-icon {
-    position: absolute;
-    top: 50%;
-    left: var(--ui-search-icon-left);
-    transform: translateY(-50%);
-    font-size: 0.78em;
-    color: var(--vscode-descriptionForeground);
-    pointer-events: none;
-    z-index: 1;
-  }
-
-  .toolbar-search {
-    width: 100%;
-    min-width: 0;
-    height: var(--ui-control-height-sm);
-    box-sizing: border-box;
-    color: var(--vscode-sideBarTitle-foreground);
-    padding-left: 42px;
-    padding-right: 0.46rem;
-    border-radius: 6px;
-    font-size: var(--ui-font-control);
-    line-height: 1;
-    border: 1px solid var(--ui-border-strong);
-    background: var(--vscode-input-background);
-    box-shadow: none;
-  }
-
-  .toolbar-search:focus {
-    border-color: var(--ui-border-strong);
-    outline: none;
-    box-shadow: none;
-  }
-
-  .sort-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: var(--ui-toolbar-btn-size);
-    height: var(--ui-toolbar-btn-size);
-    font-size: 0.8em;
-    border-color: color-mix(in srgb, var(--accent-color) 16%, var(--ui-border));
-    background: color-mix(
-      in srgb,
-      var(--accent-color) 6%,
-      var(--vscode-sideBar-background)
-    );
-    flex-shrink: 0;
-  }
-
-  .sort-btn :global(.anemona) {
-    line-height: 1;
-  }
-
-  .entries {
-    flex: 1;
-    overflow-y: auto;
-    padding: 0.18rem 0 0;
-  }
-
-  .entry {
-    border: 1px solid
-      color-mix(in srgb, var(--accent-color) 12%, var(--ui-border));
-    border-radius: var(--ui-radius-md);
-    margin-bottom: 0.18rem;
-    background: color-mix(
-      in srgb,
-      var(--accent-color) 4%,
-      var(--vscode-editor-background)
-    );
-  }
-
-  .entry:last-child {
-    border-bottom: none;
-  }
-
-  .entry-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+  .entry-row {
     padding: var(--ui-card-pad-y) var(--ui-card-pad-x);
-    cursor: pointer;
-    gap: 0.26rem;
-  }
-
-  .entry-header:hover {
-    opacity: 0.85;
-  }
-
-  .entry-summary {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 0.14rem;
-    overflow: hidden;
-    min-width: 0;
-  }
-
-  .entry-password-row {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-    min-width: 0;
-  }
-
-  .password-copy-btn {
-    width: 1.42rem;
-    height: 1.42rem;
-    font-size: 0.76em;
-  }
-
-  .password-visibility-btn {
-    width: 1.42rem;
-    height: 1.42rem;
-    font-size: 0.76em;
-  }
-
-  .entry-title {
-    font-size: var(--ui-font-entry);
-    font-weight: 400;
-    color: var(--vscode-sideBarTitle-foreground);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .entry-password {
-    font-size: var(--ui-font-xs);
-    color: var(--vscode-descriptionForeground);
-    font-family: monospace;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    letter-spacing: 0.14em;
-  }
-
-  .entry-actions {
-    display: flex;
-    gap: 0.18rem;
-    flex-shrink: 0;
-    align-items: center;
-    padding-left: 0.2rem;
-  }
-
-  .expand-btn {
-    font-size: 1em;
   }
 
   .entry-details {
     padding: 0 var(--ui-card-pad-x) var(--ui-card-pad-y) var(--ui-card-pad-x);
     display: flex;
     flex-direction: column;
-    gap: 0.18rem;
-  }
-
-  .detail-toolbar {
-    display: flex;
-    justify-content: flex-end;
-    gap: 0.2rem;
-    padding: 0 0 0.15rem;
-  }
-
-  .detail-action-btn {
-    width: 1.52rem;
-    height: 1.52rem;
-    font-size: 0.86em;
+    gap: 0.14rem;
   }
 
   .detail-row {
     display: flex;
     align-items: center;
-    gap: 0.1rem;
+    gap: 0.25rem;
     font-size: var(--ui-font-xs);
     background: color-mix(
       in srgb,
@@ -1085,17 +929,24 @@
       var(--vscode-sideBar-background)
     );
     border-radius: var(--ui-radius-sm);
-    padding: 0.06rem 0.16rem;
+    padding: 0.12rem 0.22rem;
+  }
+
+  .detail-row .icon-action,
+  .detail-row .action-icon {
+    width: 1.1rem;
+    height: 1.1rem;
+    font-size: 1.3em;
   }
 
   .action-icon {
-    width: 1.3rem;
-    height: 1.3rem;
+    width: 1rem;
+    height: 1rem;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    font-size: 0.8em;
+    font-size: 1.2em;
     background: none;
     border: none;
     cursor: default;
@@ -1117,7 +968,7 @@
     flex: 1;
     min-width: 0;
     flex-direction: column;
-    gap: 0.18rem;
+    gap: 0.04rem;
   }
 
   .detail-label {
@@ -1125,7 +976,8 @@
     font-weight: 400;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    font-size: 0.72em;
+    font-size: 0.68em;
+    line-height: 1;
   }
 
   .detail-value {
@@ -1135,7 +987,8 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     font-family: monospace;
-    font-size: 1em;
+    font-size: var(--ui-font-xs);
+    line-height: 1.15;
   }
 
   .copy-btn {
@@ -1144,218 +997,9 @@
     height: 1.3rem;
   }
 
-  .field {
-    background: color-mix(
-      in srgb,
-      var(--accent-color) 4%,
-      var(--vscode-input-background)
-    );
-    color: var(--vscode-input-foreground);
-    border: 1px solid
-      color-mix(in srgb, var(--accent-color) 16%, var(--ui-border-strong));
-    border-radius: var(--ui-radius-sm);
-    min-height: var(--ui-control-height);
-    box-sizing: border-box;
-    padding: var(--ui-control-pad-y) var(--ui-control-pad-x);
-    font-size: var(--ui-font-control);
-    outline: none;
-  }
-
-  .field:focus {
-    border-color: color-mix(
-      in srgb,
-      var(--accent-color) 38%,
-      var(--vscode-focusBorder)
-    );
-    box-shadow: inset 0 0 0 1px
-      color-mix(in srgb, var(--accent-color) 12%, transparent);
-  }
-
-  .search-field .toolbar-search {
-    padding-left: var(--ui-search-input-pad-left);
-    padding-right: 0.46rem;
-  }
-
   .form-actions {
     display: flex;
     gap: 0.28rem;
     flex-wrap: wrap;
-  }
-
-  .btn {
-    min-height: var(--ui-control-height-sm);
-    padding: 0.22rem 0.46rem;
-    border: 1px solid var(--ui-border);
-    border-radius: var(--ui-radius-sm);
-    cursor: pointer;
-    font-size: var(--ui-font-control);
-    font-weight: 400;
-  }
-
-  .btn.primary {
-    background: var(--vscode-button-background);
-    color: var(--vscode-button-foreground);
-  }
-
-  .btn.primary:hover {
-    background: var(--vscode-button-hoverBackground);
-  }
-
-  .btn.small {
-    background: var(--vscode-button-secondaryBackground);
-    color: var(--vscode-button-secondaryForeground);
-  }
-  .btn.small:hover {
-    background: var(--vscode-button-secondaryHoverBackground);
-  }
-  .btn.danger {
-    background: #c0392b;
-    color: #fff;
-  }
-  .btn.danger:hover {
-    background: #e74c3c;
-  }
-
-  .delete-modal-backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.45);
-    z-index: 30;
-  }
-
-  .delete-modal {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: min(320px, calc(100vw - 2rem));
-    background: var(--vscode-editor-background);
-    color: var(--vscode-editor-foreground);
-    border: 1px solid var(--ui-border-strong);
-    border-radius: var(--ui-radius-lg);
-    padding: 1.1rem;
-    z-index: 31;
-    box-sizing: border-box;
-    box-shadow: var(--ui-shadow);
-  }
-
-  .delete-modal h3 {
-    margin: 0 0 0.5rem;
-    font-size: var(--ui-font-lg);
-    font-weight: 500;
-  }
-
-  .delete-modal p {
-    margin: 0 0 0.75rem;
-    font-size: var(--ui-font-sm);
-    line-height: 1.4;
-    color: var(--ui-muted);
-  }
-
-  .delete-code-input {
-    width: 100%;
-    box-sizing: border-box;
-    background: var(--vscode-input-background);
-    color: var(--vscode-input-foreground);
-    border: 1px solid var(--ui-border-strong);
-    border-radius: var(--ui-radius-sm);
-    min-height: var(--ui-control-height);
-    padding: var(--ui-control-pad-y) calc(var(--ui-control-pad-x) + 0.08rem);
-    margin-bottom: 0.8rem;
-    text-transform: uppercase;
-    letter-spacing: 0.18em;
-    font-size: var(--ui-font-control);
-  }
-
-  .delete-code-input:focus {
-    outline: none;
-    border-color: var(--vscode-focusBorder);
-  }
-
-  .delete-modal-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 0.5rem;
-  }
-
-  .modal-backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.45);
-    z-index: 30;
-  }
-
-  .add-modal {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: min(360px, calc(100vw - 2rem));
-    background: var(--vscode-editor-background);
-    color: var(--vscode-editor-foreground);
-    border: 1px solid var(--ui-border-strong);
-    border-radius: var(--ui-radius-lg);
-    padding: 1rem;
-    z-index: 31;
-    box-sizing: border-box;
-    box-shadow: var(--ui-shadow);
-  }
-
-  .add-modal h3 {
-    margin: 0 0 0.55rem;
-    font-size: 0.84rem;
-    font-weight: 500;
-  }
-
-  .modal-field {
-    width: 100%;
-    box-sizing: border-box;
-    background: var(--vscode-input-background);
-    color: var(--vscode-input-foreground);
-    border: 1px solid var(--ui-border-strong);
-    border-radius: var(--ui-radius-sm);
-    min-height: var(--ui-control-height);
-    padding: var(--ui-control-pad-y) calc(var(--ui-control-pad-x) + 0.08rem);
-    font-size: var(--ui-font-control);
-    font-family: inherit;
-    margin-bottom: 0.55rem;
-  }
-
-  .modal-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 0.5rem;
-  }
-
-  .add-entry-btn {
-    width: 100%;
-    background: color-mix(
-      in srgb,
-      var(--accent-color) 5%,
-      var(--vscode-editor-background)
-    );
-    border: 1px dashed var(--ui-border-strong);
-    border-radius: var(--ui-radius-md);
-    color: var(--vscode-sideBarTitle-foreground);
-    cursor: pointer;
-    min-height: var(--ui-control-height);
-    padding: 0.26rem 0.38rem;
-    font-size: var(--ui-font-control);
-    font-weight: 400;
-    margin-bottom: 0.18rem;
-    opacity: 0.84;
-    position: sticky;
-    bottom: 0;
-    z-index: 1;
-  }
-
-  .add-entry-btn.no-entries {
-    position: static;
-  }
-
-  .add-entry-btn:hover {
-    opacity: 1;
-    border-color: color-mix(in srgb, var(--accent-color) 30%, transparent);
-    background: color-mix(in srgb, var(--accent-color) 8%, transparent);
   }
 </style>

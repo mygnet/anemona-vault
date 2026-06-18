@@ -14,5 +14,13 @@
   {
     "title": "Git squash last 3 commits",
     "command": "git rebase -i HEAD~3"
+  },
+  {
+    "title": "Notificaciones",
+    "command": "rm -rf Test/.anemona/notifications && node Test/generate-test-notifications.mjs"
+  },
+  {
+    "title": "www",
+    "command": "ww"
   }
 ]

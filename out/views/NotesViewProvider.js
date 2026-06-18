@@ -39,17 +39,91 @@ const path = __importStar(require("path"));
 const vscode = __importStar(require("vscode"));
 const ConfigService_1 = require("./../services/ConfigService");
 class NotesViewProvider {
-    constructor(_extensionUri, notesService, globalState) {
+    constructor(_extensionUri, notesService, globalState, notificationService) {
         this._extensionUri = _extensionUri;
         this._currentNotePath = null;
         this._currentCategory = null;
         this._currentFolderPath = '';
         this._globalState = null;
+        this._notificationService = null;
+        this._scheduledEventsCache = null;
+        this._onVaultSwitch = null;
         this._notesService = notesService;
         this._globalState = globalState ?? null;
+        this._notificationService = notificationService ?? null;
+    }
+    setNotificationService(service) {
+        this._notificationService = service;
+    }
+    setScheduledEventsCache(cache) {
+        this._scheduledEventsCache = cache;
+    }
+    set onVaultSwitch(callback) {
+        this._onVaultSwitch = callback;
+    }
+    _syncScheduledEventsFile(filePath) {
+        this._scheduledEventsCache?.syncFile(filePath);
+    }
+    _cancelScheduledEventsFile(filePath) {
+        this._scheduledEventsCache?.cancelFile(filePath);
+    }
+    _cleanupReminderKeys(entries) {
+        if (!this._notificationService)
+            return;
+        for (const entry of entries) {
+            if (String(entry?.status || '').trim() === 'completed' && entry?.id) {
+                this._notificationService.removeGeneratedKey(`reminder:${entry.id}`);
+            }
+        }
+    }
+    _cleanupTodoKeys(entries) {
+        if (!this._notificationService)
+            return;
+        for (const entry of entries) {
+            const status = String(entry?.status || '').trim();
+            if ((status === 'done' || status === 'cancelled') && entry?.id) {
+                this._notificationService.removeGeneratedKey(`task:${entry.id}`);
+            }
+        }
+    }
+    _cleanupFileKeys(filePath, fileType) {
+        if (!this._notificationService)
+            return;
+        try {
+            const raw = require('fs').readFileSync(filePath, 'utf-8');
+            const entries = JSON.parse(raw);
+            if (!Array.isArray(entries))
+                return;
+            const prefix = fileType === 'reminder' ? 'reminder:' : fileType === 'todo' ? 'task:' : '';
+            if (!prefix)
+                return;
+            for (const entry of entries) {
+                if (entry?.id) {
+                    this._notificationService.removeGeneratedKey(`${prefix}${entry.id}`);
+                }
+            }
+        }
+        catch {
+            // skip if file unreadable
+        }
+    }
+    updateBadge(value, tooltip) {
+        if (this._view) {
+            this._view.badge = { value, tooltip: tooltip ?? `${value} notification(s) pending` };
+            this._view.description = value > 0 ? `${value} pending` : '';
+        }
+    }
+    _updateBadgeFromNotifications() {
+        if (!this._notificationService) {
+            this.updateBadge(0);
+            return;
+        }
+        const count = this._notificationService.getPendingCount();
+        this.updateBadge(count, `${count} notification(s) pending`);
     }
     resolveWebviewView(webviewView, _context, _token) {
         this._view = webviewView;
+        this._updateBadgeFromNotifications();
         webviewView.webview.options = {
             enableScripts: true,
             localResourceRoots: [
@@ -62,10 +136,20 @@ class NotesViewProvider {
             await this._handleMessage(message);
         });
     }
+    postSetLocale(locale) {
+        this._postMessage({ command: 'setLocale', locale });
+    }
     async _handleMessage(message) {
         switch (message.command) {
             case 'ready':
                 this._loadCategories();
+                this._sendNotifications();
+                const storedLocale = this._globalState?.get('locale', 'auto') || 'auto';
+                let resolvedLocale = storedLocale;
+                if (storedLocale === 'auto') {
+                    resolvedLocale = vscode.env.language === 'es' ? 'es' : 'en';
+                }
+                this._postMessage({ command: 'setLocale', locale: resolvedLocale });
                 break;
             case 'selectCategory':
                 this._currentCategory = message.category;
@@ -167,6 +251,9 @@ class NotesViewProvider {
             case 'saveSnippetEntries':
                 await this._saveSnippetEntries(message.notePath, message.entries);
                 break;
+            case 'saveReminderEntries':
+                await this._saveReminderEntries(message.notePath, message.entries);
+                break;
             case 'searchGlobal':
                 await this._searchGlobal(String(message.query || ''));
                 break;
@@ -175,6 +262,124 @@ class NotesViewProvider {
                 break;
             case 'getRecentFolders':
                 await this._sendRecentFolders();
+                break;
+            case 'getNotifications':
+                this._sendNotifications();
+                break;
+            case 'markNotificationRead':
+                if (this._notificationService) {
+                    this._notificationService.markRead(message.id);
+                    this._sendNotifications();
+                }
+                break;
+            case 'unreadNotification':
+                if (this._notificationService) {
+                    this._notificationService.markUnread(message.id);
+                    this._sendNotifications();
+                }
+                break;
+            case 'deleteHistoryNotification':
+                if (this._notificationService) {
+                    this._notificationService.deleteNotification(message.id);
+                    this._sendNotifications();
+                }
+                break;
+            case 'openNotification':
+                if (this._notificationService) {
+                    const all = this._notificationService.getAll();
+                    const n = all.find(n => n.id === message.id);
+                    if (n?.action) {
+                        await this._executeNotificationAction(n.action);
+                    }
+                }
+                break;
+            case 'loadHistoryPage':
+                if (this._notificationService) {
+                    const page = Number(message.page) || 0;
+                    if (page > 0) {
+                        const items = this._notificationService.getHistoryPage(page);
+                        this._postMessage({
+                            command: 'historyPageLoaded',
+                            page,
+                            items,
+                        });
+                    }
+                }
+                break;
+        }
+    }
+    async _executeNotificationAction(action) {
+        switch (action.type) {
+            case 'task': {
+                const match = this._findTodoNotePathByTaskId(action.target);
+                if (match) {
+                    await this._openNoteFromPath(match);
+                }
+                break;
+            }
+            case 'file':
+                await this._openFileAction(action.target);
+                break;
+            case 'url':
+                vscode.env.openExternal(vscode.Uri.parse(action.target));
+                break;
+            case 'command':
+                if (action.target.startsWith('anemonaVault.')) {
+                    vscode.commands.executeCommand(action.target);
+                }
+                break;
+            case 'system':
+                this._executeSystemAction(action.target);
+                break;
+        }
+    }
+    _findTodoNotePathByTaskId(taskId) {
+        const root = this._notesService.getStoragePath();
+        if (!root)
+            return null;
+        try {
+            for (const cat of this._notesService.getCategories()) {
+                for (const note of this._notesService.getNotesRecursive(cat.path)) {
+                    if (note.fileType !== 'todo')
+                        continue;
+                    try {
+                        const entries = JSON.parse(fs.readFileSync(note.filePath, 'utf-8'));
+                        if (Array.isArray(entries) && entries.some((e) => String(e?.id || '') === taskId)) {
+                            return note.filePath;
+                        }
+                    }
+                    catch {
+                        // skip unreadable todo files
+                    }
+                }
+            }
+        }
+        catch {
+            // skip if vault is not ready
+        }
+        return null;
+    }
+    _resolveVaultFile(filePath) {
+        if (path.isAbsolute(filePath))
+            return filePath;
+        const storagePath = this._notesService.getStoragePath();
+        return storagePath ? path.join(storagePath, filePath) : filePath;
+    }
+    async _openFileAction(filePath) {
+        const resolved = this._resolveVaultFile(filePath);
+        const fileType = this._notesService.getFileType(path.basename(resolved));
+        if (fileType !== 'md' || resolved.endsWith('.md')) {
+            await this._openNoteFromPath(resolved);
+            return;
+        }
+        await vscode.commands.executeCommand('vscode.open', vscode.Uri.file(resolved));
+    }
+    _executeSystemAction(target) {
+        switch (target) {
+            case 'changelog':
+                vscode.env.openExternal(vscode.Uri.parse('https://github.com/mygnet/anemona-vault/blob/main/CHANGELOG.md'));
+                break;
+            default:
                 break;
         }
     }
@@ -255,6 +460,7 @@ class NotesViewProvider {
         await ConfigService_1.ConfigService.setStoragePath(folderPath);
         this._notesService.setStoragePath(folderPath);
         this._addRecentFolder(folderPath);
+        this._onVaultSwitch?.(folderPath);
         this._updateViewTitle();
         this._loadCategories();
     }
@@ -263,6 +469,21 @@ class NotesViewProvider {
             command: 'recentFolders',
             recentFolders: this._getRecentFolders(),
         });
+    }
+    _sendNotifications() {
+        if (!this._notificationService)
+            return;
+        const historyIndex = this._notificationService.getHistoryIndex();
+        const history = historyIndex.currentPage > 0
+            ? this._notificationService.getHistoryPage(historyIndex.currentPage)
+            : [];
+        this._postMessage({
+            command: 'notificationsLoaded',
+            notifications: this._notificationService.getInbox(),
+            history,
+            historyIndex,
+        });
+        this._updateBadgeFromNotifications();
     }
     async _loadNotes(categoryName, folderPath) {
         const contents = this._notesService.getFolderContents(categoryName, folderPath);
@@ -294,11 +515,11 @@ class NotesViewProvider {
             })),
         });
     }
-    async _loadNoteContent(categoryName, noteName) {
+    async _loadNoteContent(categoryName, noteName, notePath) {
         try {
             const categoryPath = path.join(this._notesService.getStoragePath() || '', categoryName);
             const allNotes = this._notesService.getNotesRecursive(categoryPath);
-            const note = allNotes.find((n) => n.name === noteName);
+            const note = allNotes.find((n) => (notePath ? n.filePath === notePath : n.name === noteName));
             if (!note)
                 return;
             this._currentNotePath = note.filePath;
@@ -358,6 +579,13 @@ class NotesViewProvider {
                 const entries = await this._notesService.readSnippetEntries(note.filePath);
                 postNoteContent({
                     fileType: 'snippet',
+                    entries,
+                });
+            }
+            else if (fileType === 'reminder') {
+                const entries = await this._notesService.readReminderEntries(note.filePath);
+                postNoteContent({
+                    fileType: 'reminder',
                     entries,
                 });
             }
@@ -445,6 +673,8 @@ class NotesViewProvider {
     async _saveTodoEntries(notePath, entries) {
         try {
             await this._notesService.saveTodoEntries(notePath, entries);
+            this._cleanupTodoKeys(entries);
+            this._syncScheduledEventsFile(notePath);
             const activeEntries = entries.filter((e) => e.status !== 'cancelled');
             const progress = activeEntries.length === 0
                 ? 0
@@ -475,6 +705,20 @@ class NotesViewProvider {
             });
         }
     }
+    async _saveReminderEntries(notePath, entries) {
+        try {
+            await this._notesService.saveReminderEntries(notePath, entries);
+            this._cleanupReminderKeys(entries);
+            this._syncScheduledEventsFile(notePath);
+            this._postMessage({ command: 'noteSaved' });
+        }
+        catch (err) {
+            this._postMessage({
+                command: 'error',
+                message: err instanceof Error ? err.message : 'Failed to save reminder entries',
+            });
+        }
+    }
     async _searchGlobal(query) {
         try {
             const results = await this._notesService.searchAll(query);
@@ -494,6 +738,8 @@ class NotesViewProvider {
     async _deleteNote(notePath) {
         try {
             await this._notesService.deleteNote(notePath);
+            this._cleanupFileKeys(notePath, this._notesService.getFileType(path.basename(notePath)));
+            this._cancelScheduledEventsFile(notePath);
             if (this._currentNotePath === notePath) {
                 this._currentNotePath = null;
             }
@@ -514,6 +760,9 @@ class NotesViewProvider {
     async _renameNote(notePath, title) {
         try {
             const newPath = await this._notesService.renameNote(notePath, title);
+            this._cleanupFileKeys(notePath, this._notesService.getFileType(path.basename(notePath)));
+            this._cancelScheduledEventsFile(notePath);
+            this._syncScheduledEventsFile(newPath);
             const category = this._getCategoryFromNotePath(newPath);
             if (this._currentNotePath === notePath) {
                 this._currentNotePath = newPath;
@@ -534,15 +783,22 @@ class NotesViewProvider {
     async _moveNote(notePath, targetCategory, targetFolderPath) {
         try {
             const sourceCategory = this._getCategoryFromNotePath(notePath);
+            let newPath;
             if (targetFolderPath) {
                 const rootPath = this._notesService.getStoragePath();
                 const storagePath = rootPath || '';
                 const targetDir = path.join(storagePath, targetCategory, targetFolderPath);
                 await this._notesService.moveItem(notePath, targetDir);
+                newPath = path.join(targetDir, path.basename(notePath));
             }
             else {
                 await this._notesService.moveNote(notePath, targetCategory);
+                const rootPath = this._notesService.getStoragePath() || '';
+                newPath = path.join(rootPath, targetCategory, path.basename(notePath));
             }
+            this._cleanupFileKeys(notePath, this._notesService.getFileType(path.basename(notePath)));
+            this._cancelScheduledEventsFile(notePath);
+            this._syncScheduledEventsFile(newPath);
             this._postMessage({ command: 'noteMoved', notePath, targetCategory });
             if (sourceCategory) {
                 this._loadNotes(sourceCategory, this._currentFolderPath);
@@ -574,6 +830,7 @@ class NotesViewProvider {
     async _deleteFolder(folderPath) {
         try {
             await this._notesService.deleteFolder(folderPath);
+            this._scheduledEventsCache?.rebuild();
             const category = this._getCategoryFromNotePath(folderPath) || this._currentCategory;
             if (category) {
                 this._loadNotes(category, this._currentFolderPath);
@@ -591,6 +848,7 @@ class NotesViewProvider {
     async _renameFolder(folderPath, name) {
         try {
             await this._notesService.renameFolder(folderPath, name);
+            this._scheduledEventsCache?.rebuild();
             const category = this._getCategoryFromNotePath(folderPath) || this._currentCategory;
             if (category) {
                 this._loadNotes(category, this._currentFolderPath);
@@ -607,6 +865,7 @@ class NotesViewProvider {
     async _moveFolder(sourcePath, targetDir) {
         try {
             await this._notesService.moveItem(sourcePath, targetDir);
+            this._scheduledEventsCache?.rebuild();
             const sourceCategory = this._getCategoryFromNotePath(sourcePath) || this._currentCategory;
             this._postMessage({ command: 'folderMoved', sourcePath, targetDir });
             if (sourceCategory) {
@@ -623,7 +882,16 @@ class NotesViewProvider {
     }
     async _handleDropItem(sourcePath, targetPath) {
         try {
+            const wasDirectory = fs.existsSync(sourcePath) && fs.statSync(sourcePath).isDirectory();
             await this._notesService.moveItem(sourcePath, targetPath);
+            if (wasDirectory) {
+                this._scheduledEventsCache?.rebuild();
+            }
+            else {
+                this._cleanupFileKeys(sourcePath, this._notesService.getFileType(path.basename(sourcePath)));
+                this._cancelScheduledEventsFile(sourcePath);
+                this._syncScheduledEventsFile(path.join(targetPath, path.basename(sourcePath)));
+            }
             const sourceCategory = this._getCategoryFromNotePath(sourcePath) || this._currentCategory;
             this._postMessage({ command: 'itemMoved', sourcePath, targetPath });
             if (sourceCategory) {
@@ -661,11 +929,12 @@ class NotesViewProvider {
                 return;
             }
             const text = editor.document.getText(editor.selection);
+            const languageId = editor.document.languageId;
             const suggestion = this._notesService.analyzeSelection(text);
             this._postMessage({
                 command: 'selectionAnalysis',
                 requestId,
-                suggestion: suggestion ? { title: suggestion.title, type: suggestion.type, text } : null,
+                suggestion: suggestion ? { title: suggestion.title, type: suggestion.type, text, languageId } : null,
             });
         }
         catch {
@@ -708,7 +977,7 @@ class NotesViewProvider {
                     openLabel: 'Import file',
                     filters: {
                         'All Files': ['*'],
-                        'Anemona Vault': ['*anemona-key', '*anemona-lock', '*anemona-command', '*anemona-todo', '*anemona-snippet', '*.md'],
+                        'Anemona Vault': ['*anemona-key', '*anemona-lock', '*anemona-command', '*anemona-todo', '*anemona-snippet', '*anemona-reminder', '*.md'],
                     },
                 });
                 if (!files || files.length === 0)
@@ -774,6 +1043,7 @@ class NotesViewProvider {
                 }
             }
             await this._notesService.importContent(content, notePath);
+            this._syncScheduledEventsFile(notePath);
             const category = this._getCategoryFromNotePath(notePath) || this._currentCategory;
             this._postMessage({ command: 'contentImported', notePath });
             if (category) {
@@ -952,13 +1222,38 @@ class NotesViewProvider {
 </html>`;
     }
     refresh() {
+        this._postMessage({ command: 'beginReload' });
         this._loadCategories();
         if (this._currentCategory) {
             this._loadNotes(this._currentCategory, this._currentFolderPath);
         }
+        this._notificationService?.reload();
+        this._sendNotifications();
+    }
+    async _openNoteFromPath(notePath) {
+        const storagePath = this._notesService.getStoragePath();
+        if (!storagePath)
+            return;
+        const relative = path.relative(storagePath, notePath);
+        const parts = relative.split(path.sep);
+        const categoryName = parts[0];
+        const relativeFolder = parts.slice(1, -1).join('/');
+        const noteName = path.basename(notePath);
+        vscode.commands.executeCommand('anemonaVault.view.focus');
+        this._currentCategory = categoryName;
+        this._currentFolderPath = relativeFolder;
+        this._postMessage({ command: 'activateNotes', category: categoryName, folderPath: relativeFolder });
+        this._loadCategories();
+        await this._loadNotes(categoryName, relativeFolder);
+        this._currentNotePath = notePath;
+        await this._loadNoteContent(categoryName, noteName, notePath);
     }
     postSearchCommand() {
         this._postMessage({ command: 'activateSearch' });
+    }
+    postShowNotifications() {
+        this._postMessage({ command: 'activateNotifications' });
+        this._sendNotifications();
     }
     handleRecentFoldersCommand() {
         const folders = this._getRecentFolders();
@@ -1006,6 +1301,7 @@ class NotesViewProvider {
             await ConfigService_1.ConfigService.setStoragePath(folderPath);
             this._notesService.setStoragePath(folderPath);
             this._addRecentFolder(folderPath);
+            this._onVaultSwitch?.(folderPath);
             this._updateViewTitle();
             this._loadCategories();
         }

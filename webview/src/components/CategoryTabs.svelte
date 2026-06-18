@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '../i18n'
   export let categories: {
     name: string;
     path: string;
@@ -10,6 +11,8 @@
   export let onCreateCategory: (name: string) => void;
   export let onRenameCategory: (category: string) => void;
   export let onToggleCollapse: () => void;
+  export let notificationCount = 0;
+  export let onShowNotifications: () => void = () => {};
 
   let newCategoryName = "";
   let showInput = false;
@@ -92,29 +95,38 @@
     <div class="sidebar-header">
       <div class="header-actions" class:stacked={collapsed}>
         {#if showInput && !collapsed}
-          <button class="icon-btn side-tool" on:click={addCategory} title="Add"
+          <button class="icon-btn side-tool" on:click={addCategory} title={$t('common.add')}
             ><span class="anemona icon-check"></span></button
           >
           <button
             class="icon-btn side-tool"
             on:click={toggleInput}
-            title="Cancel"><span class="anemona icon-x"></span></button
+            title={$t('common.cancel')}><span class="anemona icon-x"></span></button
           >
         {:else}
           <button
             class="icon-btn side-tool"
             on:click={toggleCollapsed}
-            title={collapsed ? "Show categories" : "Hide categories"}
+            title={collapsed ? $t('category.showCategories') : $t('category.hideCategories')}
           >
             <span
               class={`anemona ${collapsed ? "icon-chevron-right" : "icon-chevron-left"}`}
             ></span>
           </button>
+          <button
+            class="icon-btn side-tool notif-trigger"
+            on:click={onShowNotifications}
+            title={$t('category.notifications', { count: String(notificationCount) })}>
+            <span class="anemona icon-bell"></span>
+            {#if notificationCount > 0}
+              <span class="notif-side-badge">{notificationCount > 99 ? '99+' : notificationCount}</span>
+            {/if}
+          </button>
           {#if !collapsed}
             <button
               class="icon-btn side-tool add-cat"
               on:click={toggleInput}
-              title="Add category"
+              title={$t('category.addCategory')}
               ><span class="anemona icon-plus"></span></button
             >
           {/if}
@@ -127,7 +139,7 @@
         <input
           class="new-cat-input"
           type="text"
-          placeholder="Name"
+          placeholder={$t('category.namePlaceholder')}
           bind:value={newCategoryName}
           on:keydown={(e) => e.key === "Enter" && addCategory()}
           on:blur={() => {
@@ -171,8 +183,8 @@
   .sidebar {
     display: flex;
     flex-direction: column;
-    width: 60px;
-    min-width: 60px;
+    width: 80px;
+    min-width: 80px;
     overflow: hidden;
     flex-shrink: 0;
     background: color-mix(
@@ -196,24 +208,26 @@
     flex-shrink: 0;
   }
 
+  .sidebar-frame::after {
+    content: '';
+    display: block;
+    height: 1px;
+    background: color-mix(in srgb, var(--vscode-sideBarTitle-foreground) 10%, transparent);
+    margin: 0 0.2rem;
+  }
+
   .sidebar-header {
     display: flex;
     align-items: center;
-    justify-content: flex-start;
-    gap: 0.14rem;
-    padding: 0.2rem 0.14rem 0.12rem;
-    flex-shrink: 0;
-  }
-
-  .sidebar.collapsed .sidebar-header {
     justify-content: center;
-    padding-left: 0;
-    padding-right: 0;
+    padding: 0.2rem 0 0.12rem;
+    flex-shrink: 0;
   }
 
   .header-actions {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 0.2rem;
     min-width: 0;
   }
@@ -377,7 +391,6 @@
     border: 1px solid transparent;
     color: var(--vscode-sideBarTitle-foreground);
     cursor: pointer;
-    font-size: 0.82em;
     width: var(--ui-icon-btn-size);
     height: var(--ui-icon-btn-size);
     border-radius: 5px;
@@ -403,7 +416,27 @@
     outline-offset: 1px;
   }
 
-  .add-cat {
-    font-size: 0.95em;
+
+
+  .notif-trigger {
+    position: relative;
+  }
+
+  .notif-side-badge {
+    position: absolute;
+    top: -1px;
+    right: -1px;
+    min-width: 12px;
+    height: 12px;
+    padding: 0 2px;
+    border-radius: 6px;
+    background: #c0392b;
+    color: #fff;
+    font-size: 7px;
+    font-weight: 700;
+    line-height: 12px;
+    text-align: center;
+    pointer-events: none;
+    box-sizing: border-box;
   }
 </style>

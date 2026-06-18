@@ -1,9 +1,14 @@
 <script lang="ts">
   import { createEventDispatcher, tick } from "svelte";
-  import { smartPopover } from "../utils/smartPopover";
+  import { t } from '../i18n'
+  import EditorHeader from '../lib/EditorHeader.svelte'
+  import EntryTitleBar from '../lib/EntryTitleBar.svelte'
+  import SearchToolbar from '../lib/SearchToolbar.svelte'
+  import DeleteConfirmModal from '../lib/DeleteConfirmModal.svelte'
 
   type TodoEntry = {
     title: string;
+    text?: string;
     progress: number;
     status: "open" | "done" | "cancelled";
     priority: "low" | "medium" | "high";
@@ -30,18 +35,20 @@
   let taskModalMode: "add" | "edit" | null = null;
   let editingTaskIndex: number | null = null;
   let editingTaskTitle = "";
+  let editingTaskText = "";
   let editingTaskDueAt = "";
-  let taskTitleInput: HTMLTextAreaElement;
-  let taskModalError = "";
+  let taskTitleInput: HTMLInputElement;
+  let taskTitleError = false;
+  let taskTextError = false;
   let entriesContainerElem: HTMLDivElement;
-  let deleteTaskPrompt: { index: number; title: string; code: string } | null =
-    null;
-  let deleteTaskCodeInput = "";
+  let deleteTaskPrompt: { index: number; title: string } | null = null;
   let lastAppliedInitialFilter = "";
   let filledFromSuggestion = false;
   let activeSelectionRequestId = 0;
 
-  $: if (entries !== localEntries) {
+  let _prevEntries = entries
+  $: if (entries !== localEntries && entries !== _prevEntries) {
+    _prevEntries = entries
     localEntries = entries.map((entry) => ({ ...entry }));
   }
 
@@ -59,7 +66,8 @@
         const parsed = JSON.parse(trimmed);
         const obj = Array.isArray(parsed) ? parsed[0] : parsed;
         if (obj && typeof obj === 'object') {
-          editingTaskTitle = obj.title || obj.task || '';
+          editingTaskTitle = obj.title || '';
+          editingTaskText = obj.task || obj.text || obj.title || '';
           if (obj.priority && ['high','medium','low'].includes(String(obj.priority).toLowerCase())) {
             editingTaskPriority = String(obj.priority).toLowerCase() as 'high' | 'medium' | 'low';
           }
@@ -82,13 +90,15 @@
         if (idx > 0) {
           const key = t.slice(0, idx).trim().toLowerCase().replace(/^["']|["']$/g, '');
           const value = t.slice(idx + 1).trim().replace(/^["']|["']$/g, '');
-          if ((key === 'title' || key === 'task') && !parsed.title) parsed.title = value;
+          if (key === 'title' && !parsed.title) parsed.title = value;
+          if ((key === 'task' || key === 'text') && !parsed.text) parsed.text = value;
           if (key === 'priority' && ['high','medium','low'].includes(value.toLowerCase())) parsed.priority = value.toLowerCase();
           if ((key === 'due' || key === 'dueAt') && !parsed.due) parsed.due = value;
         }
       }
-      if (!parsed.title) parsed.title = lines[0]?.trim() || '';
+      if (!parsed.text) parsed.text = lines[0]?.trim() || '';
       if (parsed.title) editingTaskTitle = parsed.title;
+      if (parsed.text) editingTaskText = parsed.text;
       if (parsed.due) editingTaskDueAt = parsed.due;
     }
   }
@@ -108,11 +118,23 @@
     .filter(({ entry }) => {
       if (!normalizedFilterText) return true;
 
-      return [entry.title, getPriorityLabel(entry), getStatusLabel(entry)]
+      return [getTodoTitle(entry), getTodoText(entry), getPriorityLabel(entry), getStatusLabel(entry)]
         .join(" ")
         .toLowerCase()
         .includes(normalizedFilterText);
     });
+
+  function deriveTitle(text: string): string {
+    return text.trim().split(/\s+/).filter(Boolean).slice(0, 3).join(' ') || 'Untitled'
+  }
+
+  function getTodoText(entry: TodoEntry): string {
+    return (entry.text || entry.title || '').trim()
+  }
+
+  function getTodoTitle(entry: TodoEntry): string {
+    return entry.text && entry.title ? entry.title.trim() : deriveTitle(getTodoText(entry))
+  }
 
   $: filterCounts = {
     all: localEntries.length,
@@ -124,21 +146,21 @@
 
   $: priorityFilterLabel =
     activePriorityFilter === "high"
-      ? "H"
+      ? $t('todoEditor.priorityShortH')
       : activePriorityFilter === "medium"
-        ? "M"
+        ? $t('todoEditor.priorityShortM')
         : activePriorityFilter === "low"
-          ? "L"
-          : "P";
+          ? $t('todoEditor.priorityShortL')
+          : $t('todoEditor.priorityShortP');
 
   $: priorityFilterTitle =
     activePriorityFilter === "high"
-      ? "Priority filter: High"
+      ? $t('todoEditor.filterHigh')
       : activePriorityFilter === "medium"
-        ? "Priority filter: Medium"
+        ? $t('todoEditor.filterMedium')
         : activePriorityFilter === "low"
-          ? "Priority filter: Low"
-          : "Priority filter: All";
+          ? $t('todoEditor.filterLow')
+          : $t('todoEditor.filterAll');
 
   $: activeEntries = localEntries.filter(
     (entry) => entry.status !== "cancelled",
@@ -156,9 +178,8 @@
 
   function normalizeDueAt(value: string): string | undefined {
     const trimmed = value.trim();
-    return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(trimmed)
-      ? trimmed
-      : undefined;
+    const m = trimmed.match(/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2})/);
+    return m ? m[1] : undefined;
   }
 
   function getRelativeDueLabel(entry: TodoEntry): string {
@@ -224,6 +245,7 @@
         .map((entry) => ({
           id: entry.id,
           title: entry.title.trim(),
+          ...(entry.text ? { text: entry.text.trim() } : {}),
           progress: Math.max(0, Math.min(100, Number(entry.progress) || 0)),
           status:
             entry.status === "done" || entry.status === "cancelled"
@@ -235,7 +257,7 @@
               : "medium",
           dueAt: normalizeDueAt(entry.dueAt || ""),
         }))
-        .filter((entry) => entry.title),
+        .filter((entry) => entry.title || entry.text),
     );
   }
 
@@ -245,8 +267,10 @@
     activeSelectionRequestId = onRequestSelectionCheck();
     filledFromSuggestion = false;
     editingTaskTitle = "";
+    editingTaskText = "";
     editingTaskDueAt = "";
-    taskModalError = "";
+    taskTitleError = false;
+    taskTextError = false;
     await tick();
     taskTitleInput?.focus();
   }
@@ -299,9 +323,11 @@
     activeMenuIndex = null;
     taskModalMode = "edit";
     editingTaskIndex = index;
-    editingTaskTitle = localEntries[index].title;
+    editingTaskTitle = getTodoTitle(localEntries[index]);
+    editingTaskText = getTodoText(localEntries[index]);
     editingTaskDueAt = localEntries[index].dueAt || "";
-    taskModalError = "";
+    taskTitleError = false;
+    taskTextError = false;
   }
 
   function setProgress(index: number, progress: number) {
@@ -333,72 +359,56 @@
     emitSave();
   }
 
-  function removeEntry(index: number) {
-    activeMenuIndex = null;
-    localEntries = localEntries.filter((_, itemIndex) => itemIndex !== index);
-    emitSave();
-  }
-
-  function generateDeleteCode(): string {
-    const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-    let code = "";
-
-    for (let i = 0; i < 4; i += 1) {
-      code += alphabet[Math.floor(Math.random() * alphabet.length)];
-    }
-
-    return code;
-  }
-
   function requestDeleteEntry(index: number) {
     activeMenuIndex = null;
     deleteTaskPrompt = {
       index,
-      title: localEntries[index].title,
-      code: generateDeleteCode(),
+      title: getTodoTitle(localEntries[index]),
     };
-    deleteTaskCodeInput = "";
   }
 
-  function cancelDeleteTaskPrompt() {
+  function cancelDeletePrompt() {
     deleteTaskPrompt = null;
-    deleteTaskCodeInput = "";
   }
 
-  function confirmDeleteTask() {
+  function confirmDeletePrompt() {
     if (!deleteTaskPrompt) return;
-    if (deleteTaskCodeInput.trim().toUpperCase() !== deleteTaskPrompt.code)
-      return;
-
     const index = deleteTaskPrompt.index;
-    cancelDeleteTaskPrompt();
-    removeEntry(index);
+    localEntries = localEntries.filter((_, itemIndex) => itemIndex !== index);
+    deleteTaskPrompt = null;
+    emitSave();
   }
 
   function cancelTaskEdit() {
     taskModalMode = null;
     editingTaskIndex = null;
     editingTaskTitle = "";
+    editingTaskText = "";
     editingTaskDueAt = "";
-    taskModalError = "";
+    taskTitleError = false;
+    taskTextError = false;
     activeSelectionRequestId = 0;
     filledFromSuggestion = false;
   }
 
   function saveTaskEdit() {
     const title = editingTaskTitle.trim();
-    if (!title) {
-      taskModalError = "Task description is required";
+    const text = editingTaskText.trim();
+    taskTitleError = !title;
+    taskTextError = !text;
+    if (!title || !text) {
       return;
     }
 
-    taskModalError = "";
+    taskTitleError = false;
+    taskTextError = false;
 
     if (taskModalMode === "add") {
       localEntries = [
         ...localEntries,
         {
           title,
+          text,
           progress: 0,
           status: "open",
           priority: "medium",
@@ -413,6 +423,7 @@
       localEntries[editingTaskIndex] = {
         ...localEntries[editingTaskIndex],
         title,
+        text,
         dueAt: normalizeDueAt(editingTaskDueAt),
       };
       localEntries = localEntries;
@@ -469,22 +480,16 @@
   }
 </script>
 
-<div class="todo-editor">
-  <div class="editor-header">
-    <button class="icon-btn" on:click={() => dispatch("back")} title="Back"
-      ><span class="anemona icon-arrow-back"></span></button
-    >
-    <span class="note-title">{selectedNote.name}</span>
-    <button
-      class="icon-btn primary-btn"
-      on:click={openAddTaskModal}
-      title="Add task"><span class="anemona icon-plus"></span></button
-    >
-  </div>
+<div class="todo-editor editor-shell">
+  <EditorHeader noteName={selectedNote.name} on:back={() => dispatch('back')}>
+    <div class="header-actions">
+      <button class="icon-btn primary-btn" on:click={openAddTaskModal} title={$t('todoEditor.addTask')}><span class="anemona icon-plus"></span></button>
+    </div>
+  </EditorHeader>
 
     <div class="todo-summary">
       <div class="summary-copy">
-        <span class="summary-label">Progress</span>
+        <span class="summary-label">{$t('todoEditor.progress')}</span>
         <strong class="summary-value">{totalProgress}%</strong>
       </div>
       <div class="summary-bar">
@@ -492,61 +497,58 @@
       </div>
     </div>
 
-    <div class="editor-toolbar">
-      <div class="search-field">
-        <span class="search-icon anemona icon-search-alt"></span>
-        <input
-          class="field toolbar-search"
-          type="text"
-          placeholder="Search tasks..."
-          bind:value={filterText}
-        />
-      </div>
-
+    <SearchToolbar
+      value={filterText}
+      placeholder={$t('todoEditor.searchPlaceholder')}
+      showSort={false}
+      on:input={(e) => { filterText = e.detail }}
+    >
       <button
-        class={`toolbar-priority-btn ${activePriorityFilter}`}
+        slot="actions"
+        class="icon-btn toolbar-priority-btn {activePriorityFilter}"
         on:click={cyclePriorityFilter}
         title={priorityFilterTitle}
-        aria-label={priorityFilterTitle}
       >
-        {priorityFilterLabel}
+        <span class="anemona">{priorityFilterLabel}</span>
       </button>
-    </div>
+    </SearchToolbar>
 
     <div class="filter-row">
       <button
         class="filter-chip"
         class:active={activeFilter === "all"}
-        on:click={() => (activeFilter = "all")}>All {filterCounts.all}</button
+        on:click={() => (activeFilter = "all")}>{$t('todoEditor.allCount', { count: filterCounts.all })}</button
       >
       <button
         class="filter-chip"
         class:active={activeFilter === "open"}
-        on:click={() => (activeFilter = "open")}>Open {filterCounts.open}</button
+        on:click={() => (activeFilter = "open")}>{$t('todoEditor.openCount', { count: filterCounts.open })}</button
       >
       <button
         class="filter-chip"
         class:active={activeFilter === "done"}
-        on:click={() => (activeFilter = "done")}>Done {filterCounts.done}</button
+        on:click={() => (activeFilter = "done")}>{$t('todoEditor.doneCount', { count: filterCounts.done })}</button
       >
       <button
         class="filter-chip"
         class:active={activeFilter === "cancelled"}
         on:click={() => (activeFilter = "cancelled")}
-        >Cancelled {filterCounts.cancelled}</button
+        >{$t('todoEditor.cancelledCount', { count: filterCounts.cancelled })}</button
       >
     </div>
 
     {#if movingTaskIndex !== null}
       <div class="move-hint">
-        <span>Click another task to move it there</span>
-        <button class="text-btn" on:click={cancelMovingTask}>Cancel</button>
+        <span>{$t('todoEditor.moveHint')}</span>
+        <button class="text-btn" on:click={cancelMovingTask}>{$t('todoEditor.cancel')}</button>
       </div>
     {/if}
 
     <div class="todo-list" bind:this={entriesContainerElem}>
       {#if visibleEntries.length === 0}
-        <div class="empty-state">No tasks match the current filters</div>
+        {#if localEntries.length > 0}
+          <div class="empty-state">{$t('todoEditor.emptyFilters')}</div>
+        {/if}
       {:else}
         {#each visibleEntries as item (item.entry)}
           {@const entry = item.entry}
@@ -568,93 +570,67 @@
             role="button"
             tabindex="0"
           >
-            <div class="todo-main-row">
-              <button
-                class="check-toggle"
-                on:click={() => toggleDone(index)}
-                title={entry.status === "done" ? "Mark as open" : "Mark as done"}
+            <div class="todo-copy">
+              <EntryTitleBar
+                title={getTodoTitle(entry)}
+                menuOpen={activeMenuIndex === index}
+                menuTitle={$t('todoEditor.entryOptions')}
+                editLabel={$t('todoEditor.edit')}
+                deleteLabel={$t('todoEditor.delete')}
+                on:toggleMenu={() => toggleTaskMenu(index)}
+                on:closeMenu={closeTaskMenu}
               >
-                <span
-                  class={`anemona ${entry.status === "done" ? "icon-checked" : "icon-checkbox"}`}
-                ></span>
-              </button>
-
-              <div class="todo-copy">
-                <div class="todo-title-text">{entry.title}</div>
+                <button
+                  slot="leading"
+                  class="check-toggle"
+                  on:click={() => toggleDone(index)}
+                  title={entry.status === "done" ? $t('todoEditor.markOpen') : $t('todoEditor.markDone')}
+                >
+                  <span
+                    class={`anemona ${entry.status === "done" ? "icon-checked" : "icon-checkbox"}`}
+                  ></span>
+                </button>
+                <svelte:fragment slot="menu">
+                  <button class="menu-item" on:click|stopPropagation={() => editEntry(index)}>
+                    <span class="anemona icon-edit-alt"></span>
+                    <span>{$t('todoEditor.edit')}</span>
+                  </button>
+                  <button class="menu-item" on:click|stopPropagation={() => startMovingTask(index)}>
+                    <span class="anemona icon-arrow-back"></span>
+                    <span>{$t('todoEditor.move')}</span>
+                  </button>
+                  <button class="menu-item" on:click|stopPropagation={() => cyclePriority(index)}>
+                    <span class="anemona icon-slider-alt"></span>
+                    <span>{$t('todoEditor.priorityLabel', { label: getPriorityLabel(entry) })}</span>
+                  </button>
+                  <button
+                    class="menu-item"
+                    class:danger={entry.status !== "cancelled"}
+                    on:click|stopPropagation={() => toggleCancelled(index)}
+                  >
+                    <span class="anemona icon-x"></span>
+                    <span>{entry.status === "cancelled" ? $t('todoEditor.restore') : $t('todoEditor.cancel')}</span>
+                  </button>
+                  <button class="menu-item danger" on:click|stopPropagation={() => requestDeleteEntry(index)}>
+                    <span class="anemona icon-trash-alt"></span>
+                    <span>{$t('todoEditor.delete')}</span>
+                  </button>
+                </svelte:fragment>
+              </EntryTitleBar>
+              <div class="item-body">
+                <div class="item-text">{getTodoText(entry)}</div>
                 <div class="todo-meta">
                   <span class="todo-progress">{entry.progress}%</span>
                   <span class="todo-status">{getStatusLabel(entry)}</span>
                   <button
                     class={`priority-chip ${entry.priority}`}
                     on:click={() => cyclePriority(index)}
-                    title="Change priority">{getPriorityLabel(entry)}</button
+                    title={$t('todoEditor.changePriority')}>{getPriorityLabel(entry)}</button
                   >
                   {#if entry.dueAt}
                     <span class={`todo-deadline ${getDueTone(entry)}`}
                       >{getRelativeDueLabel(entry)}</span
                     >
-                  {/if}
-                </div>
-              </div>
-
-              <div class="todo-actions">
-                <div class="menu-wrap">
-                  <button
-                    class="icon-btn state-btn"
-                    on:click|stopPropagation={() => toggleTaskMenu(index)}
-                    title="Task options"
-                  >
-                    <span class="anemona icon-dots-vertical"></span>
-                  </button>
-                  {#if activeMenuIndex === index}
-                    <div
-                      class="menu-popover task-menu"
-                      use:smartPopover={{
-                        open: activeMenuIndex === index,
-                        onClose: closeTaskMenu,
-                      }}
-                    >
-                      <button
-                        class="menu-item"
-                        on:click|stopPropagation={() => editEntry(index)}
-                      >
-                        <span class="anemona icon-edit-alt"></span>
-                        <span>Edit</span>
-                      </button>
-                      <button
-                        class="menu-item"
-                        on:click|stopPropagation={() => startMovingTask(index)}
-                      >
-                        <span class="anemona icon-arrow-back"></span>
-                        <span>Move</span>
-                      </button>
-                      <button
-                        class="menu-item"
-                        on:click|stopPropagation={() => cyclePriority(index)}
-                      >
-                        <span class="anemona icon-slider-alt"></span>
-                        <span>Priority: {getPriorityLabel(entry)}</span>
-                      </button>
-                      <button
-                        class="menu-item"
-                        class:danger={entry.status !== "cancelled"}
-                        on:click|stopPropagation={() => toggleCancelled(index)}
-                      >
-                        <span class="anemona icon-x"></span>
-                        <span
-                          >{entry.status === "cancelled"
-                            ? "Restore"
-                            : "Cancel"}</span
-                        >
-                      </button>
-                      <button
-                        class="menu-item danger"
-                        on:click|stopPropagation={() => requestDeleteEntry(index)}
-                      >
-                        <span class="anemona icon-trash-alt"></span>
-                        <span>Delete</span>
-                      </button>
-                    </div>
                   {/if}
                 </div>
               </div>
@@ -677,106 +653,57 @@
       {/if}
 
       <button class="add-entry-btn" class:no-entries={localEntries.length === 0} on:click={openAddTaskModal}
-        ><span class="anemona icon-plus"></span> Add entry</button
+        ><span class="anemona icon-plus"></span> {$t('todoEditor.addEntry')}</button
       >
     </div>
 
   {#if taskModalMode}
     <button
-      class="task-modal-backdrop"
+      class="modal-backdrop"
       on:click={cancelTaskEdit}
       aria-label="Close task edit"
     ></button>
-    <div class="task-modal">
-      <h3>{taskModalMode === "add" ? "Add task" : "Edit task"}</h3>
-      <textarea
-        class="task-modal-input"
+    <div class="form-modal">
+      <h3>{taskModalMode === "add" ? $t('todoEditor.addTaskTitle') : $t('todoEditor.editTaskTitle')}</h3>
+      <input
+        class="form-input task-title-input"
+        class:field-error={taskTitleError}
+        type="text"
         bind:this={taskTitleInput}
         bind:value={editingTaskTitle}
+        placeholder={$t('common.title')}
+      />
+      <textarea
+        class="form-input form-textarea tall"
+        class:field-error={taskTextError}
+        bind:value={editingTaskText}
         rows="5"
-        placeholder="Task description"
+        placeholder={$t('todoEditor.taskPlaceholder')}
       ></textarea>
-      {#if taskModalError}
-        <p class="task-modal-error">{taskModalError}</p>
-      {/if}
       <input
-        class="task-date-input"
+        class="form-input task-date-input"
         type="datetime-local"
         bind:value={editingTaskDueAt}
       />
-      <div class="task-modal-actions">
-        <button class="task-btn" on:click={cancelTaskEdit}>Cancel</button>
-        <button class="task-btn primary" on:click={saveTaskEdit}
-          >{taskModalMode === "add" ? "Add" : "Save"}</button
+      <div class="form-actions">
+        <button class="btn" on:click={cancelTaskEdit}>{$t('todoEditor.cancel')}</button>
+        <button class="btn primary" on:click={saveTaskEdit}
+          >{taskModalMode === "add" ? $t('todoEditor.add') : $t('todoEditor.save')}</button
         >
       </div>
     </div>
   {/if}
 
-  {#if deleteTaskPrompt}
-    <button
-      class="task-modal-backdrop"
-      on:click={cancelDeleteTaskPrompt}
-      aria-label="Close task delete confirmation"
-    ></button>
-    <div class="task-modal">
-      <h3>Delete task</h3>
-      <p>
-        Confirm deletion of <strong>{deleteTaskPrompt.title}</strong> by typing
-        <strong>{deleteTaskPrompt.code}</strong>
-      </p>
-      <input
-        class="task-code-input"
-        type="text"
-        bind:value={deleteTaskCodeInput}
-        maxlength="4"
-        placeholder="Code"
-        on:keydown={(event) => event.key === "Enter" && confirmDeleteTask()}
-      />
-      <div class="task-modal-actions">
-        <button class="task-btn" on:click={cancelDeleteTaskPrompt}
-          >Cancel</button
-        >
-        <button class="task-btn danger" on:click={confirmDeleteTask}
-          >Delete</button
-        >
-      </div>
-    </div>
-  {/if}
+  <DeleteConfirmModal
+    show={deleteTaskPrompt !== null}
+    title={$t('todoEditor.deleteTaskTitle')}
+    itemName={deleteTaskPrompt ? deleteTaskPrompt.title : ''}
+    on:confirm={confirmDeletePrompt}
+    on:cancel={cancelDeletePrompt}
+  />
 </div>
 
 <style>
-  .todo-editor {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    overflow: hidden;
-    padding: 0.26rem;
-    box-sizing: border-box;
-  }
-
-  .editor-header {
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-    padding: 0.32rem 0.4rem;
-    flex-shrink: 0;
-    border: 1px solid
-      color-mix(in srgb, var(--accent-color) 14%, var(--ui-border));
-    border-radius: var(--ui-radius-md);
-    background: transparent;
-  }
-
-  .note-title {
-    flex: 1;
-    font-size: var(--ui-font-title);
-    font-weight: 400;
-    color: var(--vscode-sideBarTitle-foreground);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
   .todo-summary {
     display: flex;
     flex-direction: column;
@@ -834,56 +761,6 @@
     flex-shrink: 0;
   }
 
-  .editor-toolbar {
-    display: flex;
-    align-items: stretch;
-    gap: 0.2rem;
-    margin-top: 0.22rem;
-    margin-bottom: 0;
-    flex-shrink: 0;
-  }
-
-  .search-field {
-    flex: 1 1 auto;
-    min-width: 0;
-    position: relative;
-    display: flex;
-    align-items: stretch;
-  }
-
-  .search-icon {
-    position: absolute;
-    top: 50%;
-    left: var(--ui-search-icon-left);
-    transform: translateY(-50%);
-    font-size: 0.78em;
-    color: var(--vscode-descriptionForeground);
-    pointer-events: none;
-    z-index: 1;
-  }
-
-  .toolbar-search {
-    width: 100%;
-    min-width: 0;
-    height: var(--ui-control-height-sm);
-    box-sizing: border-box;
-    color: var(--vscode-sideBarTitle-foreground);
-    padding-left: var(--ui-search-input-pad-left);
-    padding-right: 0.46rem;
-    border-radius: 6px;
-    font-size: var(--ui-font-control);
-    line-height: 1;
-    border: 1px solid var(--ui-border-strong);
-    background: var(--vscode-input-background);
-    box-shadow: none;
-  }
-
-  .toolbar-search:focus {
-    border-color: var(--ui-border-strong);
-    outline: none;
-    box-shadow: none;
-  }
-
   .toolbar-priority-btn {
     width: 1.9rem;
     height: var(--ui-control-height-sm);
@@ -934,29 +811,6 @@
     background: color-mix(in srgb, #68c3a0 10%, transparent);
   }
 
-  .filter-chip {
-    border: 1px solid
-      color-mix(in srgb, var(--accent-color) 10%, var(--ui-border));
-    border-radius: 999px;
-    background: color-mix(
-      in srgb,
-      var(--accent-color) 3%,
-      var(--vscode-editor-background)
-    );
-    color: var(--ui-muted);
-    padding: 0.06rem 0.24rem;
-    font-size: var(--ui-font-xs);
-    font-weight: 400;
-    letter-spacing: 0.01em;
-    cursor: pointer;
-  }
-
-  .filter-chip.active {
-    color: var(--vscode-sideBarTitle-foreground);
-    border-color: color-mix(in srgb, var(--accent-color) 18%, transparent);
-    background: color-mix(in srgb, var(--accent-color) 8%, transparent);
-  }
-
   @media (max-width: 520px) {
     .toolbar-priority-btn {
       width: 1.82rem;
@@ -976,33 +830,6 @@
     background: color-mix(in srgb, var(--accent-color) 6%, transparent);
     color: var(--vscode-sideBarTitle-foreground);
     font-size: var(--ui-font-xs);
-  }
-
-  .add-entry-btn {
-    width: 100%;
-    background: color-mix(in srgb, var(--accent-color) 5%, var(--vscode-editor-background));
-    border: 1px dashed var(--ui-border-strong);
-    border-radius: var(--ui-radius-md);
-    color: var(--vscode-sideBarTitle-foreground);
-    cursor: pointer;
-    min-height: var(--ui-control-height);
-    padding: 0.26rem 0.38rem;
-    font-size: var(--ui-font-control);
-    font-weight: 400;
-    opacity: 0.84;
-    position: sticky;
-    bottom: 0;
-    z-index: 1;
-  }
-
-  .add-entry-btn.no-entries {
-    position: static;
-  }
-
-  .add-entry-btn:hover {
-    opacity: 1;
-    border-color: color-mix(in srgb, var(--accent-color) 30%, transparent);
-    background: color-mix(in srgb, var(--accent-color) 8%, transparent);
   }
 
   .text-btn {
@@ -1033,6 +860,13 @@
 
   .todo-card {
     --todo-priority-color: var(--accent-color);
+    --check-toggle-color: color-mix(
+      in srgb,
+      var(--todo-priority-color) 76%,
+      var(--vscode-sideBarTitle-foreground)
+    );
+    --check-toggle-hover-color: color-mix(in srgb, var(--todo-priority-color) 90%, white 10%);
+    --check-toggle-hover-bg: color-mix(in srgb, var(--todo-priority-color) 10%, transparent);
     position: relative;
     z-index: 0;
     display: flex;
@@ -1091,10 +925,12 @@
 
   .todo-card.done .todo-progress,
   .todo-card.done .todo-status,
-  .todo-card.done .todo-title-text,
+  .todo-card.done .item-text,
   .todo-card.cancelled .todo-progress,
   .todo-card.cancelled .todo-status,
-  .todo-card.cancelled .todo-title-text {
+  .todo-card.cancelled .item-text,
+  :global(.todo-card.done .entry-title),
+  :global(.todo-card.cancelled .entry-title) {
     color: var(--vscode-sideBarTitle-foreground);
   }
 
@@ -1106,46 +942,6 @@
       var(--vscode-sideBarTitle-foreground) 10%,
       transparent
     );
-  }
-
-  .todo-main-row {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.22rem;
-  }
-
-  .check-toggle {
-    width: 1.08rem;
-    height: 1.08rem;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    align-self: flex-start;
-    border: none;
-    background: transparent;
-    color: color-mix(
-      in srgb,
-      var(--todo-priority-color) 76%,
-      var(--vscode-sideBarTitle-foreground)
-    );
-    cursor: pointer;
-    padding: 0;
-    border-radius: 4px;
-    flex-shrink: 0;
-    transition:
-      transform 0.12s ease,
-      color 0.12s ease,
-      background 0.12s ease;
-  }
-
-  .check-toggle:hover {
-    color: color-mix(in srgb, var(--todo-priority-color) 90%, white 10%);
-    background: color-mix(in srgb, var(--todo-priority-color) 10%, transparent);
-  }
-
-  .check-toggle span {
-    font-size: 0.76rem;
-    line-height: 1;
   }
 
   .todo-card.done .check-toggle {
@@ -1161,12 +957,10 @@
   }
 
   .todo-copy {
-    flex: 1;
     min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 0.08rem;
   }
+
+
 
   .todo-meta {
     display: flex;
@@ -1241,7 +1035,7 @@
     color: #ffb0b3;
   }
 
-  .todo-title-text {
+  :global(.todo-card .entry-title) {
     width: 100%;
     color: var(--vscode-sideBarTitle-foreground);
     font-size: 0.62rem;
@@ -1252,50 +1046,24 @@
     word-break: break-word;
   }
 
-  .todo-card.done .todo-title-text {
+  :global(.todo-card.done .entry-title) {
     text-decoration: line-through;
     opacity: 0.82;
   }
 
-  .todo-card.cancelled .todo-title-text {
+  :global(.todo-card.cancelled .entry-title) {
     text-decoration: line-through;
     opacity: 0.58;
   }
 
-  .task-modal-backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.45);
-    z-index: 30;
+  .todo-card.done .item-text {
+    text-decoration: line-through;
+    opacity: 0.82;
   }
 
-  .task-modal {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: min(360px, calc(100vw - 2rem));
-    background: var(--vscode-editor-background);
-    color: var(--vscode-editor-foreground);
-    border: 1px solid var(--ui-border-strong);
-    border-radius: var(--ui-radius-lg);
-    padding: 1rem;
-    z-index: 31;
-    box-sizing: border-box;
-    box-shadow: var(--ui-shadow);
-  }
-
-  .task-modal h3 {
-    margin: 0 0 0.55rem;
-    font-size: 0.84rem;
-    font-weight: 500;
-  }
-
-  .task-modal p {
-    margin: 0 0 0.75rem;
-    font-size: var(--ui-font-sm);
-    line-height: 1.4;
-    color: var(--ui-muted);
+  .todo-card.cancelled .item-text {
+    text-decoration: line-through;
+    opacity: 0.58;
   }
 
   .task-modal-error {
@@ -1304,135 +1072,13 @@
     color: #ff8d8d;
   }
 
-  .task-modal-input,
-  .task-code-input,
-  .task-date-input {
-    width: 100%;
-    box-sizing: border-box;
-    background: var(--vscode-input-background);
-    color: var(--vscode-input-foreground);
-    border: 1px solid var(--ui-border-strong);
-    border-radius: var(--ui-radius-sm);
-    min-height: var(--ui-control-height);
-    padding: var(--ui-control-pad-y) calc(var(--ui-control-pad-x) + 0.08rem);
-    font-size: var(--ui-font-control);
-    font-family: inherit;
-  }
-
-  .task-modal-input {
-    resize: vertical;
-    min-height: 6.2rem;
-    line-height: 1.45;
-  }
-
   .task-date-input {
     margin-top: 0.55rem;
     margin-bottom: 0.8rem;
   }
 
-  .task-code-input {
-    margin-bottom: 0.8rem;
-    text-transform: uppercase;
-    letter-spacing: 0.18em;
-  }
-
-  .task-modal-input:focus,
-  .task-code-input:focus,
-  .task-date-input:focus {
-    outline: none;
-    border-color: var(--vscode-focusBorder);
-  }
-
-  .task-modal-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 0.5rem;
-  }
-
-  .task-btn {
-    min-height: var(--ui-control-height-sm);
-    padding: 0.22rem 0.46rem;
-    border: 1px solid var(--ui-border);
-    border-radius: var(--ui-radius-sm);
-    cursor: pointer;
-    font-size: var(--ui-font-control);
-    font-weight: 400;
-    background: var(--vscode-button-secondaryBackground);
-    color: var(--vscode-button-secondaryForeground);
-  }
-
-  .task-btn.primary {
-    background: var(--vscode-button-background);
-    color: var(--vscode-button-foreground);
-  }
-
-  .task-btn.danger {
-    background: #c0392b;
-    color: #fff;
-  }
-
-  .todo-actions {
-    display: flex;
-    gap: 0.2rem;
-  }
-
-  .menu-wrap {
-    position: relative;
-  }
-
-  .menu-popover {
-    position: absolute;
-    top: calc(100% + 0.16rem);
-    bottom: auto;
-    left: auto;
-    right: 0;
-    min-width: 7.2rem;
-    max-width: min(var(--popover-max-width, 20rem), calc(100vw - 1rem));
-    max-height: var(--popover-max-height, 24rem);
-    overflow-y: auto;
-    background: color-mix(
-      in srgb,
-      var(--accent-color) 7%,
-      var(--vscode-editor-background)
-    );
-    border: 1px solid var(--ui-border-strong);
-    border-radius: var(--ui-radius-md);
-    box-shadow: var(--ui-shadow);
-    padding: 0.14rem;
-    z-index: 12;
-  }
-
-  :global(.menu-popover[data-vertical="up"]) {
-    top: auto;
-    bottom: calc(100% + 0.16rem);
-  }
-
-  :global(.menu-popover[data-horizontal="left"]) {
-    left: 0;
-    right: auto;
-  }
-
-  .menu-item {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    gap: 0.34rem;
-    border: none;
-    background: transparent;
-    color: var(--vscode-foreground);
-    border-radius: 5px;
-    padding: var(--ui-menu-pad-y) var(--ui-menu-pad-x);
-    cursor: pointer;
-    font-size: var(--ui-menu-font);
-    text-align: left;
-  }
-
-  .menu-item:hover {
-    background: color-mix(in srgb, var(--accent-color) 10%, transparent);
-  }
-
-  .menu-item.danger {
-    color: #e87070;
+  .task-title-input {
+    margin-bottom: 0.45rem;
   }
 
   .todo-progress-row {
@@ -1497,58 +1143,4 @@
     opacity: 0.85;
   }
 
-  .icon-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: transparent;
-    border: 1px solid transparent;
-    color: var(--vscode-sideBarTitle-foreground);
-    cursor: pointer;
-    font-size: 0.82em;
-    width: var(--ui-icon-btn-size);
-    height: var(--ui-icon-btn-size);
-    border-radius: 5px;
-    padding: 0;
-    line-height: 1;
-    opacity: 0.92;
-    flex-shrink: 0;
-  }
-
-  .icon-btn:hover {
-    opacity: 1;
-    color: var(--vscode-textLink-foreground);
-    background: color-mix(in srgb, var(--accent-color) 10%, transparent);
-    border-color: transparent;
-  }
-
-  .icon-btn:focus-visible {
-    outline: 1px solid color-mix(in srgb, var(--accent-color) 45%, transparent);
-    outline-offset: 1px;
-  }
-
-  .primary-btn {
-    color: color-mix(in srgb, var(--accent-color) 86%, white 14%);
-    border-color: transparent;
-    background: transparent;
-    box-shadow: none;
-    text-shadow: none;
-  }
-
-  .primary-btn:hover {
-    color: white;
-    background: color-mix(in srgb, var(--accent-color) 14%, transparent);
-    border-color: transparent;
-  }
-
-  .primary-btn span {
-    font-size: 0.88rem;
-    font-weight: 500;
-  }
-
-  .state-btn.active {
-    color: #e17076;
-    border-color: color-mix(in srgb, #e17076 24%, transparent);
-    background: color-mix(in srgb, #e17076 10%, transparent);
-  }
 </style>

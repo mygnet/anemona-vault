@@ -1,0 +1,19 @@
+[
+  {
+    "id": "5a4871db-89a7-498d-8e2c-e499e3c245ee",
+    "key": "reminder:a2ef3b7d-d1a0-4ee2-8d55-3d3b9fb4cf85",
+    "type": "reminder",
+    "title": "ddddd",
+    "message": "",
+    "source": "local",
+    "status": "unread",
+    "priority": "normal",
+    "relatedItemId": "a2ef3b7d-d1a0-4ee2-8d55-3d3b9fb4cf85",
+    "relatedItemType": "reminder",
+    "action": {
+      "type": "file",
+      "target": "01-Demo/Carpeta-1/Carpeta-2/Carpeta-3/Recordatorios.anemona-reminder"
+    },
+    "createdAt": "2026-06-18T19:49:03.624Z"
+  }
+]

@@ -1,0 +1,10 @@
+[
+  {
+    "title": "Listar diorectorio",
+    "command": "ls -la *"
+  },
+  {
+    "title": "ddd",
+    "command": "ls"
+  }
+]

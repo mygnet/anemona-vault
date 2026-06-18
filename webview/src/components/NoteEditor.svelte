@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { t } from '../i18n'
+  import EditorHeader from '../lib/EditorHeader.svelte'
   export let noteContent = "";
   export let selectedNote: { name: string; filePath: string };
   export let searchText = "";
@@ -17,13 +19,17 @@
     editing = false;
   }
 
+  function toggleEditing() {
+    if (editing) {
+      save();
+    } else {
+      startEdit();
+    }
+  }
+
   function save() {
     onSave(editContent);
     editing = false;
-  }
-
-  function goBack() {
-    onBack();
   }
 
   function escapeHtml(value: string) {
@@ -47,7 +53,7 @@
 
   function renderMarkdown(content: string) {
     if (!content.trim()) {
-      return '<p class="empty-render">Select a note to view its content</p>';
+      return `<p class="empty-render">${$t('noteEditor.selectNote')}</p>`;
     }
 
     const lines = content.replace(/\r\n/g, "\n").split("\n");
@@ -173,7 +179,7 @@
 
     return matchedLines.length > 0
       ? matchedLines.join("\n")
-      : `No visible matches for: ${query}`;
+      : `${$t('noteEditor.noVisibleMatches', { query })}`;
   }
 
   $: previewContent = filterPreviewContent(noteContent, searchText);
@@ -181,27 +187,11 @@
 </script>
 
 <div class="editor">
-  <div class="editor-header">
-    <button class="icon-btn" on:click={goBack} title="Back"
-      ><span class="anemona icon-arrow-back"></span></button
-    >
-    <span class="note-title">{selectedNote.name}.md</span>
-    {#if !editing && searchText.trim()}
-      <span class="search-chip">{searchText}</span>
-    {/if}
-    {#if editing}
-      <button class="icon-btn" on:click={save} title="Save"
-        ><span class="anemona icon-check"></span></button
-      >
-      <button class="icon-btn" on:click={cancelEdit} title="Cancel"
-        ><span class="anemona icon-x"></span></button
-      >
-    {:else}
-      <button class="icon-btn" on:click={startEdit} title="Edit"
-        ><span class="anemona icon-edit-alt"></span></button
-      >
-    {/if}
-  </div>
+  <EditorHeader noteName={selectedNote.name} on:back={onBack}>
+    <div class="header-actions">
+      <button class="icon-btn primary-btn" on:click={toggleEditing} title={editing ? $t('noteEditor.save') : $t('noteEditor.edit')}><span class="anemona {editing ? 'icon-check' : 'icon-edit-alt'}"></span></button>
+    </div>
+  </EditorHeader>
 
   <div class="editor-body">
     {#if editing}
@@ -226,69 +216,6 @@
     overflow: hidden;
     padding: 0.18rem;
     box-sizing: border-box;
-  }
-
-  .editor-header {
-    display: flex;
-    align-items: center;
-    gap: 0.22rem;
-    padding: 0.2rem 0.24rem;
-    flex-shrink: 0;
-    border: 1px solid color-mix(in srgb, var(--accent-color) 14%, var(--ui-border));
-    border-radius: var(--ui-radius-md);
-    background: color-mix(in srgb, var(--accent-color) 4%, var(--vscode-editor-background));
-  }
-
-  .note-title {
-    flex: 1;
-    font-size: var(--ui-font-title);
-    font-weight: 400;
-    color: var(--vscode-sideBarTitle-foreground);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .icon-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: transparent;
-    border: 1px solid transparent;
-    color: var(--vscode-sideBarTitle-foreground);
-    cursor: pointer;
-    font-size: 0.82rem;
-    width: var(--ui-icon-btn-size);
-    height: var(--ui-icon-btn-size);
-    border-radius: 5px;
-    padding: 0;
-    line-height: 1;
-    opacity: 0.92;
-  }
-
-  .icon-btn:hover {
-    opacity: 1;
-    color: var(--vscode-textLink-foreground);
-    background: color-mix(in srgb, var(--accent-color) 10%, transparent);
-    border-color: transparent;
-  }
-
-  .icon-btn:focus-visible {
-    outline: 1px solid color-mix(in srgb, var(--accent-color) 45%, transparent);
-    outline-offset: 1px;
-  }
-
-  .search-chip {
-    max-width: 8rem;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    border: 1px solid color-mix(in srgb, var(--accent-color) 16%, var(--ui-border));
-    border-radius: 999px;
-    padding: 0.08rem 0.34rem;
-    font-size: var(--ui-font-xs);
-    color: var(--ui-muted);
-    background: color-mix(in srgb, var(--accent-color) 5%, transparent);
   }
 
   .editor-body {

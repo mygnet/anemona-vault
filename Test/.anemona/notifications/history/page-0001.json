@@ -1,0 +1,830 @@
+[
+  {
+    "id": "3ebb4d33-58b2-4ecd-8896-0c11f267fefe",
+    "key": "reminder:9f88ac16-8cd8-445d-8d63-56938a6624d3",
+    "type": "reminder",
+    "title": "Realizar actividades",
+    "message": "Hacer la migracion",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "9f88ac16-8cd8-445d-8d63-56938a6624d3",
+    "relatedItemType": "reminder",
+    "action": {
+      "type": "file",
+      "target": "Anemona/Carpeta-1/Carpeta-2/Carpeta-3/Recordatorio.anemona-reminder"
+    },
+    "createdAt": "2026-06-18T18:57:04.758Z",
+    "readAt": "2026-06-18T18:58:15.371Z"
+  },
+  {
+    "id": "49fd597d-aaf4-4de7-8e06-64fc808608ca",
+    "key": "reminder:9f464836-ae0b-4c9b-8a6f-96633a3482a8",
+    "type": "reminder",
+    "title": "Recodatorio",
+    "message": "Hacer la tareas",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "9f464836-ae0b-4c9b-8a6f-96633a3482a8",
+    "relatedItemType": "reminder",
+    "action": {
+      "type": "file",
+      "target": "Anemona/Carpeta-1/Carpeta-2/Carpeta-3/Recordatorio.anemona-reminder"
+    },
+    "createdAt": "2026-06-18T18:55:39.032Z",
+    "readAt": "2026-06-18T18:56:08.457Z"
+  },
+  {
+    "id": "724c9dd8-afe4-4b9e-841b-ea3398cc10c0",
+    "key": "reminder:1ac7fdb8-9f0d-49b0-8443-dc93dfa8992b",
+    "type": "reminder",
+    "title": "Parav papa",
+    "message": "",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "1ac7fdb8-9f0d-49b0-8443-dc93dfa8992b",
+    "relatedItemType": "reminder",
+    "action": {
+      "type": "file",
+      "target": "Anemona/Carpeta-1/Carpeta-2/Carpeta-3/Recordatorio.anemona-reminder"
+    },
+    "createdAt": "2026-06-18T18:54:03.452Z",
+    "readAt": "2026-06-18T18:55:07.870Z"
+  },
+  {
+    "id": "f416e32f-1fe4-43ca-83dd-529a71e51375",
+    "key": "reminder:e4101067-a016-4f42-8715-e02eb569c74d",
+    "type": "reminder",
+    "title": "llamar a mama",
+    "message": "ssss",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "e4101067-a016-4f42-8715-e02eb569c74d",
+    "relatedItemType": "reminder",
+    "action": {
+      "type": "file",
+      "target": "Anemona/Carpeta-1/Carpeta-2/Carpeta-3/Recordatorio.anemona-reminder"
+    },
+    "createdAt": "2026-06-18T18:51:01.625Z",
+    "readAt": "2026-06-18T18:55:07.007Z"
+  },
+  {
+    "id": "23548f8e-a8a7-4b9e-80c4-13ada42b68eb",
+    "key": "reminder:a5d6ea97-6e14-4cb1-8dab-26c0c5aeb109",
+    "type": "reminder",
+    "title": "Llamar a ramon",
+    "message": "",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "a5d6ea97-6e14-4cb1-8dab-26c0c5aeb109",
+    "relatedItemType": "reminder",
+    "action": {
+      "type": "file",
+      "target": "01-Demo/Carpeta-1/Carpeta-2/Carpeta-3/Recordatorios.anemona-reminder"
+    },
+    "createdAt": "2026-06-18T18:33:01.427Z",
+    "readAt": "2026-06-18T18:55:04.906Z"
+  },
+  {
+    "id": "7f93c2d3-63e5-4fa7-85cf-c009cc604498",
+    "key": "reminder:370d1a02-bdee-4973-8c6c-72b65a4f072d",
+    "type": "reminder",
+    "title": "sssss",
+    "message": "sssss",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "370d1a02-bdee-4973-8c6c-72b65a4f072d",
+    "relatedItemType": "reminder",
+    "action": {
+      "type": "file",
+      "target": "Dev/recordatorios.anemona-reminder"
+    },
+    "createdAt": "2026-06-18T18:22:25.625Z",
+    "readAt": "2026-06-18T18:29:00.907Z"
+  },
+  {
+    "id": "fc083828-e984-447e-896d-11753037cf99",
+    "key": "reminder:3f03cece-cf0f-4e2c-8166-e48b67df88c9",
+    "type": "reminder",
+    "title": "wwwwww",
+    "message": "wwwwww",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "3f03cece-cf0f-4e2c-8166-e48b67df88c9",
+    "relatedItemType": "reminder",
+    "action": {
+      "type": "file",
+      "target": "Dev/recordatorios.anemona-reminder"
+    },
+    "createdAt": "2026-06-18T17:35:06.780Z",
+    "readAt": "2026-06-18T18:29:02.125Z"
+  },
+  {
+    "id": "68a7b918-6503-47fe-8de1-9c95b3fc5a1a",
+    "key": "reminder:fcedce2d-83ae-4152-8e6f-7ce47430ea00",
+    "type": "reminder",
+    "title": "Renovar SSL",
+    "message": "Renovar SSL",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "fcedce2d-83ae-4152-8e6f-7ce47430ea00",
+    "relatedItemType": "reminder",
+    "action": {
+      "type": "file",
+      "target": "Dev/recordatorios.anemona-reminder"
+    },
+    "createdAt": "2026-06-18T17:35:06.779Z",
+    "readAt": "2026-06-18T18:29:11.674Z"
+  },
+  {
+    "id": "a4ec601c-d03f-400d-8bc5-59c7dc5eb90b",
+    "key": "task:b2c3d4e5-f6a7-8901-bcde-f12345678901",
+    "type": "task_due",
+    "title": "Llamar al médico",
+    "message": "",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+    "relatedItemType": "task",
+    "action": {
+      "type": "file",
+      "target": "Dev/level1/level2/tasks.anemona-todo"
+    },
+    "createdAt": "2026-06-18T17:35:06.778Z",
+    "readAt": "2026-06-18T18:29:18.591Z"
+  },
+  {
+    "id": "7f204dae-d3df-4a01-8fb0-fb067fc4760e",
+    "key": "task:a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "type": "task_due",
+    "title": "Comprar leche",
+    "message": "",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "relatedItemType": "task",
+    "action": {
+      "type": "file",
+      "target": "Dev/level1/level2/tasks.anemona-todo"
+    },
+    "createdAt": "2026-06-18T17:35:06.777Z",
+    "readAt": "2026-06-18T18:29:23.188Z"
+  },
+  {
+    "id": "ce2a5219-c43f-43ed-8ba1-66625f055067",
+    "key": "reminder:049f7b05-1f6e-42cc-8543-ee72da33d890",
+    "type": "reminder",
+    "title": "Demostracion",
+    "message": "",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "049f7b05-1f6e-42cc-8543-ee72da33d890",
+    "relatedItemType": "reminder",
+    "action": {
+      "type": "file",
+      "target": "Anemona/Carpeta-1/Carpeta-2/Carpeta-3/Recordatorio.anemona-reminder"
+    },
+    "createdAt": "2026-06-18T17:35:06.776Z",
+    "readAt": "2026-06-18T18:29:27.840Z"
+  },
+  {
+    "id": "be798aa8-6b10-48db-8f32-c419aef1b8cb",
+    "key": "reminder:9f464836-ae0b-4c9b-8a6f-96633a3482a8",
+    "type": "reminder",
+    "title": "Recodatorio",
+    "message": "Hacer la tareas",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "9f464836-ae0b-4c9b-8a6f-96633a3482a8",
+    "relatedItemType": "reminder",
+    "action": {
+      "type": "file",
+      "target": "Anemona/Carpeta-1/Carpeta-2/Carpeta-3/Recordatorio.anemona-reminder"
+    },
+    "createdAt": "2026-06-18T17:35:06.759Z",
+    "readAt": "2026-06-18T18:29:31.221Z"
+  },
+  {
+    "id": "f053aee5-302f-4b51-8a05-32bc7fd31c10",
+    "key": "reminder:049f7b05-1f6e-42cc-8543-ee72da33d890",
+    "type": "reminder",
+    "title": "Demostracion",
+    "message": "",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "049f7b05-1f6e-42cc-8543-ee72da33d890",
+    "relatedItemType": "reminder",
+    "action": {
+      "type": "file",
+      "target": "Anemona/Carpeta-1/Carpeta-2/Carpeta-3/Recordatorio.anemona-reminder"
+    },
+    "createdAt": "2026-06-18T16:58:02.962Z",
+    "readAt": "2026-06-18T17:22:33.127Z"
+  },
+  {
+    "id": "48b74582-355f-481e-8118-b7849047a727",
+    "key": "reminder:9f464836-ae0b-4c9b-8a6f-96633a3482a8",
+    "type": "reminder",
+    "title": "Recodatorio",
+    "message": "Hacer la tareas",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "9f464836-ae0b-4c9b-8a6f-96633a3482a8",
+    "relatedItemType": "reminder",
+    "action": {
+      "type": "file",
+      "target": "Anemona/Carpeta-1/Carpeta-2/Carpeta-3/Recordatorio.anemona-reminder"
+    },
+    "createdAt": "2026-06-18T16:55:02.924Z",
+    "readAt": "2026-06-18T17:22:33.791Z"
+  },
+  {
+    "id": "f883d589-af23-4c17-8503-1d541106fa2e",
+    "key": "reminder:370d1a02-bdee-4973-8c6c-72b65a4f072d",
+    "type": "reminder",
+    "title": "sssss",
+    "message": "sssss",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "370d1a02-bdee-4973-8c6c-72b65a4f072d",
+    "relatedItemType": "reminder",
+    "action": {
+      "type": "file",
+      "target": "Dev/recordatorios.anemona-reminder"
+    },
+    "createdAt": "2026-06-18T16:41:57.022Z",
+    "readAt": "2026-06-18T17:22:34.293Z"
+  },
+  {
+    "id": "d32e03eb-212d-4287-80ce-709f78819a96",
+    "key": "reminder:fcedce2d-83ae-4152-8e6f-7ce47430ea00",
+    "type": "reminder",
+    "title": "Renovar SSL",
+    "message": "Renovar SSL",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "fcedce2d-83ae-4152-8e6f-7ce47430ea00",
+    "relatedItemType": "reminder",
+    "action": {
+      "type": "file",
+      "target": "Dev/recordatorios.anemona-reminder"
+    },
+    "createdAt": "2026-06-18T16:41:57.021Z",
+    "readAt": "2026-06-18T16:57:41.119Z"
+  },
+  {
+    "id": "0e945db6-63f2-4520-8b2a-9e089e3df905",
+    "key": "reminder:3f03cece-cf0f-4e2c-8166-e48b67df88c9",
+    "type": "reminder",
+    "title": "wwwwww",
+    "message": "wwwwww",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "3f03cece-cf0f-4e2c-8166-e48b67df88c9",
+    "relatedItemType": "reminder",
+    "action": {
+      "type": "file",
+      "target": "Dev/recordatorios.anemona-reminder"
+    },
+    "createdAt": "2026-06-18T16:41:57.021Z",
+    "readAt": "2026-06-18T17:22:34.791Z"
+  },
+  {
+    "id": "28b44f05-95ab-4973-8b8b-dd3d3bc28b10",
+    "key": "task:b2c3d4e5-f6a7-8901-bcde-f12345678901",
+    "type": "task_due",
+    "title": "Llamar al médico",
+    "message": "",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+    "relatedItemType": "task",
+    "action": {
+      "type": "file",
+      "target": "Dev/level1/level2/tasks.anemona-todo"
+    },
+    "createdAt": "2026-06-18T16:41:57.017Z",
+    "readAt": "2026-06-18T17:22:35.452Z"
+  },
+  {
+    "id": "eb1f034d-8a7d-4e03-8b62-650c73eb46d4",
+    "key": "task:a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "type": "task_due",
+    "title": "Comprar leche",
+    "message": "",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "relatedItemType": "task",
+    "action": {
+      "type": "file",
+      "target": "Dev/level1/level2/tasks.anemona-todo"
+    },
+    "createdAt": "2026-06-18T16:41:57.016Z",
+    "readAt": "2026-06-18T17:22:36.343Z"
+  },
+  {
+    "id": "e2c6dd6e-d31d-4203-8ac3-d46636daf764",
+    "key": "reminder:370d1a02-bdee-4973-8c6c-72b65a4f072d",
+    "type": "reminder",
+    "title": "Recordatorio",
+    "message": "sssss",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "370d1a02-bdee-4973-8c6c-72b65a4f072d",
+    "relatedItemType": "reminder",
+    "action": {
+      "type": "file",
+      "target": "Dev/recordatorios.anemona-reminder"
+    },
+    "createdAt": "2026-06-18T02:30:56.402Z",
+    "readAt": "2026-06-18T02:46:45.402Z"
+  },
+  {
+    "id": "63adbe98-5697-4d01-874e-9255750b4b38",
+    "key": "reminder:3f03cece-cf0f-4e2c-8166-e48b67df88c9",
+    "type": "reminder",
+    "title": "Recordatorio",
+    "message": "wwwwww",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "3f03cece-cf0f-4e2c-8166-e48b67df88c9",
+    "relatedItemType": "reminder",
+    "action": {
+      "type": "file",
+      "target": "Dev/recordatorios.anemona-reminder"
+    },
+    "createdAt": "2026-06-18T02:30:56.402Z",
+    "readAt": "2026-06-18T02:46:46.235Z"
+  },
+  {
+    "id": "054f5b5e-ac32-4631-86d4-b3d5d25fa834",
+    "key": "reminder:fcedce2d-83ae-4152-8e6f-7ce47430ea00",
+    "type": "reminder",
+    "title": "Recordatorio",
+    "message": "Renovar SSL",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "fcedce2d-83ae-4152-8e6f-7ce47430ea00",
+    "relatedItemType": "reminder",
+    "action": {
+      "type": "file",
+      "target": "Dev/recordatorios.anemona-reminder"
+    },
+    "createdAt": "2026-06-18T02:30:56.401Z",
+    "readAt": "2026-06-18T02:46:46.803Z"
+  },
+  {
+    "id": "2e71725f-663b-4af2-832b-5ba6a6b5a507",
+    "key": "task:b2c3d4e5-f6a7-8901-bcde-f12345678901",
+    "type": "task_due",
+    "title": "Tarea pendiente",
+    "message": "Llamar al médico",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+    "relatedItemType": "task",
+    "action": {
+      "type": "file",
+      "target": "Dev/level1/level2/tasks.anemona-todo"
+    },
+    "createdAt": "2026-06-18T02:30:56.397Z",
+    "readAt": "2026-06-18T02:46:47.386Z"
+  },
+  {
+    "id": "5f7205c7-2765-44ba-80b1-b617feeb78ac",
+    "key": "task:a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "type": "task_due",
+    "title": "Tarea pendiente",
+    "message": "Comprar leche",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "relatedItemType": "task",
+    "action": {
+      "type": "file",
+      "target": "Dev/level1/level2/tasks.anemona-todo"
+    },
+    "createdAt": "2026-06-18T02:30:56.394Z",
+    "readAt": "2026-06-18T02:46:48.090Z"
+  },
+  {
+    "id": "1449c817-3019-41e5-8600-a7edbdca01ad",
+    "key": "reminder:370d1a02-bdee-4973-8c6c-72b65a4f072d",
+    "type": "reminder",
+    "title": "Recordatorio",
+    "message": "sssss",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "370d1a02-bdee-4973-8c6c-72b65a4f072d",
+    "relatedItemType": "reminder",
+    "action": {
+      "type": "file",
+      "target": "Dev/recordatorios.anemona-reminder"
+    },
+    "createdAt": "2026-06-17T19:30:04.615Z",
+    "readAt": "2026-06-17T19:32:31.900Z"
+  },
+  {
+    "id": "3c2d3dc6-ca6e-43f3-80ef-54e4677fcfc1",
+    "key": "reminder:3f03cece-cf0f-4e2c-8166-e48b67df88c9",
+    "type": "reminder",
+    "title": "Recordatorio",
+    "message": "wwwwww",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "3f03cece-cf0f-4e2c-8166-e48b67df88c9",
+    "relatedItemType": "reminder",
+    "action": {
+      "type": "file",
+      "target": "Dev/recordatorios.anemona-reminder"
+    },
+    "createdAt": "2026-06-17T19:20:02.026Z",
+    "readAt": "2026-06-17T19:29:11.199Z"
+  },
+  {
+    "id": "3c01801b-9fe3-460e-8e8a-4e5f361b447e",
+    "key": "reminder:370d1a02-bdee-4973-8c6c-72b65a4f072d",
+    "type": "reminder",
+    "title": "Recordatorio",
+    "message": "sssss",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "370d1a02-bdee-4973-8c6c-72b65a4f072d",
+    "relatedItemType": "reminder",
+    "action": {
+      "type": "file",
+      "target": "Dev/recordatorios.anemona-reminder"
+    },
+    "createdAt": "2026-06-17T19:18:01.989Z",
+    "readAt": "2026-06-17T19:18:18.959Z"
+  },
+  {
+    "id": "6c8271c1-9273-4045-8e72-e8d33503aeff",
+    "key": "reminder:92101eac-69fc-4bde-8a6e-5e641ddddca1",
+    "type": "reminder",
+    "title": "Recordatorio",
+    "message": "aaaaaaaaaa",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "92101eac-69fc-4bde-8a6e-5e641ddddca1",
+    "relatedItemType": "reminder",
+    "action": {
+      "type": "file",
+      "target": "demo/recodrasss.anemona-reminder"
+    },
+    "createdAt": "2026-06-17T19:17:00.088Z",
+    "readAt": "2026-06-17T19:18:17.707Z"
+  },
+  {
+    "id": "7f29eec1-3360-4f85-8cc7-605ca1837a77",
+    "key": "reminder:2e2c526d-16ba-44cd-8806-9f12f0105f70",
+    "type": "reminder",
+    "title": "Recordatorio",
+    "message": "ddeddddd rrrrr",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "2e2c526d-16ba-44cd-8806-9f12f0105f70",
+    "relatedItemType": "reminder",
+    "action": {
+      "type": "file",
+      "target": "demo/recodrasss.anemona-reminder"
+    },
+    "createdAt": "2026-06-17T19:16:00.075Z",
+    "readAt": "2026-06-17T19:18:16.895Z"
+  },
+  {
+    "id": "3b27e777-e287-44d7-8523-bed17b8655cf",
+    "key": "reminder:6be39f74-51a0-4def-8e4c-55d8fd468911",
+    "type": "reminder",
+    "title": "Recordatorio",
+    "message": "recodarme eel pago de hy",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "6be39f74-51a0-4def-8e4c-55d8fd468911",
+    "relatedItemType": "reminder",
+    "action": {
+      "type": "file",
+      "target": "demo/recodrasss.anemona-reminder"
+    },
+    "createdAt": "2026-06-17T19:15:00.062Z",
+    "readAt": "2026-06-17T19:15:44.243Z"
+  },
+  {
+    "id": "e97ddd25-44f1-4ab8-89d9-07e417961330",
+    "key": "reminder:fc1afd97-faa5-42f2-8fd8-ece8e30cc150",
+    "type": "reminder",
+    "title": "Recordatorio",
+    "message": "otor mas,,d,jdhdd",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "fc1afd97-faa5-42f2-8fd8-ece8e30cc150",
+    "relatedItemType": "reminder",
+    "action": {
+      "type": "file",
+      "target": "demo/recodrasss.anemona-reminder"
+    },
+    "createdAt": "2026-06-17T19:14:00.047Z",
+    "readAt": "2026-06-17T19:15:45.191Z"
+  },
+  {
+    "id": "b6229d11-0f08-4763-813e-d240eccbb74e",
+    "key": "reminder:fcedce2d-83ae-4152-8e6f-7ce47430ea00",
+    "type": "reminder",
+    "title": "Recordatorio",
+    "message": "Renovar SSL",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "fcedce2d-83ae-4152-8e6f-7ce47430ea00",
+    "relatedItemType": "reminder",
+    "action": {
+      "type": "file",
+      "target": "Dev/recordatorios.anemona-reminder"
+    },
+    "createdAt": "2026-06-17T19:14:00.043Z",
+    "readAt": "2026-06-17T19:15:46.055Z"
+  },
+  {
+    "id": "2353ea3f-7511-4887-8f97-0c2de4f1e3b6",
+    "key": "reminder:fcedce2d-83ae-4152-8e6f-7ce47430ea00",
+    "type": "reminder",
+    "title": "Recordatorio",
+    "message": "Renovar SSL",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "fcedce2d-83ae-4152-8e6f-7ce47430ea00",
+    "relatedItemType": "reminder",
+    "action": {
+      "type": "file",
+      "target": "Dev/recordatorios.anemona-reminder"
+    },
+    "createdAt": "2026-06-17T19:09:23.403Z",
+    "readAt": "2026-06-17T19:13:30.172Z"
+  },
+  {
+    "id": "4e40ce11-7b02-44fb-8170-cbf62761e25a",
+    "key": "reminder:3f03cece-cf0f-4e2c-8166-e48b67df88c9",
+    "type": "reminder",
+    "title": "Recordatorio",
+    "message": "wwwwww",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "3f03cece-cf0f-4e2c-8166-e48b67df88c9",
+    "relatedItemType": "reminder",
+    "action": {
+      "type": "file",
+      "target": "Dev/recordatorios.anemona-reminder"
+    },
+    "createdAt": "2026-06-17T19:08:08.388Z",
+    "readAt": "2026-06-17T19:13:30.921Z"
+  },
+  {
+    "id": "ff375bca-2c37-4211-823b-0c0be2c5499a",
+    "key": "reminder:370d1a02-bdee-4973-8c6c-72b65a4f072d",
+    "type": "reminder",
+    "title": "Recordatorio",
+    "message": "sssss",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "370d1a02-bdee-4973-8c6c-72b65a4f072d",
+    "relatedItemType": "reminder",
+    "action": {
+      "type": "file",
+      "target": "Dev/recordatorios.anemona-reminder"
+    },
+    "createdAt": "2026-06-17T19:07:03.371Z",
+    "readAt": "2026-06-17T19:13:31.320Z"
+  },
+  {
+    "id": "63fe6e3c-4593-40f9-8092-73a510082bfb",
+    "key": "reminder:6be39f74-51a0-4def-8e4c-55d8fd468911",
+    "type": "reminder",
+    "title": "Recordatorio",
+    "message": "recodarme eel pago de hy",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "6be39f74-51a0-4def-8e4c-55d8fd468911",
+    "relatedItemType": "reminder",
+    "action": {
+      "type": "file",
+      "target": "demo/recodrasss.anemona-reminder"
+    },
+    "createdAt": "2026-06-17T18:57:57.156Z",
+    "readAt": "2026-06-17T19:13:31.720Z"
+  },
+  {
+    "id": "83917bb9-4cf3-480a-8abd-662b28fe67f1",
+    "key": "reminder:2e2c526d-16ba-44cd-8806-9f12f0105f70",
+    "type": "reminder",
+    "title": "Recordatorio",
+    "message": "ddeddddd rrrrr",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "2e2c526d-16ba-44cd-8806-9f12f0105f70",
+    "relatedItemType": "reminder",
+    "action": {
+      "type": "file",
+      "target": "demo/recodrasss.anemona-reminder"
+    },
+    "createdAt": "2026-06-17T18:56:52.141Z",
+    "readAt": "2026-06-17T19:13:32.037Z"
+  },
+  {
+    "id": "9e7412e1-ea93-4970-82d2-f4e3ebc0d274",
+    "key": "reminder:92101eac-69fc-4bde-8a6e-5e641ddddca1",
+    "type": "reminder",
+    "title": "Recordatorio",
+    "message": "aaaaaaaaaa",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "92101eac-69fc-4bde-8a6e-5e641ddddca1",
+    "relatedItemType": "reminder",
+    "action": {
+      "type": "file",
+      "target": "demo/recodrasss.anemona-reminder"
+    },
+    "createdAt": "2026-06-17T18:55:42.122Z",
+    "readAt": "2026-06-17T19:13:32.270Z"
+  },
+  {
+    "id": "89bec526-9de6-4293-8c91-8022a6f47dbd",
+    "key": "reminder:fc1afd97-faa5-42f2-8fd8-ece8e30cc150",
+    "type": "reminder",
+    "title": "Recordatorio",
+    "message": "otor mas,,d,jdhdd",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "fc1afd97-faa5-42f2-8fd8-ece8e30cc150",
+    "relatedItemType": "reminder",
+    "action": {
+      "type": "file",
+      "target": "demo/recodrasss.anemona-reminder"
+    },
+    "createdAt": "2026-06-17T18:53:27.085Z",
+    "readAt": "2026-06-17T19:13:32.805Z"
+  },
+  {
+    "id": "0e435337-80fb-4ba6-8f45-14c7dcef5674",
+    "key": "reminder:fc1afd97-faa5-42f2-8fd8-ece8e30cc150",
+    "type": "reminder",
+    "title": "Recordatorio",
+    "message": "otor mas,,d,jdhdd",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "fc1afd97-faa5-42f2-8fd8-ece8e30cc150",
+    "relatedItemType": "reminder",
+    "action": {
+      "type": "file",
+      "target": "demo/recodrasss.anemona-reminder"
+    },
+    "createdAt": "2026-06-17T18:00:56.993Z",
+    "readAt": "2026-06-17T18:01:12.353Z"
+  },
+  {
+    "id": "bfe55e59-8e4d-4729-8639-f7a16452900c",
+    "key": "reminder:6be39f74-51a0-4def-8e4c-55d8fd468911",
+    "type": "reminder",
+    "title": "Recordatorio",
+    "message": "recodarme eel pago de hy",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "6be39f74-51a0-4def-8e4c-55d8fd468911",
+    "relatedItemType": "reminder",
+    "action": {
+      "type": "file",
+      "target": "demo/recodrasss.anemona-reminder"
+    },
+    "createdAt": "2026-06-17T17:58:56.990Z",
+    "readAt": "2026-06-17T18:01:13.665Z"
+  },
+  {
+    "id": "2ce391d0-b718-4009-8a76-422b4d4bbead",
+    "key": "reminder:370d1a02-bdee-4973-8c6c-72b65a4f072d",
+    "type": "reminder",
+    "title": "Recordatorio",
+    "message": "sssss",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "370d1a02-bdee-4973-8c6c-72b65a4f072d",
+    "relatedItemType": "reminder",
+    "action": {
+      "type": "file",
+      "target": "Dev/recordatorios.anemona-reminder"
+    },
+    "createdAt": "2026-06-17T03:52:46.402Z",
+    "readAt": "2026-06-17T03:53:34.490Z"
+  },
+  {
+    "id": "a5a86487-0191-49a7-8729-8696b55e0e21",
+    "key": "task:b2c3d4e5-f6a7-8901-bcde-f12345678901",
+    "type": "task_due",
+    "title": "Tarea pendiente",
+    "message": "Llamar al médico",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+    "relatedItemType": "task",
+    "action": {
+      "type": "file",
+      "target": "Dev/level1/level2/tasks.anemona-todo"
+    },
+    "createdAt": "2026-06-17T03:52:46.399Z",
+    "readAt": "2026-06-17T03:53:33.339Z"
+  },
+  {
+    "id": "1fe70ae0-ad08-4b68-892c-bd103ab4b835",
+    "key": "reminder:fcedce2d-83ae-4152-8e6f-7ce47430ea00",
+    "type": "reminder",
+    "title": "Recordatorio",
+    "message": "Renovar SSL",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "fcedce2d-83ae-4152-8e6f-7ce47430ea00",
+    "relatedItemType": "reminder",
+    "action": {
+      "type": "file",
+      "target": "Dev/recordatorios.anemona-reminder"
+    },
+    "createdAt": "2026-06-17T03:52:46.399Z",
+    "readAt": "2026-06-17T03:53:33.740Z"
+  },
+  {
+    "id": "03555bc4-3ef5-4379-8016-e218feeb6748",
+    "key": "task:a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "type": "task_due",
+    "title": "Tarea pendiente",
+    "message": "Comprar leche",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "relatedItemType": "task",
+    "action": {
+      "type": "file",
+      "target": "Dev/level1/level2/tasks.anemona-todo"
+    },
+    "createdAt": "2026-06-17T03:52:46.398Z",
+    "readAt": "2026-06-17T03:53:32.852Z"
+  },
+  {
+    "id": "8a291e25-92d9-46b1-883a-7550c65d2b06",
+    "key": "system:v1.0.4",
+    "type": "system",
+    "title": "Anémona Vault v1.0.4",
+    "message": "Notification system with task reminders, inbox/history panel, and Activity Bar badge.",
+    "source": "local",
+    "status": "read",
+    "priority": "low",
+    "relatedItemId": "v1.0.4",
+    "relatedItemType": "system",
+    "action": {
+      "type": "url",
+      "target": "https://github.com/mygnet/anemona-vault/blob/main/CHANGELOG.md"
+    },
+    "createdAt": "2026-06-17T03:52:46.394Z",
+    "readAt": "2026-06-17T03:53:32.209Z"
+  }
+]

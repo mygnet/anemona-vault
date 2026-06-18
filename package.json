@@ -1,8 +1,8 @@
 {
   "name": "anemona-vault",
-  "displayName": "Anemona Vault",
-  "description": "Manage notes, passwords, API keys, tasks, commands and snippets from a unified sidebar inside Visual Studio Code.",
-  "version": "1.0.3",
+  "displayName": "%displayName%",
+  "description": "%description%",
+  "version": "1.0.4",
   "publisher": "mygnet",
   "license": "MIT",
   "engines": {
@@ -57,33 +57,33 @@
     },
     "views": {
       "anemonaVault": [
-        { 
+        {
           "type": "webview",
           "id": "anemonaVault.view",
-          "name": "Anemona Vault"
+          "name": "%view.anemonaVault.name%"
         }
       ]
     },
     "commands": [
       {
+        "command": "anemonaVault.showNotifications",
+        "title": "%command.showNotifications%"
+      },
+      {
         "command": "anemonaVault.selectStorageFolder",
-        "title": "Vault: Select Storage Folder",
-        "icon": {
-          "light": "media/folder-light.svg",
-          "dark": "media/folder-dark.svg"
-        }
+        "title": "%command.selectStorageFolder%"
       },
       {
         "command": "anemonaVault.createNote",
-        "title": "Vault: Create Note"
+        "title": "%command.createNote%"
       },
       {
         "command": "anemonaVault.createCategory",
-        "title": "Vault: Create Category"
+        "title": "%command.createCategory%"
       },
       {
         "command": "anemonaVault.refresh",
-        "title": "Vault: Refresh",
+        "title": "%command.refresh%",
         "icon": {
           "light": "media/refresh-light.svg",
           "dark": "media/refresh-dark.svg"
@@ -91,7 +91,7 @@
       },
       {
         "command": "anemonaVault.moreActions",
-        "title": "Vault: More Actions",
+        "title": "%command.moreActions%",
         "icon": {
           "light": "media/more-light.svg",
           "dark": "media/more-dark.svg"
@@ -99,11 +99,11 @@
       },
       {
         "command": "anemonaVault.deleteNote",
-        "title": "Vault: Delete Note"
+        "title": "%command.deleteNote%"
       },
       {
         "command": "anemonaVault.search",
-        "title": "Vault: Search Notes",
+        "title": "%command.search%",
         "icon": {
           "light": "media/search-light.svg",
           "dark": "media/search-dark.svg"
@@ -111,27 +111,19 @@
       },
       {
         "command": "anemonaVault.exportVault",
-        "title": "Vault: Export (zip)",
-        "icon": {
-          "light": "media/export-light.svg",
-          "dark": "media/export-dark.svg"
-        }
+        "title": "%command.exportVault%"
       },
       {
         "command": "anemonaVault.importVault",
-        "title": "Vault: Import (zip)",
-        "icon": {
-          "light": "media/import-light.svg",
-          "dark": "media/import-dark.svg"
-        }
+        "title": "%command.importVault%"
       },
       {
         "command": "anemonaVault.recentFolders",
-        "title": "Vault: Recent Folders",
-        "icon": {
-          "light": "media/folder-light.svg",
-          "dark": "media/folder-dark.svg"
-        }
+        "title": "%command.recentFolders%"
+      },
+      {
+        "command": "anemonaVault.rebuildScheduledEventsCache",
+        "title": "%command.rebuildScheduledEventsCache%"
       }
     ],
     "menus": {
@@ -154,12 +146,12 @@
       ]
     },
     "configuration": {
-      "title": "Anemona Vault",
+      "title": "%config.title%",
       "properties": {
         "anemona-vault.storagePath": {
           "type": "string",
           "default": "",
-          "description": "Path where notes and vault data will be stored"
+          "description": "%config.storagePath.description%"
         },
         "anemona-vault.defaultCategories": {
           "type": "array",
@@ -175,7 +167,30 @@
             "Resources",
             "Inventory"
           ],
-          "description": "Default note categories"
+          "description": "%config.defaultCategories.description%"
+        },
+        "anemona-vault.notifications.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.notifications.enabled.description%"
+        },
+        "anemona-vault.notifications.checkIntervalMinutes": {
+          "type": "number",
+          "default": 15,
+          "minimum": 1,
+          "description": "%config.notifications.checkIntervalMinutes.description%"
+        },
+        "anemona-vault.notifications.dueSoonHours": {
+          "type": "number",
+          "default": 24,
+          "minimum": 1,
+          "description": "%config.notifications.dueSoonHours.description%"
+        },
+        "anemona-vault.notifications.tickIntervalSeconds": {
+          "type": "number",
+          "default": 5,
+          "minimum": 1,
+          "description": "%config.notifications.tickIntervalSeconds.description%"
         }
       }
     }
@@ -190,13 +205,12 @@
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^3.1.0",
-    "@types/node": "^20.11.0",
+    "@types/node": "^20.19.43",
     "@types/vscode": "^1.85.0",
     "svelte": "^4.2.0",
     "svelte-check": "^3.6.0",
     "tslib": "^2.6.0",
     "typescript": "^5.3.0",
     "vite": "^5.1.0"
-  },
-  "dependencies": {}
+  }
 }

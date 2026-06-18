@@ -20,6 +20,51 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 }
+.icon-message-circle:before {
+    content: "\f485";
+}
+.icon-info-circle:before {
+    content: "\f1a9";
+}
+.icon-alert:before {
+    content: "\f147";
+}
+.icon-calendar-week:before {
+    content: "\f1bb";
+}
+.icon-grid-2x2:before {
+    content: "\f0b9";
+}
+.icon-list:before {
+    content: "\f58e";
+}
+.icon-calendar-days:before {
+    content: "\f009";
+}
+.icon-calendar:before {
+    content: "\f102";
+}
+.icon-circle-alert:before {
+    content: "\f4aa";
+}
+.icon-alarm-clock-check:before {
+    content: "\f507";
+}
+.icon-alarm-clock:before {
+    content: "\f37d";
+}
+.icon-bell-solid:before {
+    content: "\f478";
+}
+.icon-bell:before {
+    content: "\f199";
+}
+.icon-category:before {
+    content: "\f1ba";
+}
+.icon-refresh:before {
+    content: "\f2cb";
+}
 .icon-file-input:before {
     content: "\f3e8";
 }
@@ -115,9 +160,6 @@
 }
 .icon-file-text:before {
     content: "\f459";
-}
-.icon-file-snippet:before {
-    content: "\f0d9";
 }
 .icon-file-key:before {
     content: "\f595";

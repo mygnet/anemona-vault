@@ -1,0 +1,44 @@
+[
+  {
+    "id": "f2753672-49b7-4f66-8506-533a74681a05",
+    "title": "Objetivo\nConstruir el núcleo mínimo funcional.",
+    "progress": 100,
+    "status": "done",
+    "priority": "low"
+  },
+  {
+    "id": "d404296f-67a3-45bd-8afb-b112ef5b79bb",
+    "title": "Paso 1. Infraestructura Base\n* Docker Compose.\n* PostgreSQL.\n* pgvector.\n* Redis.\n* Laravel.",
+    "progress": 50,
+    "status": "open",
+    "priority": "high"
+  },
+  {
+    "id": "0d680571-8c95-4869-80d0-1c0640441457",
+    "title": "Paso 2. Core API\n* Usuarios.\n* Organizaciones.\n* Equipos.\n* Proyectos.",
+    "progress": 0,
+    "status": "open",
+    "priority": "medium"
+  },
+  {
+    "id": "0caa6c97-2350-41f1-8194-5b8558a1e789",
+    "title": "Paso 3. Memory Service\n* Crear memoria.\n* Editar memoria.\n* Buscar memoria.\n* Etiquetar memoria.",
+    "progress": 0,
+    "status": "open",
+    "priority": "medium"
+  },
+  {
+    "id": "e196f182-2b07-445f-8af7-0208ed28eae7",
+    "title": "Paso 4. Embedding Service\n* Ollama.\n* Generación embeddings.\n* Indexación.",
+    "progress": 0,
+    "status": "open",
+    "priority": "medium"
+  },
+  {
+    "id": "41d1f359-c2ab-49fb-824f-f5c49dc96ffb",
+    "title": "Entregable\nPrimer MVP funcional.",
+    "progress": 0,
+    "status": "open",
+    "priority": "medium"
+  }
+]
