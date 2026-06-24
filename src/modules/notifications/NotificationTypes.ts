@@ -39,9 +39,18 @@ export interface HistoryIndex {
   lastUpdatedAt: string
 }
 
+export interface NotificationConfig {
+  color?: string
+}
+
 export type ScheduledEventSource = 'reminder' | 'task'
 
 export type ScheduledEventStatus = 'pending' | 'notified' | 'completed' | 'cancelled'
+
+export interface EventInterval {
+  unit: 'minute' | 'hour' | 'day' | 'week' | 'month' | 'year'
+  value: number
+}
 
 export interface ScheduledEvent {
   id: string
@@ -56,6 +65,7 @@ export interface ScheduledEvent {
   message: string
   createdAt: string
   updatedAt: string
+  interval?: EventInterval
 }
 
 export interface ScheduledEventsCacheData {

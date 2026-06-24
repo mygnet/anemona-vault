@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.5 — 2026-06-18
+
+- **Fix: Estado de vistas no se reiniciaba al cambiar de bóveda** — Al cambiar entre bóvedas (abrir carpeta o recientes), los editores y paneles ya no mantienen contenido obsoleto de la bóveda anterior. Se solucionó limpiando el estado del webview y el `getState()` persistido antes de cargar los datos de la nueva bóveda. Evita confusiones cuando ambas bóvedas comparten nombres de categoría como "Dev".
+- **Fix: Índices en editores ordenables** — El ordenamiento en los editores de comandos, claves y fragmentos ahora es solo visual y ya no reordena/guarda la lista interna. Los menús y acciones usan el índice real después de ordenar o filtrar, evitando que agregar, editar, eliminar, copiar o insertar afecten al elemento incorrecto.
+- **Fixes: Secciones comunes y notificaciones** — Búsqueda global y Notificaciones ya no heredan el color de la categoría seleccionada; Notificaciones ahora soporta color propio persistido en `.anemona/notifications/.config.json`, el eliminar del historial es un icono compacto alineado a la derecha, y las tarjetas/badges de notificaciones usan colores controlados por el tema.
+- **Mejoras visuales y de tema** — Se unificaron encabezados de NotesList, editores, Búsqueda y Notificaciones; se homologaron iconos de regreso; se agregó selector de color personalizado; y se ampliaron controles de tema para modales, formularios, buscadores locales, placeholders, contraste de textos de estado, breadcrumbs, badges e intensidades por sección.
+
 ## 1.0.4 — 2026-06-18
 
 - **Sistema de notificaciones** — Nuevo módulo de notificaciones locales para recordatorios y tareas vencidas. Almacenamiento persistente, bandeja de entrada e historial. Contador en el icono de la barra lateral e indicador en el encabezado del panel.

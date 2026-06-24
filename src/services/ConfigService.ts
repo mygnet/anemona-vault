@@ -14,10 +14,4 @@ export class ConfigService {
       .update('storagePath', path, vscode.ConfigurationTarget.Global)
   }
 
-  static getDefaultCategories(): string[] {
-    const categories = vscode.workspace
-      .getConfiguration('anemona-vault')
-      .get<string[]>('defaultCategories')
-    return categories ?? []
-  }
 }

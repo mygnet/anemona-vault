@@ -47,12 +47,6 @@ class ConfigService {
             .getConfiguration('anemona-vault')
             .update('storagePath', path, vscode.ConfigurationTarget.Global);
     }
-    static getDefaultCategories() {
-        const categories = vscode.workspace
-            .getConfiguration('anemona-vault')
-            .get('defaultCategories');
-        return categories ?? [];
-    }
 }
 exports.ConfigService = ConfigService;
 //# sourceMappingURL=ConfigService.js.map

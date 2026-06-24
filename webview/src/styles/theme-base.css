@@ -1,0 +1,335 @@
+#app,
+.theme-accent-scope {
+   /*
+    Theme entry point.
+
+    Edit the intensity controls at the top of each section to tune one area
+    without chasing color-mix() calls across components.
+
+    Intensity rules:
+    - Backgrounds/surfaces: 0% = black, 100% = selected color.
+    - Text/icons/borders: dark + light pairs build readable tones from the selected color.
+  */
+
+   /* =========================
+     Base / Primitives
+     ========================= */
+
+   --theme-accent: var(--accent-color, var(--vscode-textLink-foreground));
+
+   --theme-accent-strong-dark: 0%;
+   --theme-accent-strong-light: 30%;
+   --theme-accent-readable-dark: 0%;
+   --theme-accent-readable-light: 80%;
+   --theme-accent-muted-dark: 0%;
+   --theme-accent-muted-light: 0%;
+   --theme-accent-border-dark: 70%;
+   --theme-accent-border-light: 6%;
+   --theme-accent-border-hover-dark: 0%;
+   --theme-accent-border-hover-light: 20%;
+   --theme-accent-border-strong-dark: 0%;
+   --theme-accent-border-strong-light: 28%;
+
+   --theme-font-family: var(--vscode-font-family, system-ui, sans-serif);
+   --theme-editor-font-family: var(--vscode-editor-font-family, monospace);
+   --theme-font-xs: 0.6rem;
+   --theme-font-sm: 0.68rem;
+   --theme-font-md: 0.76rem;
+   --theme-font-lg: 0.84rem;
+   --theme-font-title: 0.7rem;
+   --theme-font-entry: 0.66rem;
+   --theme-font-control: 0.64rem;
+   --theme-weight-normal: 400;
+   --theme-weight-medium: 500;
+   --theme-weight-semibold: 600;
+
+   --theme-radius-sm: 4px;
+   --theme-radius-md: 6px;
+   --theme-radius-lg: 10px;
+   --theme-radius-pill: 999px;
+   --theme-gap-1: 0.24rem;
+   --theme-gap-2: 0.4rem;
+   --theme-gap-3: 0.58rem;
+   --theme-gap-4: 0.82rem;
+   --theme-icon-btn-size: 1.24rem;
+   --theme-toolbar-btn-size: 1.3rem;
+   --theme-icon-xs: 0.8rem;
+   --theme-icon-sm: 1rem;
+   --theme-icon-md: 1.1rem;
+   --theme-icon-lg: 1.8rem;
+   --theme-icon-xl: 2rem;
+   --theme-control-height: 1.34rem;
+   --theme-control-height-sm: 1.28rem;
+   --theme-control-pad-x: 0.38rem;
+   --theme-control-pad-y: 0.26rem;
+   --theme-search-icon-left: 0.56rem;
+   --theme-search-input-pad-left: 1.56rem;
+   --theme-card-pad-x: 0.34rem;
+   --theme-card-pad-y: 0.28rem;
+   --theme-menu-pad-x: 0.34rem;
+   --theme-menu-pad-y: 0.26rem;
+   --theme-menu-font: var(--theme-font-control);
+
+   --theme-accent-strong-base: color-mix(in srgb, black var(--theme-accent-strong-dark), var(--theme-accent));
+   --theme-accent-readable-base: color-mix(in srgb, black var(--theme-accent-readable-dark), var(--theme-accent));
+   --theme-accent-muted-base: color-mix(in srgb, black var(--theme-accent-muted-dark), var(--theme-accent));
+   --theme-accent-border-base: color-mix(in srgb, black var(--theme-accent-border-dark), var(--theme-accent));
+   --theme-accent-border-hover-base: color-mix(in srgb, black var(--theme-accent-border-hover-dark), var(--theme-accent));
+   --theme-accent-border-strong-base: color-mix(in srgb, black var(--theme-accent-border-strong-dark), var(--theme-accent));
+   --theme-accent-strong: color-mix(in srgb, var(--theme-accent-strong-base), white var(--theme-accent-strong-light));
+   --theme-accent-readable: color-mix(in srgb, var(--theme-accent-readable-base), white var(--theme-accent-readable-light));
+   --theme-accent-muted: color-mix(in srgb, var(--theme-accent-muted-base), white var(--theme-accent-muted-light));
+   --theme-accent-border: color-mix(in srgb, var(--theme-accent-border-base), white var(--theme-accent-border-light));
+   --theme-accent-border-hover: color-mix(in srgb, var(--theme-accent-border-hover-base), white var(--theme-accent-border-hover-light));
+   --theme-accent-border-strong: color-mix(in srgb, var(--theme-accent-border-strong-base), white var(--theme-accent-border-strong-light));
+   --theme-accent-text: var(--theme-accent-readable);
+   --theme-accent-on-solid: #ffffff;
+
+   /* =========================
+     Layout / Common UI
+     ========================= */
+
+   --theme-layout-sidebar-bg-mix: 96%;
+   --theme-layout-sidebar-divider-opacity: 10%;
+   --theme-layout-content-bg-intensity: 14%;
+   --theme-layout-content-border-intensity: 24%;
+   --theme-layout-content-header-darken: 30%;
+   --theme-layout-muted-opacity: 62%;
+   --theme-layout-soft-sidebar-mix: 94%;
+   --theme-layout-soft-editor-mix: 96%;
+   --theme-layout-elevated-editor-mix: 97%;
+   --theme-layout-focus-ring-opacity: 45%;
+   --theme-section-header-pad-x: 0.18rem;
+   --theme-section-header-pad-y: 0.14rem;
+   --theme-section-header-pad-bottom: 0.16rem;
+   --theme-section-header-gap: 0.12rem;
+
+   --theme-layout-sidebar-bg: color-mix(in srgb, var(--vscode-sideBar-background) var(--theme-layout-sidebar-bg-mix), black);
+   --theme-layout-sidebar-divider: color-mix(in srgb, var(--vscode-sideBarTitle-foreground) var(--theme-layout-sidebar-divider-opacity), transparent);
+   --theme-layout-content-bg: color-mix(in srgb, var(--theme-accent) var(--theme-layout-content-bg-intensity), var(--vscode-editor-background));
+   --theme-layout-content-border: color-mix(in srgb, var(--theme-accent) var(--theme-layout-content-border-intensity), transparent);
+   --theme-layout-content-header-bg: color-mix(in srgb, var(--theme-layout-content-bg) calc(100% - var(--theme-layout-content-header-darken)), black var(--theme-layout-content-header-darken));
+   --theme-layout-muted-text: color-mix(in srgb, var(--vscode-foreground) var(--theme-layout-muted-opacity), transparent);
+   --theme-layout-soft-surface: color-mix(in srgb, var(--vscode-sideBar-background) var(--theme-layout-soft-sidebar-mix), white);
+   --theme-layout-soft-surface-2: color-mix(in srgb, var(--vscode-editor-background) var(--theme-layout-soft-editor-mix), white);
+   --theme-layout-elevated-surface: color-mix(in srgb, var(--vscode-editor-background) var(--theme-layout-elevated-editor-mix), white);
+   --theme-layout-focus-ring: color-mix(in srgb, var(--theme-accent) var(--theme-layout-focus-ring-opacity), transparent);
+   --theme-section-header-bg: var(--theme-layout-content-header-bg);
+   --theme-section-header-border: var(--theme-layout-content-border);
+   --theme-section-header-title: var(--theme-accent-text);
+
+   /* =========================
+     Notifications
+     ========================= */
+
+   --theme-notifications-badge-bg-intensity: 58%;
+   --theme-notifications-badge-border-intensity: 30%;
+
+   --theme-notifications-badge-bg: color-mix(in srgb, var(--theme-accent) var(--theme-notifications-badge-bg-intensity), transparent);
+   --theme-notifications-badge-border: color-mix(in srgb, var(--theme-accent) var(--theme-notifications-badge-border-intensity), transparent);
+   --theme-notifications-badge-text: var(--vscode-foreground);
+
+   /* =========================
+     Category Tabs
+     ========================= */
+
+   --theme-tabs-indicator-opacity: 62%;
+   --theme-tabs-hover-bg-opacity: 7%;
+   --theme-tabs-hover-border-opacity: 16%;
+   --theme-tabs-active-bg-opacity: 14%;
+   --theme-tabs-active-border-opacity: 24%;
+   --theme-tabs-active-overlap: 1px;
+   --theme-tabs-active-weight: var(--theme-weight-medium);
+   --tab-text-intensity: 100%;
+
+   --theme-tabs-hover-bg: color-mix(in srgb, var(--tab-color, var(--theme-accent)) var(--theme-tabs-hover-bg-opacity), transparent);
+   --theme-tabs-hover-border: color-mix(in srgb, var(--tab-color, var(--theme-accent)) var(--theme-tabs-hover-border-opacity), transparent);
+   --theme-tabs-active-bg: color-mix(in srgb, var(--tab-color, var(--theme-accent)) var(--theme-tabs-active-bg-opacity), var(--vscode-editor-background));
+   --theme-tabs-active-border: color-mix(in srgb, var(--tab-color, var(--theme-accent)) var(--theme-tabs-active-border-opacity), transparent);
+   --theme-tabs-indicator-bg: color-mix(in srgb, var(--tab-color, var(--theme-accent)) var(--theme-tabs-indicator-opacity), transparent);
+
+   /* =========================
+     Notes List / Files / Folders
+     ========================= */
+
+   --theme-notes-header-bg: var(--theme-layout-content-header-bg);
+   --theme-notes-header-border: var(--theme-layout-content-border);
+   --theme-notes-title-text: var(--theme-accent-text);
+   --theme-notes-file-text: var(--theme-accent-text);
+   --theme-notes-file-icon: var(--theme-accent-text);
+   --theme-notes-folder-text: var(--theme-accent-text);
+   --theme-notes-folder-icon: var(--theme-accent-text);
+   --theme-notes-row-hover-bg: var(--theme-accent-hover);
+   --theme-notes-row-active-bg: var(--theme-accent-active);
+   --theme-notes-row-border: var(--theme-accent-border);
+   --theme-notes-row-border-strong: var(--theme-accent-border-strong);
+   --theme-notes-breadcrumb-active-text-intensity: 60%;
+   --theme-notes-breadcrumb-active-bg-intensity: 0%;
+   --theme-notes-breadcrumb-active-text: color-mix(in srgb, var(--theme-accent) var(--theme-notes-breadcrumb-active-text-intensity), var(--vscode-foreground));
+   --theme-notes-breadcrumb-active-bg: color-mix(in srgb, var(--theme-accent) var(--theme-notes-breadcrumb-active-bg-intensity), transparent);
+
+   /* =========================
+     Editors / Entries
+     ========================= */
+
+   --theme-editor-card-bg-intensity: 30%;
+   --theme-editor-card-hover-intensity: 20%;
+   --theme-editor-soft-bg-intensity: 25%;
+   --theme-editor-hover-bg-intensity: 30%;
+   --theme-editor-active-bg-intensity: 40%;
+   --theme-editor-field-bg-intensity: 20%;
+   --theme-editor-field-border-intensity: 16%;
+   --theme-editor-field-placeholder-intensity: 46%;
+   --theme-editor-modal-bg-intensity: 18%;
+   --theme-editor-modal-border-intensity: 30%;
+
+   --theme-editor-card-bg: color-mix(in srgb, black, var(--theme-accent) var(--theme-editor-card-bg-intensity));
+   --theme-editor-card-hover-bg: color-mix(in srgb, black, var(--theme-accent) var(--theme-editor-card-hover-intensity));
+   --theme-editor-card-border: var(--theme-accent-border);
+   --theme-editor-card-border-hover: var(--theme-accent-border-hover);
+   --theme-editor-card-border-strong: var(--theme-accent-border-strong);
+   --theme-editor-soft-bg: color-mix(in srgb, black, var(--theme-accent) var(--theme-editor-soft-bg-intensity));
+   --theme-editor-hover-bg: color-mix(in srgb, black, var(--theme-accent) var(--theme-editor-hover-bg-intensity));
+   --theme-editor-active-bg: color-mix(in srgb, black, var(--theme-accent) var(--theme-editor-active-bg-intensity));
+   --theme-editor-title-text: var(--vscode-sideBarTitle-foreground);
+   --theme-editor-description-text: var(--theme-layout-muted-text);
+   --theme-editor-preview-bg: var(--theme-editor-soft-bg);
+   --theme-editor-preview-text: var(--vscode-textPreformat-foreground);
+   --theme-editor-field-bg: color-mix(in srgb, var(--theme-accent) var(--theme-editor-field-bg-intensity), var(--vscode-input-background));
+   --theme-editor-field-border: color-mix(in srgb, var(--theme-accent) var(--theme-editor-field-border-intensity), var(--ui-border-strong));
+   --theme-editor-field-placeholder: color-mix(in srgb, var(--theme-accent) var(--theme-editor-field-placeholder-intensity), var(--vscode-input-placeholderForeground));
+   --theme-editor-modal-bg: color-mix(in srgb, var(--theme-accent) var(--theme-editor-modal-bg-intensity), var(--vscode-editor-background));
+   --theme-editor-modal-border: color-mix(in srgb, var(--theme-accent) var(--theme-editor-modal-border-intensity), var(--ui-border-strong));
+
+   /* =========================
+     Menus / Buttons / Overlays
+     ========================= */
+
+   --theme-menu-bg: var(--theme-editor-card-hover-bg);
+   --theme-menu-border: var(--ui-border-strong);
+   --theme-menu-item-text: var(--vscode-foreground);
+   --theme-menu-item-hover-bg: var(--theme-editor-hover-bg);
+   --theme-button-icon-color: var(--vscode-sideBarTitle-foreground);
+   --theme-button-icon-hover-color: var(--theme-accent-text);
+   --theme-button-icon-hover-bg: var(--theme-editor-hover-bg);
+   --theme-overlay-bg: rgba(0, 0, 0, 0.65);
+
+   /* =========================
+     Status Colors
+     ========================= */
+
+   --theme-status-danger: color-mix(in srgb, #D42626 86%, var(--vscode-foreground) 14%);
+   --theme-status-warning: color-mix(in srgb, #CD8D2D 82%, var(--vscode-foreground) 18%);
+   --theme-status-periodic: color-mix(in srgb, #d4b82e 82%, var(--vscode-foreground) 18%);
+   --theme-status-success: color-mix(in srgb, #27815F 84%, var(--vscode-foreground) 16%);
+   --theme-status-info: color-mix(in srgb, var(--vscode-textLink-foreground) 84%, var(--vscode-foreground) 16%);
+   --theme-status-danger-text-intensity: 60%;
+   --theme-status-warning-text-intensity: 100%;
+   --theme-status-periodic-text-intensity: 100%;
+   --theme-status-success-text-intensity: 100%;
+   --theme-status-info-text-intensity: 100%;
+   --theme-status-danger-text: color-mix(in srgb, var(--theme-status-danger) var(--theme-status-danger-text-intensity), var(--vscode-foreground));
+   --theme-status-warning-text: color-mix(in srgb, var(--theme-status-warning) var(--theme-status-warning-text-intensity), var(--vscode-foreground));
+   --theme-status-periodic-text: color-mix(in srgb, var(--theme-status-periodic) var(--theme-status-periodic-text-intensity), var(--vscode-foreground));
+   --theme-status-success-text: color-mix(in srgb, var(--theme-status-success) var(--theme-status-success-text-intensity), var(--vscode-foreground));
+   --theme-status-info-text: color-mix(in srgb, var(--theme-status-info) var(--theme-status-info-text-intensity), var(--vscode-foreground));
+
+   /* =========================
+     Compatibility Aliases
+     ========================= */
+
+   --theme-accent-surface-color: var(--theme-editor-card-bg-intensity);
+   --theme-accent-surface-hover-color: var(--theme-editor-card-hover-intensity);
+   --theme-accent-soft-color: var(--theme-editor-soft-bg-intensity);
+   --theme-accent-hover-color: var(--theme-editor-hover-bg-intensity);
+   --theme-accent-active-color: var(--theme-editor-active-bg-intensity);
+   --theme-content-bg-color: var(--theme-layout-content-bg-intensity);
+   --theme-tab-indicator-opacity: var(--theme-tabs-indicator-opacity);
+   --theme-tab-hover-opacity: var(--theme-tabs-hover-bg-opacity);
+   --theme-tab-hover-border-opacity: var(--theme-tabs-hover-border-opacity);
+   --theme-tab-active-opacity: var(--theme-tabs-active-bg-opacity);
+   --theme-tab-active-border-opacity: var(--theme-tabs-active-border-opacity);
+   --theme-tab-active-overlap: var(--theme-tabs-active-overlap);
+   --theme-tab-active-weight: var(--theme-tabs-active-weight);
+   --theme-tab-active-bg: color-mix(in srgb, var(--theme-accent) var(--theme-tabs-active-bg-opacity), var(--vscode-editor-background));
+   --theme-tab-active-border: color-mix(in srgb, var(--theme-accent) var(--theme-tabs-active-border-opacity), transparent);
+   --theme-content-bg: var(--theme-layout-content-bg);
+   --theme-content-border: var(--theme-layout-content-border);
+   --theme-content-header-bg: var(--theme-layout-content-header-bg);
+   --theme-sidebar-bg: var(--theme-layout-sidebar-bg);
+   --theme-sidebar-divider: var(--theme-layout-sidebar-divider);
+   --theme-accent-surface: var(--theme-editor-card-bg);
+   --theme-accent-surface-hover: var(--theme-editor-card-hover-bg);
+   --theme-accent-soft: var(--theme-editor-soft-bg);
+   --theme-accent-hover: var(--theme-editor-hover-bg);
+   --theme-accent-active: var(--theme-editor-active-bg);
+
+   --ui-radius-sm: var(--theme-radius-sm);
+   --ui-radius-md: var(--theme-radius-md);
+   --ui-radius-lg: var(--theme-radius-lg);
+   --ui-gap-1: var(--theme-gap-1);
+   --ui-gap-2: var(--theme-gap-2);
+   --ui-gap-3: var(--theme-gap-3);
+   --ui-gap-4: var(--theme-gap-4);
+   --ui-font-xs: var(--theme-font-xs);
+   --ui-font-sm: var(--theme-font-sm);
+   --ui-font-md: var(--theme-font-md);
+   --ui-font-lg: var(--theme-font-lg);
+   --ui-font-title: var(--theme-font-title);
+   --ui-font-entry: var(--theme-font-entry);
+   --ui-font-control: var(--theme-font-control);
+   --ui-icon-btn-size: var(--theme-icon-btn-size);
+   --ui-toolbar-btn-size: var(--theme-toolbar-btn-size);
+   --ui-icon-size-lg: var(--theme-icon-xl);
+   --ui-control-height: var(--theme-control-height);
+   --ui-control-height-sm: var(--theme-control-height-sm);
+   --ui-control-pad-x: var(--theme-control-pad-x);
+   --ui-control-pad-y: var(--theme-control-pad-y);
+   --ui-search-icon-left: var(--theme-search-icon-left);
+   --ui-search-input-pad-left: var(--theme-search-input-pad-left);
+   --ui-card-pad-x: var(--theme-card-pad-x);
+   --ui-card-pad-y: var(--theme-card-pad-y);
+   --ui-menu-pad-x: var(--theme-menu-pad-x);
+   --ui-menu-pad-y: var(--theme-menu-pad-y);
+   --ui-menu-font: var(--theme-menu-font);
+   --ui-border: color-mix(in srgb, var(--vscode-panel-border) 72%, transparent);
+   --ui-border-strong: color-mix(in srgb, var(--vscode-panel-border) 92%, transparent);
+   --ui-muted: var(--theme-layout-muted-text);
+   --ui-soft: var(--theme-layout-soft-surface);
+   --ui-soft-2: var(--theme-layout-soft-surface-2);
+   --ui-elevated: var(--theme-layout-elevated-surface);
+   --ui-hover: var(--theme-editor-hover-bg);
+   --ui-active: var(--theme-editor-active-bg);
+   --ui-focus-ring: var(--theme-layout-focus-ring);
+   --ui-overlay-bg: var(--theme-overlay-bg);
+   --ui-disabled-opacity: 0.58;
+   --ui-danger: var(--theme-status-danger);
+   --ui-danger-text: var(--theme-status-danger-text);
+   --ui-danger-bg: color-mix(in srgb, var(--ui-danger) 14%, transparent);
+   --ui-danger-border: color-mix(in srgb, var(--ui-danger) 36%, var(--ui-border));
+   --ui-warning: var(--theme-status-warning);
+   --ui-warning-text: var(--theme-status-warning-text);
+   --ui-warning-bg: color-mix(in srgb, var(--ui-warning) 12%, transparent);
+   --ui-warning-border: color-mix(in srgb, var(--ui-warning) 34%, var(--ui-border));
+   --ui-periodic: var(--theme-status-periodic);
+   --ui-periodic-text: var(--theme-status-periodic-text);
+   --ui-periodic-bg: color-mix(in srgb, var(--ui-periodic) 12%, transparent);
+   --ui-periodic-border: color-mix(in srgb, var(--ui-periodic) 34%, var(--ui-border));
+   --ui-success: var(--theme-status-success);
+   --ui-success-text: var(--theme-status-success-text);
+   --ui-success-bg: color-mix(in srgb, var(--ui-success) 12%, transparent);
+   --ui-success-border: color-mix(in srgb, var(--ui-success) 34%, var(--ui-border));
+   --ui-info: var(--theme-status-info);
+   --ui-info-text: var(--theme-status-info-text);
+   --ui-info-bg: color-mix(in srgb, var(--ui-info) 12%, transparent);
+   --ui-info-border: color-mix(in srgb, var(--ui-info) 34%, var(--ui-border));
+   --ui-card-bg: var(--theme-editor-card-bg);
+   --ui-card-bg-hover: var(--theme-editor-card-hover-bg);
+   --ui-card-border: var(--theme-editor-card-border);
+   --ui-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
+   --ui-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+   --ui-shadow-lg: 0 6px 18px rgba(0, 0, 0, 0.14);
+   --ui-z-popover: 20;
+   --ui-z-modal: 31;
+   --ui-z-toast: 100;
+}

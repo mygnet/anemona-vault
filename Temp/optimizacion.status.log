@@ -1,0 +1,50 @@
+# Optimización — Código Muerto
+
+## CryptoService (7)
+
+| Método | Línea | Notas |
+|--------|-------|-------|
+| `isVaultUnlocked()` | 56 | Nunca llamado |
+| `getVaultPassword()` | 60 | Nunca llamado |
+| `getVaultState()` | 308 | Nunca llamado |
+| `unlock(password)` | 316 | Vault unlock va por `NotesService.unlockNoteFile()` |
+| `lock()` | 360 | Vault lock va por `NotesService.lockNoteFile()` |
+| `setPassword(password)` | 366 | Nunca llamado |
+| `removePassword()` | 396 | Nunca llamado |
+
+## NotificationService / NotificationRepository (6)
+
+| Método | Línea | Notas |
+|--------|-------|-------|
+| `NotificationService.setLastCheckAt()` | 140 | Nunca llamado |
+| `NotificationService.getLastCheckAt()` | 144 | Nunca llamado |
+| `NotificationService.removeGeneratedKeysByPrefix()` | 132 | Nunca llamado |
+| `NotificationRepository.setStoragePath()` | 21 | Nunca llamado (se recrea el objeto) |
+| `NotificationRepository.setLastCheckAt()` | 401 | Nunca llamado |
+| `NotificationRepository.removeGeneratedKeysByPrefix()` | 207 | Nunca llamado |
+
+## ScheduledEventsCache (2)
+
+| Método | Línea | Notas |
+|--------|-------|-------|
+| `setStoragePath()` | 17 | Nunca llamado (se recrea el objeto) |
+| `resolveSourceFile()` | 48 | Nunca llamado |
+
+## NotesService (3)
+
+| Método | Línea | Notas |
+|--------|-------|-------|
+| `getNotesForCategory()` | 226 | Reemplazado por `getFolderContents()`/`getNotesRecursive()` |
+| `canDeleteCategory()` (público) | 972 | Todos usan `canDeleteCategorySync()` directo |
+| `renderTodoAsMarkdown()` (privado) | 879 | Nunca invocado |
+
+## Webview (2)
+
+| Export | Archivo | Notas |
+|--------|---------|-------|
+| `toggleSort()` | `webview/src/lib/sortUtils.ts` | Solo se importa `SortDirection` |
+| `localeLabel` | `webview/src/i18n/index.ts` | Exportado pero nunca mostrado en UI |
+
+---
+
+**Total: 21 items**

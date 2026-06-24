@@ -1,7 +1,7 @@
 import * as vscode from 'vscode'
 import { randomBytes } from 'crypto'
 import { NotificationRepository } from './NotificationRepository'
-import type { VaultNotification, NotificationType, NotificationAction, HistoryIndex } from './NotificationTypes'
+import type { VaultNotification, NotificationType, NotificationAction, HistoryIndex, NotificationConfig } from './NotificationTypes'
 
 export class NotificationService {
   constructor(private repository: NotificationRepository) {}
@@ -111,6 +111,14 @@ export class NotificationService {
 
   getHistoryIndex(): HistoryIndex {
     return this.repository.getHistoryIndex()
+  }
+
+  getConfig(): NotificationConfig {
+    return this.repository.getConfig()
+  }
+
+  updateConfig(config: NotificationConfig): void {
+    this.repository.updateConfig(config)
   }
 
   getAll(): VaultNotification[] {

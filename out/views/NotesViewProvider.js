@@ -86,6 +86,18 @@ class NotesViewProvider {
             }
         }
     }
+    _cleanupFileKeysForEntries(entries, fileType) {
+        if (!this._notificationService)
+            return;
+        const prefix = fileType === 'reminder' ? 'reminder:' : fileType === 'todo' ? 'task:' : '';
+        if (!prefix)
+            return;
+        for (const entry of entries) {
+            if (entry?.id) {
+                this._notificationService.removeGeneratedKey(`${prefix}${entry.id}`);
+            }
+        }
+    }
     _cleanupFileKeys(filePath, fileType) {
         if (!this._notificationService)
             return;
@@ -94,14 +106,7 @@ class NotesViewProvider {
             const entries = JSON.parse(raw);
             if (!Array.isArray(entries))
                 return;
-            const prefix = fileType === 'reminder' ? 'reminder:' : fileType === 'todo' ? 'task:' : '';
-            if (!prefix)
-                return;
-            for (const entry of entries) {
-                if (entry?.id) {
-                    this._notificationService.removeGeneratedKey(`${prefix}${entry.id}`);
-                }
-            }
+            this._cleanupFileKeysForEntries(entries, fileType);
         }
         catch {
             // skip if file unreadable
@@ -203,6 +208,9 @@ class NotesViewProvider {
             case 'checkSelection':
                 this._handleCheckSelection(Number(message.requestId || 0));
                 break;
+            case 'pickFile':
+                this._handlePickFile(Number(message.requestId || 0));
+                break;
             case 'openExternal':
                 this._handleOpenExternal(message);
                 break;
@@ -265,6 +273,9 @@ class NotesViewProvider {
                 break;
             case 'getNotifications':
                 this._sendNotifications();
+                break;
+            case 'updateNotificationsColor':
+                this._updateNotificationsColor(message.color);
                 break;
             case 'markNotificationRead':
                 if (this._notificationService) {
@@ -447,6 +458,12 @@ class NotesViewProvider {
         const stored = this._globalState.get('recentFolders', []);
         this._globalState.update('recentFolders', stored.filter((f) => f.path !== folderPath));
     }
+    _resetViewState() {
+        this._currentNotePath = null;
+        this._currentCategory = null;
+        this._currentFolderPath = '';
+        this._postMessage({ command: 'resetView' });
+    }
     async _openRecentFolder(folderPath) {
         if (!fs.existsSync(folderPath)) {
             this._removeRecentFolder(folderPath);
@@ -457,6 +474,7 @@ class NotesViewProvider {
             this._loadCategories();
             return;
         }
+        this._resetViewState();
         await ConfigService_1.ConfigService.setStoragePath(folderPath);
         this._notesService.setStoragePath(folderPath);
         this._addRecentFolder(folderPath);
@@ -482,6 +500,7 @@ class NotesViewProvider {
             notifications: this._notificationService.getInbox(),
             history,
             historyIndex,
+            config: this._notificationService.getConfig(),
         });
         this._updateBadgeFromNotifications();
     }
@@ -673,8 +692,8 @@ class NotesViewProvider {
     async _saveTodoEntries(notePath, entries) {
         try {
             await this._notesService.saveTodoEntries(notePath, entries);
-            this._cleanupTodoKeys(entries);
             this._syncScheduledEventsFile(notePath);
+            this._cleanupTodoKeys(entries);
             const activeEntries = entries.filter((e) => e.status !== 'cancelled');
             const progress = activeEntries.length === 0
                 ? 0
@@ -708,8 +727,8 @@ class NotesViewProvider {
     async _saveReminderEntries(notePath, entries) {
         try {
             await this._notesService.saveReminderEntries(notePath, entries);
-            this._cleanupReminderKeys(entries);
             this._syncScheduledEventsFile(notePath);
+            this._cleanupReminderKeys(entries);
             this._postMessage({ command: 'noteSaved' });
         }
         catch (err) {
@@ -737,8 +756,17 @@ class NotesViewProvider {
     }
     async _deleteNote(notePath) {
         try {
+            const fileType = this._notesService.getFileType(path.basename(notePath));
+            let entries = [];
+            try {
+                const raw = fs.readFileSync(notePath, 'utf-8');
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed))
+                    entries = parsed;
+            }
+            catch { /* not JSON or unreadable */ }
             await this._notesService.deleteNote(notePath);
-            this._cleanupFileKeys(notePath, this._notesService.getFileType(path.basename(notePath)));
+            this._cleanupFileKeysForEntries(entries, fileType);
             this._cancelScheduledEventsFile(notePath);
             if (this._currentNotePath === notePath) {
                 this._currentNotePath = null;
@@ -748,7 +776,7 @@ class NotesViewProvider {
                 this._loadNotes(category, this._currentFolderPath);
             }
             this._loadCategories();
-            this._postMessage({ command: 'noteDeleted' });
+            this._postMessage({ command: 'noteDeleted', notePath });
         }
         catch (err) {
             this._postMessage({
@@ -847,9 +875,19 @@ class NotesViewProvider {
     }
     async _renameFolder(folderPath, name) {
         try {
-            await this._notesService.renameFolder(folderPath, name);
+            const rel = this._getRelativeParts(folderPath);
+            const oldName = path.basename(folderPath);
+            const newFilePath = await this._notesService.renameFolder(folderPath, name);
             this._scheduledEventsCache?.rebuild();
             const category = this._getCategoryFromNotePath(folderPath) || this._currentCategory;
+            const newName = path.basename(newFilePath);
+            const relativeFolder = rel?.folderPath ?? '';
+            if (relativeFolder === this._currentFolderPath) {
+                this._currentFolderPath = relativeFolder.replace(oldName, newName);
+            }
+            else if (this._currentFolderPath && this._currentFolderPath.startsWith(relativeFolder + '/')) {
+                this._currentFolderPath = this._currentFolderPath.replace(relativeFolder, relativeFolder.replace(oldName, newName));
+            }
             if (category) {
                 this._loadNotes(category, this._currentFolderPath);
             }
@@ -1042,7 +1080,26 @@ class NotesViewProvider {
                     content = fs.readFileSync(sourceFilePath, 'utf-8');
                 }
             }
-            await this._notesService.importContent(content, notePath);
+            try {
+                await this._notesService.importContent(content, notePath, async (duplicates) => {
+                    const count = duplicates.length;
+                    const detail = duplicates.slice(0, 3).map((d) => d.imported.title || d.imported.id || '?').join(', ');
+                    const more = count > 3 ? ` (+${count - 3} más)` : '';
+                    const choice = await vscode.window.showWarningMessage(`${count} registro(s) con el mismo ID ya existen: ${detail}${more}`, { modal: true }, 'Reemplazar', 'Agregar como nuevo', 'Omitir duplicados');
+                    if (choice === 'Reemplazar')
+                        return 'replace';
+                    if (choice === 'Agregar como nuevo')
+                        return 'add';
+                    if (choice === 'Omitir duplicados')
+                        return 'skip';
+                    return null;
+                });
+            }
+            catch (e) {
+                if (e instanceof Error && e.message === 'Import cancelled')
+                    return;
+                throw e;
+            }
             this._syncScheduledEventsFile(notePath);
             const category = this._getCategoryFromNotePath(notePath) || this._currentCategory;
             this._postMessage({ command: 'contentImported', notePath });
@@ -1138,6 +1195,23 @@ class NotesViewProvider {
             });
         }
     }
+    _updateNotificationsColor(color) {
+        try {
+            const current = this._notificationService?.getConfig() ?? {};
+            if (color)
+                current.color = color;
+            else
+                delete current.color;
+            this._notificationService?.updateConfig(current);
+            this._sendNotifications();
+        }
+        catch (err) {
+            this._postMessage({
+                command: 'error',
+                message: err instanceof Error ? err.message : 'Failed to update notifications color',
+            });
+        }
+    }
     async _unlockVault(password) {
         const notePath = this._currentNotePath;
         if (notePath && notePath.endsWith('.anemona-lock')) {
@@ -1158,12 +1232,20 @@ class NotesViewProvider {
         }
     }
     _getCategoryFromNotePath(notePath) {
+        return this._getRelativeParts(notePath)?.category ?? null;
+    }
+    _getRelativeParts(absPath) {
         const storagePath = this._notesService.getStoragePath();
         if (!storagePath)
             return null;
-        const relative = path.relative(storagePath, notePath);
+        const relative = path.relative(storagePath, absPath);
         const parts = relative.split(path.sep);
-        return parts.length > 0 ? parts[0] : null;
+        if (parts.length === 0)
+            return null;
+        return {
+            category: parts[0],
+            folderPath: parts.slice(1).join('/'),
+        };
     }
     async _lockVault(password) {
         const notePath = this._currentNotePath;
@@ -1234,19 +1316,18 @@ class NotesViewProvider {
         const storagePath = this._notesService.getStoragePath();
         if (!storagePath)
             return;
-        const relative = path.relative(storagePath, notePath);
-        const parts = relative.split(path.sep);
-        const categoryName = parts[0];
-        const relativeFolder = parts.slice(1, -1).join('/');
+        const rel = this._getRelativeParts(path.dirname(notePath));
+        if (!rel)
+            return;
         const noteName = path.basename(notePath);
         vscode.commands.executeCommand('anemonaVault.view.focus');
-        this._currentCategory = categoryName;
-        this._currentFolderPath = relativeFolder;
-        this._postMessage({ command: 'activateNotes', category: categoryName, folderPath: relativeFolder });
+        this._currentCategory = rel.category;
+        this._currentFolderPath = rel.folderPath;
+        this._postMessage({ command: 'activateNotes', category: rel.category, folderPath: rel.folderPath });
         this._loadCategories();
-        await this._loadNotes(categoryName, relativeFolder);
+        await this._loadNotes(rel.category, rel.folderPath);
         this._currentNotePath = notePath;
-        await this._loadNoteContent(categoryName, noteName, notePath);
+        await this._loadNoteContent(rel.category, noteName, notePath);
     }
     postSearchCommand() {
         this._postMessage({ command: 'activateSearch' });
@@ -1298,6 +1379,7 @@ class NotesViewProvider {
         });
         if (selected && selected.length > 0) {
             const folderPath = selected[0].fsPath;
+            this._resetViewState();
             await ConfigService_1.ConfigService.setStoragePath(folderPath);
             this._notesService.setStoragePath(folderPath);
             this._addRecentFolder(folderPath);
@@ -1386,6 +1468,10 @@ class NotesViewProvider {
     }
     _handleOpenExternal(message) {
         try {
+            if (message.type === 'file') {
+                void this._openFileAction(message.value);
+                return;
+            }
             let uri;
             if (message.type === 'email') {
                 uri = vscode.Uri.parse(`mailto:${message.value}`);
@@ -1402,6 +1488,25 @@ class NotesViewProvider {
         }
         catch (err) {
             vscode.window.showErrorMessage(`Failed to open ${message.type}: ${err instanceof Error ? err.message : 'Unknown error'}`);
+        }
+    }
+    async _handlePickFile(requestId) {
+        try {
+            const files = await vscode.window.showOpenDialog({
+                canSelectFiles: true,
+                canSelectFolders: false,
+                canSelectMany: false,
+                openLabel: 'Select file',
+                filters: {
+                    'All Files': ['*'],
+                    'Anemona Vault': ['*anemona-key', '*anemona-lock', '*anemona-command', '*anemona-todo', '*anemona-snippet', '*anemona-reminder', '*.md'],
+                },
+            });
+            const filePath = files && files.length > 0 ? files[0].fsPath : '';
+            this._postMessage({ command: 'filePicked', requestId, path: filePath });
+        }
+        catch (err) {
+            vscode.window.showErrorMessage(`Failed to pick file: ${err instanceof Error ? err.message : 'Unknown error'}`);
         }
     }
     _handleInsertIntoEditor(text) {

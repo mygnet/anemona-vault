@@ -1,5 +1,347 @@
 [
   {
+    "id": "146d8f5d-a208-4648-8da6-c67b34f28c3a",
+    "key": "reminder:59491722-e129-437c-8bcc-70f425969758",
+    "type": "reminder",
+    "title": "Revisa tarea",
+    "message": "",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "59491722-e129-437c-8bcc-70f425969758",
+    "relatedItemType": "reminder",
+    "action": {
+      "type": "file",
+      "target": "01-Demo/Recordatorios.anemona-reminder"
+    },
+    "createdAt": "2026-06-23T23:04:35.978Z",
+    "readAt": "2026-06-24T00:42:01.005Z"
+  },
+  {
+    "id": "a0742c3c-a48d-4710-8b6f-f171cfe48762",
+    "key": "reminder:d8588b8a-4691-494d-80eb-06d86f55e3a0",
+    "type": "reminder",
+    "title": "Llegar mas tarde",
+    "message": "despues revisar el problema..",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "d8588b8a-4691-494d-80eb-06d86f55e3a0",
+    "relatedItemType": "reminder",
+    "action": {
+      "type": "file",
+      "target": "01-Demo/Recordatorios.anemona-reminder"
+    },
+    "createdAt": "2026-06-23T20:15:31.083Z",
+    "readAt": "2026-06-24T00:42:01.702Z"
+  },
+  {
+    "id": "6fea9f80-cf3c-445d-84b0-63b9203f1473",
+    "key": "task:e5f6a7b8-c9d0-1234-efab-23456789abcd",
+    "type": "task_due",
+    "title": "Write API tests",
+    "message": "",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "e5f6a7b8-c9d0-1234-efab-23456789abcd",
+    "relatedItemType": "task",
+    "action": {
+      "type": "file",
+      "target": "Work/sprint.anemona-todo"
+    },
+    "createdAt": "2026-06-22T23:53:21.952Z",
+    "readAt": "2026-06-23T19:33:12.394Z"
+  },
+  {
+    "id": "c463cca0-3859-4b0e-8e6b-996afe1c1ddd",
+    "key": "reminder:039807cb-390b-44dd-80c6-7448b0ca385b",
+    "type": "reminder",
+    "title": "Reunion en 1 min",
+    "message": "",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "039807cb-390b-44dd-80c6-7448b0ca385b",
+    "relatedItemType": "reminder",
+    "action": {
+      "type": "file",
+      "target": "01-Demo/Recordatorios.anemona-reminder"
+    },
+    "createdAt": "2026-06-22T20:03:55.149Z",
+    "readAt": "2026-06-23T19:33:12.908Z"
+  },
+  {
+    "id": "ff6ff5e9-1265-40f2-86e5-0f210adb8708",
+    "key": "reminder:039807cb-390b-44dd-80c6-7448b0ca385b",
+    "type": "reminder",
+    "title": "Reunion en 1 min",
+    "message": "",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "039807cb-390b-44dd-80c6-7448b0ca385b",
+    "relatedItemType": "reminder",
+    "action": {
+      "type": "file",
+      "target": "01-Demo/aaa/Carpeta-1/Carpeta-2/Carpeta-3/Recordatorios.anemona-reminder"
+    },
+    "createdAt": "2026-06-22T14:34:43.761Z",
+    "readAt": "2026-06-22T18:34:43.787Z"
+  },
+  {
+    "id": "35d71d74-8f90-47ad-8d7c-c97f1c008838",
+    "key": "task:d4e5f6a7-b8c9-0123-defa-123456789abc",
+    "type": "task_overdue",
+    "title": "Implement user auth",
+    "message": "",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "d4e5f6a7-b8c9-0123-defa-123456789abc",
+    "relatedItemType": "task",
+    "action": {
+      "type": "file",
+      "target": "Work/sprint.anemona-todo"
+    },
+    "createdAt": "2026-06-21T00:21:03.376Z",
+    "readAt": "2026-06-22T18:34:46.448Z"
+  },
+  {
+    "id": "75f44185-f553-4608-8f4b-d13836f6f7aa",
+    "key": "reminder:039807cb-390b-44dd-80c6-7448b0ca385b",
+    "type": "reminder",
+    "title": "Reunion en 1 min",
+    "message": "",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "039807cb-390b-44dd-80c6-7448b0ca385b",
+    "relatedItemType": "reminder",
+    "action": {
+      "type": "file",
+      "target": "01-Demo/Carpeta-1/Carpeta-2/Carpeta-3/Recordatorios.anemona-reminder"
+    },
+    "createdAt": "2026-06-19T16:16:02.686Z",
+    "readAt": "2026-06-19T17:43:15.259Z"
+  },
+  {
+    "id": "6c9300c7-a3f0-4757-8c40-f9e95a218192",
+    "key": "reminder:a5d6ea97-6e14-4cb1-8dab-26c0c5aeb109",
+    "type": "reminder",
+    "title": "Llamar a ramon",
+    "message": "",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "a5d6ea97-6e14-4cb1-8dab-26c0c5aeb109",
+    "relatedItemType": "reminder",
+    "action": {
+      "type": "file",
+      "target": "01-Demo/Carpeta-1/Carpeta-2/Carpeta-3/Recordatorios.anemona-reminder"
+    },
+    "createdAt": "2026-06-19T15:02:07.754Z",
+    "readAt": "2026-06-19T17:43:15.802Z"
+  },
+  {
+    "id": "988ff5ec-f376-4b8d-8dce-9ef178338f64",
+    "key": "reminder:a2ef3b7d-d1a0-4ee2-8d55-3d3b9fb4cf85",
+    "type": "reminder",
+    "title": "ddddd",
+    "message": "",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "a2ef3b7d-d1a0-4ee2-8d55-3d3b9fb4cf85",
+    "relatedItemType": "reminder",
+    "action": {
+      "type": "file",
+      "target": "01-Demo/Carpeta-1/Carpeta-2/Carpeta-3/Recordatorios.anemona-reminder"
+    },
+    "createdAt": "2026-06-19T15:01:42.745Z",
+    "readAt": "2026-06-19T17:43:16.305Z"
+  },
+  {
+    "id": "bb70df19-2a3b-4c5b-8173-846024a39697",
+    "key": "reminder:abe46af8-9cd0-4266-828c-10f6de1422dd",
+    "type": "reminder",
+    "title": "Cada minuto repetir...",
+    "message": "Haya verificar si se genera el recordatorio cada minuto",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "abe46af8-9cd0-4266-828c-10f6de1422dd",
+    "relatedItemType": "reminder",
+    "action": {
+      "type": "file",
+      "target": "Work/Recodatorio-de-tarbajo.anemona-reminder"
+    },
+    "createdAt": "2026-06-19T14:40:57.310Z",
+    "readAt": "2026-06-19T17:43:17.282Z"
+  },
+  {
+    "id": "65e65f12-aeb8-4e65-86aa-a7c3cf91d7aa",
+    "key": "reminder:abe46af8-9cd0-4266-828c-10f6de1422dd",
+    "type": "reminder",
+    "title": "Cada minuto repetir...",
+    "message": "Haya verificar si se genera el recordatorio cada minuto",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "abe46af8-9cd0-4266-828c-10f6de1422dd",
+    "relatedItemType": "reminder",
+    "action": {
+      "type": "file",
+      "target": "Work/Recodatorio-de-tarbajo.anemona-reminder"
+    },
+    "createdAt": "2026-06-19T04:23:07.540Z",
+    "readAt": "2026-06-19T04:24:59.375Z"
+  },
+  {
+    "id": "e960d241-a47f-4d94-8cbf-9a1aebe5ea83",
+    "key": "reminder:abe46af8-9cd0-4266-828c-10f6de1422dd",
+    "type": "reminder",
+    "title": "Cada minuto repetir...",
+    "message": "Haya verificar si se genera el recordatorio cada minuto",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "abe46af8-9cd0-4266-828c-10f6de1422dd",
+    "relatedItemType": "reminder",
+    "action": {
+      "type": "file",
+      "target": "Work/Recodatorio-de-tarbajo.anemona-reminder"
+    },
+    "createdAt": "2026-06-19T03:55:02.205Z",
+    "readAt": "2026-06-19T03:55:17.078Z"
+  },
+  {
+    "id": "2abc4183-1a1b-441c-868c-8902989cdb62",
+    "key": "reminder:abe46af8-9cd0-4266-828c-10f6de1422dd",
+    "type": "reminder",
+    "title": "Cada minuto repetir...",
+    "message": "Haya verificar si se genera el recordatorio cada minuto",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "abe46af8-9cd0-4266-828c-10f6de1422dd",
+    "relatedItemType": "reminder",
+    "action": {
+      "type": "file",
+      "target": "Work/Recodatorio-de-tarbajo.anemona-reminder"
+    },
+    "createdAt": "2026-06-19T03:54:02.194Z",
+    "readAt": "2026-06-19T03:54:24.146Z"
+  },
+  {
+    "id": "adbe5a3b-e27b-494d-8dc1-17eedce99d69",
+    "key": "reminder:abe46af8-9cd0-4266-828c-10f6de1422dd",
+    "type": "reminder",
+    "title": "Cada minuto repetir...",
+    "message": "Haya verificar si se genera el recordatorio cada minuto",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "abe46af8-9cd0-4266-828c-10f6de1422dd",
+    "relatedItemType": "reminder",
+    "action": {
+      "type": "file",
+      "target": "Work/Recodatorio-de-tarbajo.anemona-reminder"
+    },
+    "createdAt": "2026-06-19T03:53:02.175Z",
+    "readAt": "2026-06-19T03:53:40.328Z"
+  },
+  {
+    "id": "866aa8e2-2898-4c58-881e-72088c15b9d5",
+    "key": "reminder:abe46af8-9cd0-4266-828c-10f6de1422dd",
+    "type": "reminder",
+    "title": "Cada minuto repetir...",
+    "message": "Haya verificar si se genera el recordatorio cada minuto",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "abe46af8-9cd0-4266-828c-10f6de1422dd",
+    "relatedItemType": "reminder",
+    "action": {
+      "type": "file",
+      "target": "Work/Recodatorio-de-tarbajo.anemona-reminder"
+    },
+    "createdAt": "2026-06-19T03:52:02.164Z",
+    "readAt": "2026-06-19T03:52:25.508Z"
+  },
+  {
+    "id": "05cc3bcd-e2af-4f2e-861e-ebb7c4ac8856",
+    "key": "reminder:abe46af8-9cd0-4266-828c-10f6de1422dd",
+    "type": "reminder",
+    "title": "Cada minuto repetir...",
+    "message": "Haya verificar si se genera el recordatorio cada minuto",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "abe46af8-9cd0-4266-828c-10f6de1422dd",
+    "relatedItemType": "reminder",
+    "action": {
+      "type": "file",
+      "target": "Work/Recodatorio-de-tarbajo.anemona-reminder"
+    },
+    "createdAt": "2026-06-19T03:51:02.152Z",
+    "readAt": "2026-06-19T03:51:29.044Z"
+  },
+  {
+    "id": "b87963c1-9ce8-444e-8920-58fe941374d5",
+    "key": "reminder:abe46af8-9cd0-4266-828c-10f6de1422dd",
+    "type": "reminder",
+    "title": "Cada minuto repetir...",
+    "message": "Haya verificar si se genera el recordatorio cada minuto",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "abe46af8-9cd0-4266-828c-10f6de1422dd",
+    "relatedItemType": "reminder",
+    "action": {
+      "type": "file",
+      "target": "Work/Recodatorio-de-tarbajo.anemona-reminder"
+    },
+    "createdAt": "2026-06-19T03:49:01.725Z",
+    "readAt": "2026-06-19T03:49:46.996Z"
+  },
+  {
+    "id": "5b7c5de6-5914-48a2-8e84-5632df9686b2",
+    "key": "reminder:abe46af8-9cd0-4266-828c-10f6de1422dd",
+    "type": "reminder",
+    "title": "Cada minuto repetir...",
+    "message": "Haya verificar si se genera el recordatorio cada minuto",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "abe46af8-9cd0-4266-828c-10f6de1422dd",
+    "relatedItemType": "reminder",
+    "action": {
+      "type": "file",
+      "target": "Work/Recodatorio-de-tarbajo.anemona-reminder"
+    },
+    "createdAt": "2026-06-19T03:47:01.735Z",
+    "readAt": "2026-06-19T03:47:30.532Z"
+  },
+  {
+    "id": "5a4871db-89a7-498d-8e2c-e499e3c245ee",
+    "key": "reminder:a2ef3b7d-d1a0-4ee2-8d55-3d3b9fb4cf85",
+    "type": "reminder",
+    "title": "ddddd",
+    "message": "",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "a2ef3b7d-d1a0-4ee2-8d55-3d3b9fb4cf85",
+    "relatedItemType": "reminder",
+    "action": {
+      "type": "file",
+      "target": "01-Demo/Carpeta-1/Carpeta-2/Carpeta-3/Recordatorios.anemona-reminder"
+    },
+    "createdAt": "2026-06-18T19:49:03.624Z",
+    "readAt": "2026-06-19T02:55:53.800Z"
+  },
+  {
     "id": "3ebb4d33-58b2-4ecd-8896-0c11f267fefe",
     "key": "reminder:9f88ac16-8cd8-445d-8d63-56938a6624d3",
     "type": "reminder",

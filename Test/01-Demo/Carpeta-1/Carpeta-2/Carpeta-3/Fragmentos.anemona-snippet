@@ -1,7 +1,0 @@
-[
-  {
-    "title": "\"devDependencies\": {",
-    "language": "json",
-    "code": "\"devDependencies\": {\n        \"@tailwindcss/vite\": \"^4.0.0\",\n        \"axios\": \"^1.11.0\",\n        \"concurrently\": \"^9.0.1\",\n        \"laravel-vite-plugin\": \"^2.0.0\",\n        \"tailwindcss\": \"^4.0.0\",\n        \"vite\": \"^7.0.4\""
-  }
-]

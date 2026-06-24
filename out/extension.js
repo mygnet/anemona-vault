@@ -35,6 +35,8 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.activate = activate;
 exports.deactivate = deactivate;
+const fs = __importStar(require("fs"));
+const path = __importStar(require("path"));
 const vscode = __importStar(require("vscode"));
 const NotesService_1 = require("./services/NotesService");
 const NotesViewProvider_1 = require("./views/NotesViewProvider");
@@ -46,6 +48,33 @@ let notesService;
 let notesViewProvider;
 let notifScheduler = null;
 let notifWatchers = [];
+function computeNextDue(dueAt, unit, value) {
+    const date = new Date(dueAt);
+    if (isNaN(date.getTime()))
+        return null;
+    switch (unit) {
+        case 'minute':
+            date.setMinutes(date.getMinutes() + value);
+            break;
+        case 'hour':
+            date.setHours(date.getHours() + value);
+            break;
+        case 'day':
+            date.setDate(date.getDate() + value);
+            break;
+        case 'week':
+            date.setDate(date.getDate() + value * 7);
+            break;
+        case 'month':
+            date.setMonth(date.getMonth() + value);
+            break;
+        case 'year':
+            date.setFullYear(date.getFullYear() + value);
+            break;
+        default: return null;
+    }
+    return date.toISOString();
+}
 function disposeNotifications() {
     notifScheduler?.stop();
     notifScheduler = null;
@@ -76,6 +105,31 @@ function setupNotificationsForVault(vaultPath, context) {
             tickIntervalSeconds,
         }, () => {
             notesViewProvider.updateBadge(service.getPendingCount());
+        }, (sourceFile, sourceId, currentDueAt, interval) => {
+            const vaultPath = notesService.getStoragePath();
+            if (!vaultPath)
+                return;
+            const absPath = path.join(vaultPath, sourceFile);
+            if (!fs.existsSync(absPath))
+                return;
+            try {
+                const raw = fs.readFileSync(absPath, 'utf-8');
+                const entries = JSON.parse(raw);
+                if (!Array.isArray(entries))
+                    return;
+                const idx = entries.findIndex((e) => String(e.id) === sourceId);
+                if (idx === -1)
+                    return;
+                const entry = entries[idx];
+                if (!entry.interval)
+                    return;
+                const nextDue = computeNextDue(entry.dueAt, entry.interval.unit, entry.interval.value);
+                if (!nextDue)
+                    return;
+                entries[idx] = { ...entry, dueAt: nextDue, updatedAt: new Date().toISOString() };
+                fs.writeFileSync(absPath, JSON.stringify(entries, null, 2), 'utf-8');
+            }
+            catch { /* ignore file errors */ }
         });
         notifScheduler.start();
     }

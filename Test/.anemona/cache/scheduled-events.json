@@ -1,25 +1,57 @@
 {
   "version": 2,
-  "updatedAt": "2026-06-18T19:49:16.752Z",
+  "updatedAt": "2026-06-24T00:57:18.382Z",
   "events": [
     {
       "id": "reminder:a5d6ea97-6e14-4cb1-8dab-26c0c5aeb109",
       "source": "reminder",
-      "sourceFile": "01-Demo/Carpeta-1/Carpeta-2/Carpeta-3/Recordatorios.anemona-reminder",
+      "sourceFile": "01-Demo/Recordatorios.anemona-reminder",
       "sourceFileName": "Recordatorios.anemona-reminder",
       "sourceId": "a5d6ea97-6e14-4cb1-8dab-26c0c5aeb109",
       "dueAt": "2026-06-18T18:33:00.000Z",
       "notificationKey": "reminder:a5d6ea97-6e14-4cb1-8dab-26c0c5aeb109",
-      "status": "completed",
+      "status": "cancelled",
       "title": "Llamar a ramon",
       "message": "",
-      "createdAt": "2026-06-18T19:32:47.335Z",
-      "updatedAt": "2026-06-18T19:32:47.335Z"
+      "createdAt": "2026-06-22T20:02:21.086Z",
+      "updatedAt": "2026-06-23T20:15:26.386Z"
+    },
+    {
+      "id": "reminder:a2ef3b7d-d1a0-4ee2-8d55-3d3b9fb4cf85",
+      "source": "reminder",
+      "sourceFile": "01-Demo/Recordatorios.anemona-reminder",
+      "sourceFileName": "Recordatorios.anemona-reminder",
+      "sourceId": "a2ef3b7d-d1a0-4ee2-8d55-3d3b9fb4cf85",
+      "dueAt": "2026-06-18T19:49:00.000Z",
+      "notificationKey": "reminder:a2ef3b7d-d1a0-4ee2-8d55-3d3b9fb4cf85",
+      "status": "cancelled",
+      "title": "ddddd",
+      "message": "",
+      "createdAt": "2026-06-22T20:02:21.086Z",
+      "updatedAt": "2026-06-23T20:15:26.386Z"
+    },
+    {
+      "id": "reminder:039807cb-390b-44dd-80c6-7448b0ca385b",
+      "source": "reminder",
+      "sourceFile": "01-Demo/Recordatorios.anemona-reminder",
+      "sourceFileName": "Recordatorios.anemona-reminder",
+      "sourceId": "039807cb-390b-44dd-80c6-7448b0ca385b",
+      "dueAt": "2026-06-22T01:17:00.000Z",
+      "notificationKey": "reminder:039807cb-390b-44dd-80c6-7448b0ca385b",
+      "status": "cancelled",
+      "title": "Reunion en 1 min",
+      "message": "",
+      "interval": {
+        "unit": "hour",
+        "value": 1
+      },
+      "createdAt": "2026-06-22T20:02:21.086Z",
+      "updatedAt": "2026-06-23T20:15:26.386Z"
     },
     {
       "id": "reminder:9f464836-ae0b-4c9b-8a6f-96633a3482a8",
       "source": "reminder",
-      "sourceFile": "Anemona/Carpeta-1/Carpeta-2/Carpeta-3/Recordatorio.anemona-reminder",
+      "sourceFile": "Anemona/Recordatorio.anemona-reminder",
       "sourceFileName": "Recordatorio.anemona-reminder",
       "sourceId": "9f464836-ae0b-4c9b-8a6f-96633a3482a8",
       "dueAt": "2026-06-18T16:55:00.000Z",
@@ -27,13 +59,13 @@
       "status": "completed",
       "title": "Recodatorio",
       "message": "Hacer la tareas",
-      "createdAt": "2026-06-18T19:32:47.335Z",
-      "updatedAt": "2026-06-18T19:32:47.335Z"
+      "createdAt": "2026-06-22T16:26:31.657Z",
+      "updatedAt": "2026-06-22T16:26:31.657Z"
     },
     {
       "id": "reminder:049f7b05-1f6e-42cc-8543-ee72da33d890",
       "source": "reminder",
-      "sourceFile": "Anemona/Carpeta-1/Carpeta-2/Carpeta-3/Recordatorio.anemona-reminder",
+      "sourceFile": "Anemona/Recordatorio.anemona-reminder",
       "sourceFileName": "Recordatorio.anemona-reminder",
       "sourceId": "049f7b05-1f6e-42cc-8543-ee72da33d890",
       "dueAt": "2026-06-18T16:58:00.000Z",
@@ -41,13 +73,13 @@
       "status": "completed",
       "title": "Demostracion",
       "message": "",
-      "createdAt": "2026-06-18T19:32:47.335Z",
-      "updatedAt": "2026-06-18T19:32:47.335Z"
+      "createdAt": "2026-06-22T16:26:31.657Z",
+      "updatedAt": "2026-06-22T16:26:31.657Z"
     },
     {
       "id": "reminder:e4101067-a016-4f42-8715-e02eb569c74d",
       "source": "reminder",
-      "sourceFile": "Anemona/Carpeta-1/Carpeta-2/Carpeta-3/Recordatorio.anemona-reminder",
+      "sourceFile": "Anemona/Recordatorio.anemona-reminder",
       "sourceFileName": "Recordatorio.anemona-reminder",
       "sourceId": "e4101067-a016-4f42-8715-e02eb569c74d",
       "dueAt": "2026-06-18T19:53:00.000Z",
@@ -55,13 +87,13 @@
       "status": "completed",
       "title": "llamar a mama",
       "message": "ssss",
-      "createdAt": "2026-06-18T19:32:47.335Z",
-      "updatedAt": "2026-06-18T19:32:47.335Z"
+      "createdAt": "2026-06-22T16:26:31.657Z",
+      "updatedAt": "2026-06-22T16:26:31.657Z"
     },
     {
       "id": "reminder:1ac7fdb8-9f0d-49b0-8443-dc93dfa8992b",
       "source": "reminder",
-      "sourceFile": "Anemona/Carpeta-1/Carpeta-2/Carpeta-3/Recordatorio.anemona-reminder",
+      "sourceFile": "Anemona/Recordatorio.anemona-reminder",
       "sourceFileName": "Recordatorio.anemona-reminder",
       "sourceId": "1ac7fdb8-9f0d-49b0-8443-dc93dfa8992b",
       "dueAt": "2026-06-18T18:54:00.000Z",
@@ -69,13 +101,13 @@
       "status": "completed",
       "title": "Parav papa",
       "message": "",
-      "createdAt": "2026-06-18T19:32:47.335Z",
-      "updatedAt": "2026-06-18T19:32:47.335Z"
+      "createdAt": "2026-06-22T16:26:31.657Z",
+      "updatedAt": "2026-06-22T16:26:31.657Z"
     },
     {
       "id": "reminder:9f88ac16-8cd8-445d-8d63-56938a6624d3",
       "source": "reminder",
-      "sourceFile": "Anemona/Carpeta-1/Carpeta-2/Carpeta-3/Recordatorio.anemona-reminder",
+      "sourceFile": "Anemona/Recordatorio.anemona-reminder",
       "sourceFileName": "Recordatorio.anemona-reminder",
       "sourceId": "9f88ac16-8cd8-445d-8d63-56938a6624d3",
       "dueAt": "2026-06-18T18:57:00.000Z",
@@ -83,8 +115,8 @@
       "status": "completed",
       "title": "Realizar actividades",
       "message": "Hacer la migracion",
-      "createdAt": "2026-06-18T19:32:47.335Z",
-      "updatedAt": "2026-06-18T19:32:47.335Z"
+      "createdAt": "2026-06-22T16:26:31.657Z",
+      "updatedAt": "2026-06-22T16:26:31.657Z"
     },
     {
       "id": "task:a1b2c3d4-e5f6-7890-abcd-ef1234567890",
@@ -159,7 +191,7 @@
     {
       "id": "task:b8c9d0e1-f2a3-4567-bcde-567890abcdef",
       "source": "task",
-      "sourceFile": "EdgeCases/duenorte.anemona-todo",
+      "sourceFile": "EdgeCasescdddd/duenorte.anemona-todo",
       "sourceFileName": "duenorte.anemona-todo",
       "sourceId": "b8c9d0e1-f2a3-4567-bcde-567890abcdef",
       "dueAt": "2026-12-31T23:59",
@@ -167,8 +199,22 @@
       "status": "pending",
       "title": "ALL priorities and statuses test",
       "message": "",
-      "createdAt": "2026-06-18T19:32:47.335Z",
-      "updatedAt": "2026-06-18T19:32:47.335Z"
+      "createdAt": "2026-06-21T05:08:16.834Z",
+      "updatedAt": "2026-06-21T05:08:16.834Z"
+    },
+    {
+      "id": "reminder:abe46af8-9cd0-4266-828c-10f6de1422dd",
+      "source": "reminder",
+      "sourceFile": "Work/Recodatorio-de-tarbajo.anemona-reminder",
+      "sourceFileName": "Recodatorio-de-tarbajo.anemona-reminder",
+      "sourceId": "abe46af8-9cd0-4266-828c-10f6de1422dd",
+      "dueAt": "2026-06-19T04:35:00.000Z",
+      "notificationKey": "reminder:abe46af8-9cd0-4266-828c-10f6de1422dd",
+      "status": "notified",
+      "title": "Cada minuto repetir...",
+      "message": "Haya verificar si se genera el recordatorio cada minuto",
+      "createdAt": "2026-06-19T03:44:34.150Z",
+      "updatedAt": "2026-06-19T14:40:57.310Z"
     },
     {
       "id": "task:d4e5f6a7-b8c9-0123-defa-123456789abc",
@@ -178,11 +224,11 @@
       "sourceId": "d4e5f6a7-b8c9-0123-defa-123456789abc",
       "dueAt": "2026-06-20T17:00",
       "notificationKey": "task:d4e5f6a7-b8c9-0123-defa-123456789abc",
-      "status": "pending",
+      "status": "notified",
       "title": "Implement user auth",
       "message": "",
       "createdAt": "2026-06-18T19:32:47.335Z",
-      "updatedAt": "2026-06-18T19:32:47.335Z"
+      "updatedAt": "2026-06-21T00:21:03.375Z"
     },
     {
       "id": "task:e5f6a7b8-c9d0-1234-efab-23456789abcd",
@@ -192,25 +238,211 @@
       "sourceId": "e5f6a7b8-c9d0-1234-efab-23456789abcd",
       "dueAt": "2026-06-22T17:00",
       "notificationKey": "task:e5f6a7b8-c9d0-1234-efab-23456789abcd",
-      "status": "pending",
+      "status": "notified",
       "title": "Write API tests",
       "message": "",
       "createdAt": "2026-06-18T19:32:47.335Z",
-      "updatedAt": "2026-06-18T19:32:47.335Z"
+      "updatedAt": "2026-06-22T23:53:21.950Z"
     },
     {
-      "id": "reminder:a2ef3b7d-d1a0-4ee2-8d55-3d3b9fb4cf85",
+      "id": "reminder:d8588b8a-4691-494d-80eb-06d86f55e3a0",
       "source": "reminder",
-      "sourceFile": "01-Demo/Carpeta-1/Carpeta-2/Carpeta-3/Recordatorios.anemona-reminder",
-      "sourceFileName": "Recordatorios.anemona-reminder",
-      "sourceId": "a2ef3b7d-d1a0-4ee2-8d55-3d3b9fb4cf85",
-      "dueAt": "2026-06-18T19:49:00.000Z",
-      "notificationKey": "reminder:a2ef3b7d-d1a0-4ee2-8d55-3d3b9fb4cf85",
-      "status": "completed",
-      "title": "ddddd",
+      "sourceFile": "01-Demo/Recodatorios.anemona-reminder",
+      "sourceFileName": "Recodatorios.anemona-reminder",
+      "sourceId": "d8588b8a-4691-494d-80eb-06d86f55e3a0",
+      "dueAt": "2026-06-23T20:34:00.000Z",
+      "notificationKey": "reminder:d8588b8a-4691-494d-80eb-06d86f55e3a0",
+      "status": "cancelled",
+      "title": "Llegar mas tarde",
+      "message": "despues revisar el problema..",
+      "createdAt": "2026-06-23T19:34:46.609Z",
+      "updatedAt": "2026-06-23T19:56:05.854Z"
+    },
+    {
+      "id": "reminder:59491722-e129-437c-8bcc-70f425969758",
+      "source": "reminder",
+      "sourceFile": "01-Demo/Recodatorios.anemona-reminder",
+      "sourceFileName": "Recodatorios.anemona-reminder",
+      "sourceId": "59491722-e129-437c-8bcc-70f425969758",
+      "dueAt": "2026-06-23T20:37:00.000Z",
+      "notificationKey": "reminder:59491722-e129-437c-8bcc-70f425969758",
+      "status": "cancelled",
+      "title": "Revisa tarea",
       "message": "",
-      "createdAt": "2026-06-18T19:48:59.514Z",
-      "updatedAt": "2026-06-18T19:49:16.664Z"
+      "interval": {
+        "unit": "minute",
+        "value": 1
+      },
+      "createdAt": "2026-06-23T19:37:08.811Z",
+      "updatedAt": "2026-06-23T19:56:05.854Z"
+    },
+    {
+      "id": "reminder:ebbcdb6c-323f-4dcd-8acb-6807c3f45762",
+      "source": "reminder",
+      "sourceFile": "01-Demo/Recodatorios.anemona-reminder",
+      "sourceFileName": "Recodatorios.anemona-reminder",
+      "sourceId": "ebbcdb6c-323f-4dcd-8acb-6807c3f45762",
+      "dueAt": "2027-01-30T19:37:00.000Z",
+      "notificationKey": "reminder:ebbcdb6c-323f-4dcd-8acb-6807c3f45762",
+      "status": "cancelled",
+      "title": "Cumpleaños de Ramon",
+      "message": "",
+      "interval": {
+        "unit": "year",
+        "value": 1
+      },
+      "createdAt": "2026-06-23T19:38:12.314Z",
+      "updatedAt": "2026-06-23T19:56:05.854Z"
+    },
+    {
+      "id": "reminder:d8588b8a-4691-494d-80eb-06d86f55e3a0",
+      "source": "reminder",
+      "sourceFile": "01-Demo/Recordatorio.anemona-reminder",
+      "sourceFileName": "Recordatorio.anemona-reminder",
+      "sourceId": "d8588b8a-4691-494d-80eb-06d86f55e3a0",
+      "dueAt": "2026-06-23T19:45:00.000Z",
+      "notificationKey": "reminder:d8588b8a-4691-494d-80eb-06d86f55e3a0",
+      "status": "cancelled",
+      "title": "Llegar mas tarde",
+      "message": "despues revisar el problema..",
+      "createdAt": "2026-06-23T19:56:35.456Z",
+      "updatedAt": "2026-06-23T19:59:37.159Z"
+    },
+    {
+      "id": "reminder:ebbcdb6c-323f-4dcd-8acb-6807c3f45762",
+      "source": "reminder",
+      "sourceFile": "01-Demo/Recordatorio.anemona-reminder",
+      "sourceFileName": "Recordatorio.anemona-reminder",
+      "sourceId": "ebbcdb6c-323f-4dcd-8acb-6807c3f45762",
+      "dueAt": "2027-01-30T19:37:00.000Z",
+      "notificationKey": "reminder:ebbcdb6c-323f-4dcd-8acb-6807c3f45762",
+      "status": "cancelled",
+      "title": "Cumpleaños de Ramon",
+      "message": "",
+      "interval": {
+        "unit": "year",
+        "value": 1
+      },
+      "createdAt": "2026-06-23T19:56:35.456Z",
+      "updatedAt": "2026-06-23T19:59:37.159Z"
+    },
+    {
+      "id": "reminder:59491722-e129-437c-8bcc-70f425969758",
+      "source": "reminder",
+      "sourceFile": "01-Demo/Recordatorio.anemona-reminder",
+      "sourceFileName": "Recordatorio.anemona-reminder",
+      "sourceId": "59491722-e129-437c-8bcc-70f425969758",
+      "dueAt": "2026-06-23T20:37:00.000Z",
+      "notificationKey": "reminder:59491722-e129-437c-8bcc-70f425969758",
+      "status": "cancelled",
+      "title": "Revisa tarea",
+      "message": "",
+      "interval": {
+        "unit": "minute",
+        "value": 1
+      },
+      "createdAt": "2026-06-23T19:56:35.456Z",
+      "updatedAt": "2026-06-23T19:59:37.159Z"
+    },
+    {
+      "id": "reminder:d8588b8a-4691-494d-80eb-06d86f55e3a0",
+      "source": "reminder",
+      "sourceFile": "01-Demo/Recoddatorio.anemona-reminder",
+      "sourceFileName": "Recoddatorio.anemona-reminder",
+      "sourceId": "d8588b8a-4691-494d-80eb-06d86f55e3a0",
+      "dueAt": "2026-06-23T19:45:00.000Z",
+      "notificationKey": "reminder:d8588b8a-4691-494d-80eb-06d86f55e3a0",
+      "status": "cancelled",
+      "title": "Llegar mas tarde",
+      "message": "despues revisar el problema..",
+      "createdAt": "2026-06-23T19:59:52.407Z",
+      "updatedAt": "2026-06-23T20:13:46.194Z"
+    },
+    {
+      "id": "reminder:ebbcdb6c-323f-4dcd-8acb-6807c3f45762",
+      "source": "reminder",
+      "sourceFile": "01-Demo/Recoddatorio.anemona-reminder",
+      "sourceFileName": "Recoddatorio.anemona-reminder",
+      "sourceId": "ebbcdb6c-323f-4dcd-8acb-6807c3f45762",
+      "dueAt": "2027-01-30T19:37:00.000Z",
+      "notificationKey": "reminder:ebbcdb6c-323f-4dcd-8acb-6807c3f45762",
+      "status": "cancelled",
+      "title": "Cumpleaños de Ramon",
+      "message": "",
+      "interval": {
+        "unit": "year",
+        "value": 1
+      },
+      "createdAt": "2026-06-23T19:59:52.407Z",
+      "updatedAt": "2026-06-23T20:13:46.194Z"
+    },
+    {
+      "id": "reminder:59491722-e129-437c-8bcc-70f425969758",
+      "source": "reminder",
+      "sourceFile": "01-Demo/Recoddatorio.anemona-reminder",
+      "sourceFileName": "Recoddatorio.anemona-reminder",
+      "sourceId": "59491722-e129-437c-8bcc-70f425969758",
+      "dueAt": "2026-06-23T20:37:00.000Z",
+      "notificationKey": "reminder:59491722-e129-437c-8bcc-70f425969758",
+      "status": "cancelled",
+      "title": "Revisa tarea",
+      "message": "",
+      "interval": {
+        "unit": "minute",
+        "value": 1
+      },
+      "createdAt": "2026-06-23T19:59:52.407Z",
+      "updatedAt": "2026-06-23T20:13:46.194Z"
+    },
+    {
+      "id": "reminder:d8588b8a-4691-494d-80eb-06d86f55e3a0",
+      "source": "reminder",
+      "sourceFile": "01-Demo/Recordatorios.anemona-reminder",
+      "sourceFileName": "Recordatorios.anemona-reminder",
+      "sourceId": "d8588b8a-4691-494d-80eb-06d86f55e3a0",
+      "dueAt": "2026-06-23T19:45:00.000Z",
+      "notificationKey": "reminder:d8588b8a-4691-494d-80eb-06d86f55e3a0",
+      "status": "notified",
+      "title": "Llegar mas tarde",
+      "message": "despues revisar el problema..",
+      "createdAt": "2026-06-23T20:15:26.245Z",
+      "updatedAt": "2026-06-23T20:15:31.073Z"
+    },
+    {
+      "id": "reminder:ebbcdb6c-323f-4dcd-8acb-6807c3f45762",
+      "source": "reminder",
+      "sourceFile": "01-Demo/Recordatorios.anemona-reminder",
+      "sourceFileName": "Recordatorios.anemona-reminder",
+      "sourceId": "ebbcdb6c-323f-4dcd-8acb-6807c3f45762",
+      "dueAt": "2027-01-30T19:37:00.000Z",
+      "notificationKey": "reminder:ebbcdb6c-323f-4dcd-8acb-6807c3f45762",
+      "status": "pending",
+      "title": "Cumpleaños de Ramon",
+      "message": "",
+      "interval": {
+        "unit": "year",
+        "value": 1
+      },
+      "createdAt": "2026-06-23T20:15:26.245Z",
+      "updatedAt": "2026-06-23T20:15:26.245Z"
+    },
+    {
+      "id": "reminder:59491722-e129-437c-8bcc-70f425969758",
+      "source": "reminder",
+      "sourceFile": "01-Demo/Recordatorios.anemona-reminder",
+      "sourceFileName": "Recordatorios.anemona-reminder",
+      "sourceId": "59491722-e129-437c-8bcc-70f425969758",
+      "dueAt": "2026-06-23T20:37:00.000Z",
+      "notificationKey": "reminder:59491722-e129-437c-8bcc-70f425969758",
+      "status": "notified",
+      "title": "Revisa tarea",
+      "message": "",
+      "interval": {
+        "unit": "minute",
+        "value": 1
+      },
+      "createdAt": "2026-06-23T20:15:26.245Z",
+      "updatedAt": "2026-06-23T23:04:35.977Z"
     }
   ]
 }

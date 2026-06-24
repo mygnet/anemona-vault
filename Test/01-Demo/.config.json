@@ -1,3 +1,7 @@
 {
-  "color": "#0fb9b1"
+  "file": {
+    "tareas.anemona-todo": {
+      "progress": 0
+    }
+  }
 }

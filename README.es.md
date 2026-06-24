@@ -83,7 +83,6 @@ Personalizá el comportamiento en los ajustes de VS Code (`anemona-vault.*`):
 | Ajuste | Por defecto | Descripción |
 |--------|-------------|-------------|
 | `storagePath` | — | Ruta donde se almacena la bóveda |
-| `defaultCategories` | Onboarding, Administración, … | Categorías por defecto para bóvedas nuevas |
 | `notifications.enabled` | `true` | Activar sistema de notificaciones |
 | `notifications.checkIntervalMinutes` | `15` | Intervalo (min) entre recargas del caché de eventos |
 | `notifications.dueSoonHours` | `24` | Horas antes del vencimiento para notificación "próximo a vencer" |

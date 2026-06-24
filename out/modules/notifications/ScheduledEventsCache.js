@@ -95,10 +95,31 @@ class ScheduledEventsCache {
     }
     rebuild() {
         const now = this.now();
+        let previousEvents = [];
+        if (this.exists()) {
+            try {
+                const raw = fs.readFileSync(this.cachePath, 'utf-8');
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed.events)) {
+                    previousEvents = parsed.events;
+                }
+            }
+            catch { /* ignore stale cache */ }
+        }
+        const previousById = new Map(previousEvents.map(e => [e.id, e]));
         const events = [];
         for (const filePath of this.listEventFiles(this.storagePath)) {
             for (const event of this.extractEventsFromFile(filePath)) {
-                events.push({ ...event, createdAt: now, updatedAt: now });
+                const prev = previousById.get(event.id);
+                const status = prev?.status === 'notified' && event.status === 'pending'
+                    ? 'notified'
+                    : event.status;
+                events.push({
+                    ...event,
+                    status,
+                    createdAt: prev?.createdAt || now,
+                    updatedAt: prev?.status === status ? prev.updatedAt : now,
+                });
             }
         }
         const data = { version: CACHE_VERSION, updatedAt: now, events };
@@ -187,7 +208,7 @@ class ScheduledEventsCache {
             return [];
         }
     }
-    buildEvent(filePath, source, sourceId, dueAt, title, message, status) {
+    buildEvent(filePath, source, sourceId, dueAt, title, message, status, interval) {
         const rel = this.toRelative(filePath);
         return {
             id: `${source}:${sourceId}`,
@@ -200,6 +221,7 @@ class ScheduledEventsCache {
             status,
             title,
             message,
+            interval,
         };
     }
     extractReminderEvents(filePath, entries) {
@@ -212,7 +234,10 @@ class ScheduledEventsCache {
             const status = entry?.status === 'completed' ? 'completed' : 'pending';
             const text = String(entry?.text || '').trim();
             const title = String(entry?.title || '').trim() || this.deriveTitle(text) || 'Recordatorio';
-            result.push(this.buildEvent(filePath, 'reminder', id, dueAt, title, text, status));
+            const interval = entry?.interval && ['minute', 'hour', 'day', 'week', 'month', 'year'].includes(entry.interval.unit) && Number.isFinite(entry.interval.value) && entry.interval.value > 0
+                ? { unit: entry.interval.unit, value: entry.interval.value }
+                : undefined;
+            result.push(this.buildEvent(filePath, 'reminder', id, dueAt, title, text, status, interval));
         }
         return result;
     }

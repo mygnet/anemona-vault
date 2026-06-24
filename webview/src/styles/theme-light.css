@@ -1,0 +1,95 @@
+body.vscode-light #app,
+body.vscode-light .theme-accent-scope {
+  /* =========================
+     Accent text / readable tones
+     (dark = mezcla hacia negro, light = mezcla hacia blanco)
+     ========================= */
+
+  --theme-accent-strong-dark: 50%;
+  --theme-accent-strong-light: 100%;
+  --theme-accent-readable-dark: 42%;
+  --theme-accent-readable-light: 42%;
+  --theme-accent-muted-dark: 28%;
+
+  /* =========================
+     Surfaces: editor / card / hover / active / soft
+     ========================= */
+
+  --theme-editor-card-bg: color-mix(in srgb, var(--theme-accent) var(--theme-editor-card-bg-intensity), var(--vscode-editor-background));
+  --theme-editor-card-hover-bg: color-mix(in srgb, var(--theme-accent) var(--theme-editor-card-hover-intensity), var(--vscode-editor-background));
+  --theme-editor-soft-bg: color-mix(in srgb, var(--theme-accent) var(--theme-editor-soft-bg-intensity), var(--vscode-editor-background));
+  --theme-editor-hover-bg: color-mix(in srgb, var(--theme-accent) var(--theme-editor-hover-bg-intensity), var(--vscode-editor-background));
+  --theme-editor-active-bg: color-mix(in srgb, var(--theme-accent) var(--theme-editor-active-bg-intensity), var(--vscode-editor-background));
+
+  /* =========================
+     Titles (NoteList / Editor / Section headers)
+     ========================= */
+
+  --theme-notes-title-text: var(--vscode-foreground);
+  --theme-notes-file-text: var(--vscode-foreground);
+  --theme-notes-folder-text: var(--vscode-foreground);
+  --theme-section-header-title: var(--vscode-foreground);
+
+  /* =========================
+     Content area
+     ========================= */
+
+  --theme-layout-content-bg-intensity: 28%;
+  --theme-layout-content-border-intensity: 14%;
+
+  /* =========================
+     Section header bg (title bar inside content)
+     ========================= */
+
+  --theme-layout-content-header-darken: 50%;
+  --theme-layout-content-header-bg: color-mix(in srgb, var(--theme-accent) 50%, var(--vscode-editor-background) 94%);
+
+  /* =========================
+     Sidebar (tab strip container)
+     ========================= */
+
+  --theme-layout-sidebar-bg-mix: 98%;
+  --theme-layout-sidebar-bg: color-mix(in srgb, var(--vscode-sideBar-background) var(--theme-layout-sidebar-bg-mix), transparent);
+
+  /* =========================
+     Category tabs (pestañas)
+     ========================= */
+
+  --theme-tabs-indicator-opacity: 36%;
+  --theme-tabs-hover-bg-opacity: 5%;
+  --theme-tabs-hover-border-opacity: 10%;
+  --theme-tabs-active-bg-opacity: 28%;
+  --theme-tabs-active-border-opacity: 16%;
+  --tab-text-intensity: 80%;
+
+  /* =========================
+     Card & Entry borders
+     ========================= */
+
+  --theme-editor-card-border: var(--ui-border-strong);
+  --theme-editor-card-border-hover: var(--ui-border);
+  --theme-editor-card-border-strong: var(--ui-border-strong);
+  --theme-editor-field-border: var(--ui-border-strong);
+  --ui-border: color-mix(in srgb, var(--vscode-panel-border) 36%, transparent);
+  --ui-border-strong: color-mix(in srgb, var(--vscode-panel-border) 56%, transparent);
+
+   /* =========================
+     Intensities (tune card/field opacity)
+     ========================= */
+
+   --theme-editor-card-bg-intensity: 20%;
+   --theme-editor-card-hover-intensity: 14%;
+   --theme-editor-soft-bg-intensity: 18%;
+   --theme-editor-hover-bg-intensity: 18%;
+   --theme-editor-active-bg-intensity: 24%;
+   --theme-editor-field-bg-intensity: 12%;
+   --theme-editor-field-border-intensity: 24%;
+   --theme-editor-modal-bg-intensity: 10%;
+   --theme-editor-modal-border-intensity: 20%;
+
+   /* =========================
+     Preview (code/command blocks)
+     ========================= */
+
+   --theme-editor-preview-text: color-mix(in srgb, var(--vscode-textPreformat-foreground) 86%, black 14%);
+}

@@ -2,11 +2,12 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.NotificationScheduler = void 0;
 class NotificationScheduler {
-    constructor(scheduledEventsCache, notificationService, config, onNotificationsChanged) {
+    constructor(scheduledEventsCache, notificationService, config, onNotificationsChanged, onPeriodicReminder) {
         this.scheduledEventsCache = scheduledEventsCache;
         this.notificationService = notificationService;
         this.config = config;
         this.onNotificationsChanged = onNotificationsChanged;
+        this.onPeriodicReminder = onPeriodicReminder;
         this.timer = null;
         this.lastReloadAt = 0;
         this.lastTickAt = 0;
@@ -58,7 +59,15 @@ class NotificationScheduler {
             const nowMinute = Math.floor(now.getTime() / 60000) * 60000;
             if (dueMinute > nowMinute)
                 continue;
-            let created = this.notificationService.createAndShow(event.source === 'reminder' ? 'reminder' : 'task_due', 'normal', event.title || (event.source === 'reminder' ? 'Recordatorio' : 'Tarea pendiente'), event.message || '', {
+            const dueSoonMs = this.config.dueSoonHours * 60 * 60 * 1000;
+            const notificationType = event.source === 'reminder'
+                ? 'reminder'
+                : dueDate.getTime() <= now.getTime()
+                    ? 'task_overdue'
+                    : dueDate.getTime() - now.getTime() <= dueSoonMs
+                        ? 'task_due_soon'
+                        : 'task_due';
+            let created = this.notificationService.createAndShow(notificationType, 'normal', event.title || (event.source === 'reminder' ? 'Recordatorio' : 'Tarea pendiente'), event.message || '', {
                 key: event.notificationKey,
                 relatedItemId: event.sourceId,
                 relatedItemType: event.source,
@@ -67,7 +76,7 @@ class NotificationScheduler {
             if (!created && this.notificationService.keyExists(event.notificationKey)) {
                 this.notificationService.removeGeneratedKey(event.notificationKey);
                 this.notificationService.removeFromInbox(event.notificationKey);
-                created = this.notificationService.createAndShow(event.source === 'reminder' ? 'reminder' : 'task_due', 'normal', event.title || (event.source === 'reminder' ? 'Recordatorio' : 'Tarea pendiente'), event.message || '', {
+                created = this.notificationService.createAndShow(notificationType, 'normal', event.title || (event.source === 'reminder' ? 'Recordatorio' : 'Tarea pendiente'), event.message || '', {
                     key: event.notificationKey,
                     relatedItemId: event.sourceId,
                     relatedItemType: event.source,
@@ -78,6 +87,9 @@ class NotificationScheduler {
                 event.status = 'notified';
                 event.updatedAt = now.toISOString();
                 changed = true;
+                if (event.interval && this.onPeriodicReminder) {
+                    this.onPeriodicReminder(event.sourceFile, event.sourceId, event.dueAt, event.interval);
+                }
             }
         }
         if (changed) {

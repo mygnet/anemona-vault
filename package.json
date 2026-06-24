@@ -2,7 +2,7 @@
   "name": "anemona-vault",
   "displayName": "%displayName%",
   "description": "%description%",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "publisher": "mygnet",
   "license": "MIT",
   "engines": {
@@ -152,22 +152,6 @@
           "type": "string",
           "default": "",
           "description": "%config.storagePath.description%"
-        },
-        "anemona-vault.defaultCategories": {
-          "type": "array",
-          "default": [
-            "Onboarding",
-            "Administration",
-            "Meetings",
-            "Product Ideas",
-            "Email List",
-            "Customers",
-            "Website",
-            "Schedules",
-            "Resources",
-            "Inventory"
-          ],
-          "description": "%config.defaultCategories.description%"
         },
         "anemona-vault.notifications.enabled": {
           "type": "boolean",

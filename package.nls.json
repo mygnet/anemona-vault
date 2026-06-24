@@ -16,7 +16,6 @@
   "command.rebuildScheduledEventsCache": "Vault: Rebuild Scheduled Events Cache",
   "config.title": "Anemona Vault",
   "config.storagePath.description": "Path where notes and vault data will be stored",
-  "config.defaultCategories.description": "Default note categories",
   "config.notifications.enabled.description": "Enable notification system for task reminders",
   "config.notifications.checkIntervalMinutes.description": "Interval in minutes between scheduled events cache refreshes. Due events are checked in memory every minute.",
   "config.notifications.dueSoonHours.description": "Hours before a task's due date to trigger a 'due soon' notification",

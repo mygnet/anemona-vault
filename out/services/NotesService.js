@@ -119,22 +119,6 @@ class NotesService {
             .replace(/\.anemona-reminder$/, '')
             .replace(/\.md$/, '');
     }
-    async initializeDefaultCategories(rootPath) {
-        const categories = ConfigService_1.ConfigService.getDefaultCategories();
-        let colorIndex = 0;
-        for (const category of categories) {
-            const dir = path.join(rootPath, this.sanitizePathName(category));
-            if (!fs.existsSync(dir)) {
-                fs.mkdirSync(dir, { recursive: true });
-            }
-            const configPath = path.join(dir, '.config.json');
-            if (!fs.existsSync(configPath)) {
-                const color = this.defaultCategoryColor;
-                fs.writeFileSync(configPath, JSON.stringify({ color }, null, 2), 'utf-8');
-                colorIndex++;
-            }
-        }
-    }
     getCategories() {
         try {
             const rootPath = this.ensureStoragePath();
@@ -187,6 +171,11 @@ class NotesService {
     }
     async updateCategoryColor(categoryName, color) {
         const current = (await this.readCategoryConfig(categoryName)) ?? {};
+        if (!color) {
+            delete current.color;
+            await this.writeCategoryConfig(categoryName, current);
+            return;
+        }
         await this.writeCategoryConfig(categoryName, {
             ...current,
             color,
@@ -194,6 +183,11 @@ class NotesService {
     }
     async updateFolderColor(folderPath, color) {
         const current = this.readCategoryConfigSync(folderPath) ?? {};
+        if (!color) {
+            delete current.color;
+            this.writeCategoryConfigSync(folderPath, current);
+            return;
+        }
         this.writeCategoryConfigSync(folderPath, { ...current, color });
     }
     writeCategoryConfigSync(folderPath, config) {
@@ -531,6 +525,9 @@ class NotesService {
                     type: r.action?.type === 'file' || r.action?.type === 'url' || r.action?.type === 'command' || r.action?.type === 'task' ? r.action.type : 'none',
                     target: String(r.action?.target || ''),
                 },
+                interval: r.interval && ['minute', 'hour', 'day', 'week', 'month', 'year'].includes(r.interval.unit) && Number.isFinite(r.interval.value) && r.interval.value > 0
+                    ? { unit: r.interval.unit, value: r.interval.value }
+                    : undefined,
                 createdAt: String(r.createdAt || ''),
                 updatedAt: String(r.updatedAt || ''),
             }));
@@ -551,6 +548,9 @@ class NotesService {
                 type: entry.action?.type || 'none',
                 target: String(entry.action?.target || ''),
             },
+            interval: entry.interval && ['minute', 'hour', 'day', 'week', 'month', 'year'].includes(entry.interval.unit) && Number.isFinite(entry.interval.value) && entry.interval.value > 0
+                ? { unit: entry.interval.unit, value: entry.interval.value }
+                : undefined,
             createdAt: entry.createdAt || now,
             updatedAt: now,
         }));
@@ -810,12 +810,16 @@ class NotesService {
             if (format === 'texto') {
                 const lines = entries.map(e => {
                     const status = e.status === 'completed' ? '[x]' : '[ ]';
-                    return `${status} ${e.text}${e.dueAt ? ` (due: ${e.dueAt})` : ''}`;
+                    const label = e.title || e.text;
+                    return `${status} ${label}${e.dueAt ? ` (due: ${e.dueAt})` : ''}`;
                 });
                 return { content: lines.join('\n'), language: 'plaintext' };
             }
             if (format === 'markdown') {
-                const md = entries.map(e => `- ${e.status === 'completed' ? '[x]' : '[ ]'} **${e.text}**${e.dueAt ? ` — ${e.dueAt}` : ''}`).join('\n');
+                const md = entries.map(e => {
+                    const label = e.title || e.text;
+                    return `- ${e.status === 'completed' ? '[x]' : '[ ]'} **${label}**${e.dueAt ? ` — ${e.dueAt}` : ''}`;
+                }).join('\n');
                 return { content: `# ${displayName}\n\n${md}`, language: 'markdown' };
             }
             return { content: JSON.stringify(entries, null, 2), language: 'json' };
@@ -960,7 +964,7 @@ class NotesService {
         fs.renameSync(folderPath, newPath);
         return newPath;
     }
-    async importContent(content, notePath) {
+    async importContent(content, notePath, onDuplicate) {
         const fileType = this.getFileType(path.basename(notePath));
         if (fileType === 'md') {
             const existing = await this.readNote(notePath);
@@ -1000,7 +1004,7 @@ class NotesService {
             }
             case 'todo': {
                 const current = await this.readTodoEntries(notePath);
-                const merged = [...current, ...newEntries];
+                const merged = await this._mergeWithDuplicateCheck(current, newEntries, 'id', onDuplicate);
                 await this.saveTodoEntries(notePath, merged);
                 const folderPath = path.dirname(notePath);
                 const fileName = path.basename(notePath);
@@ -1018,10 +1022,44 @@ class NotesService {
             }
             case 'reminder': {
                 const current = await this.readReminderEntries(notePath);
-                const merged = [...current, ...newEntries];
+                const merged = await this._mergeWithDuplicateCheck(current, newEntries, 'id', onDuplicate);
                 await this.saveReminderEntries(notePath, merged);
                 break;
             }
+        }
+    }
+    async _mergeWithDuplicateCheck(current, incoming, idField, onDuplicate) {
+        const existingIds = new Set(current.map((e) => e[idField]).filter(Boolean));
+        const duplicates = [];
+        const cleanIncoming = [];
+        for (const entry of incoming) {
+            const id = entry[idField];
+            if (id && existingIds.has(id)) {
+                const match = current.find((e) => e[idField] === id);
+                duplicates.push({ existing: match, imported: entry });
+            }
+            else {
+                cleanIncoming.push(entry);
+            }
+        }
+        if (duplicates.length === 0 || !onDuplicate) {
+            return [...current, ...incoming];
+        }
+        const strategy = await onDuplicate(duplicates);
+        if (strategy === null) {
+            throw new Error('Import cancelled');
+        }
+        switch (strategy) {
+            case 'replace':
+                return current.map((e) => {
+                    const dup = duplicates.find((d) => d.existing[idField] === e[idField]);
+                    return dup ? dup.imported : e;
+                }).concat(cleanIncoming);
+            case 'skip':
+                return [...current, ...cleanIncoming];
+            case 'add':
+            default:
+                return [...current, ...incoming];
         }
     }
     async decryptFileContent(filePath, password) {

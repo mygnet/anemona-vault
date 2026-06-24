@@ -20,6 +20,54 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 }
+.icon-circle-cancel:before {
+    content: "\f088";
+}
+.icon-circle-solid:before {
+    content: "\f46f";
+}
+.icon-circle-dash:before {
+    content: "\f354";
+}
+.icon-circle-check:before {
+    content: "\f364";
+}
+.icon-circle:before {
+    content: "\f51b";
+}
+.icon-loader-circle:before {
+    content: "\f3cc";
+}
+.icon-smiley-angry:before {
+    content: "\fe2a";
+}
+.icon-smiley-sad:before {
+    content: "\fd19";
+}
+.icon-smiley-meh:before {
+    content: "\fe33";
+}
+.icon-smiley:before {
+    content: "\f1f2";
+}
+.icon-cloud-upload:before {
+    content: "\f43a";
+}
+.icon-cloud-sync:before {
+    content: "\f680";
+}
+.icon-cloud-cog:before {
+    content: "\f080";
+}
+.icon-cloud-check:before {
+    content: "\f5c7";
+}
+.icon-alarm-clock-off:before {
+    content: "\f37c";
+}
+.icon-alarm-clock:before {
+    content: "\f37d";
+}
 .icon-message-circle:before {
     content: "\f485";
 }
@@ -49,9 +97,6 @@
 }
 .icon-alarm-clock-check:before {
     content: "\f507";
-}
-.icon-alarm-clock:before {
-    content: "\f37d";
 }
 .icon-bell-solid:before {
     content: "\f478";

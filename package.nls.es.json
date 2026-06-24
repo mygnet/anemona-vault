@@ -16,7 +16,6 @@
   "command.rebuildScheduledEventsCache": "Bóveda: Reconstruir Caché de Eventos Programados",
   "config.title": "Anémona Vault",
   "config.storagePath.description": "Ruta donde se almacenarán las notas y datos de la bóveda",
-  "config.defaultCategories.description": "Categorías de notas predeterminadas",
   "config.notifications.enabled.description": "Activar el sistema de notificaciones para recordatorios de tareas",
   "config.notifications.checkIntervalMinutes.description": "Intervalo en minutos entre actualizaciones de la caché de eventos programados. Los eventos vencidos se verifican en memoria cada minuto.",
   "config.notifications.dueSoonHours.description": "Horas antes de la fecha de vencimiento de una tarea para activar una notificación de 'próximo a vencer'",

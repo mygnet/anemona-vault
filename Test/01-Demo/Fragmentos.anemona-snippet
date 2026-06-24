@@ -1,0 +1,22 @@
+[
+  {
+    "title": "Ruta pos Login",
+    "language": "php",
+    "code": "Route::post('/login', [LoginController::class, 'index']);"
+  },
+  {
+    "title": "Bibliotecas",
+    "language": "php",
+    "code": "use Illuminate\\Support\\Facades\\Route;\nuse App\\Providers\\Aif\\Route as AifRoute;"
+  },
+  {
+    "title": "Ruta pos Login",
+    "language": "php",
+    "code": "Route::post('/login', [LoginController::class, 'index']);"
+  },
+  {
+    "title": "Bibliotecas",
+    "language": "php",
+    "code": "use Illuminate\\Support\\Facades\\Route;\nuse App\\Providers\\Aif\\Route as AifRoute;"
+  }
+]

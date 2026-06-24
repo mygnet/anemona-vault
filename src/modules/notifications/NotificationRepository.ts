@@ -1,6 +1,6 @@
 import * as fs from 'fs'
 import * as path from 'path'
-import type { VaultNotification, NotificationIndex, NotificationStatus, HistoryIndex } from './NotificationTypes'
+import type { VaultNotification, NotificationIndex, NotificationStatus, HistoryIndex, NotificationConfig } from './NotificationTypes'
 
 const INDEX_VERSION = 1
 const HISTORY_INDEX_VERSION = 1
@@ -11,6 +11,7 @@ export class NotificationRepository {
   private inbox: VaultNotification[] = []
   private index: NotificationIndex = { version: INDEX_VERSION, lastCheckAt: null, generatedKeys: [] }
   private historyIndex: HistoryIndex = { version: HISTORY_INDEX_VERSION, pageSize: PAGE_SIZE, currentPage: 0, currentFile: '', totalPages: 0, totalNotifications: 0, lastUpdatedAt: '' }
+  private config: NotificationConfig = {}
 
   constructor(storagePath: string) {
     this.storagePath = storagePath
@@ -23,6 +24,7 @@ export class NotificationRepository {
     this.inbox = []
     this.index = { version: INDEX_VERSION, lastCheckAt: null, generatedKeys: [] }
     this.historyIndex = { version: HISTORY_INDEX_VERSION, pageSize: PAGE_SIZE, currentPage: 0, currentFile: '', totalPages: 0, totalNotifications: 0, lastUpdatedAt: '' }
+    this.config = {}
     this.load()
     this.migrateFromLegacyHistory()
   }
@@ -86,6 +88,10 @@ export class NotificationRepository {
     )
   }
 
+  private writeConfig(): void {
+    this.writeFile('.config.json', this.config)
+  }
+
   private writeHistoryFile(fileName: string, data: unknown): void {
     this.ensureHistoryDir()
     fs.writeFileSync(
@@ -147,8 +153,18 @@ export class NotificationRepository {
       totalNotifications: 0,
       lastUpdatedAt: '',
     })
+    this.config = this.loadFile<NotificationConfig>('.config.json', {})
     this.rebuildIndexAndRemoveDuplicates()
     this.normalizeHistoryPages()
+  }
+
+  getConfig(): NotificationConfig {
+    return { ...this.config }
+  }
+
+  updateConfig(config: NotificationConfig): void {
+    this.config = { ...config }
+    this.writeConfig()
   }
 
   private rebuildIndexAndRemoveDuplicates(): void {

@@ -112,6 +112,12 @@ class NotificationService {
     getHistoryIndex() {
         return this.repository.getHistoryIndex();
     }
+    getConfig() {
+        return this.repository.getConfig();
+    }
+    updateConfig(config) {
+        this.repository.updateConfig(config);
+    }
     getAll() {
         return this.repository.getAll();
     }

@@ -1,0 +1,14 @@
+[
+  {
+    "title": "Listar diorectorios ocultos",
+    "command": "ls -la"
+  },
+  {
+    "title": "Listar diorectorio human",
+    "command": "ls -h"
+  },
+  {
+    "title": "Listar diorectorio",
+    "command": "ls"
+  }
+]

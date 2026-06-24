@@ -1,0 +1,15 @@
+[
+  {
+    "id": "abe46af8-9cd0-4266-828c-10f6de1422dd",
+    "title": "Cada minuto repetir...",
+    "text": "Haya verificar si se genera el recordatorio cada minuto",
+    "dueAt": "2026-06-19T04:35:00.000Z",
+    "status": "pending",
+    "action": {
+      "type": "none",
+      "target": ""
+    },
+    "createdAt": "2026-06-19T03:44:34.144Z",
+    "updatedAt": "2026-06-19T04:29:39.223Z"
+  }
+]

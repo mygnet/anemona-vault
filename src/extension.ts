@@ -1,3 +1,5 @@
+import * as fs from 'fs'
+import * as path from 'path'
 import * as vscode from 'vscode'
 import { NotesService } from './services/NotesService'
 import { NotesViewProvider } from './views/NotesViewProvider'
@@ -11,6 +13,21 @@ let notesViewProvider: NotesViewProvider
 
 let notifScheduler: NotificationScheduler | null = null
 let notifWatchers: vscode.Disposable[] = []
+
+function computeNextDue(dueAt: string, unit: string, value: number): string | null {
+  const date = new Date(dueAt)
+  if (isNaN(date.getTime())) return null
+  switch (unit) {
+    case 'minute': date.setMinutes(date.getMinutes() + value); break
+    case 'hour': date.setHours(date.getHours() + value); break
+    case 'day': date.setDate(date.getDate() + value); break
+    case 'week': date.setDate(date.getDate() + value * 7); break
+    case 'month': date.setMonth(date.getMonth() + value); break
+    case 'year': date.setFullYear(date.getFullYear() + value); break
+    default: return null
+  }
+  return date.toISOString()
+}
 
 function disposeNotifications(): void {
   notifScheduler?.stop()
@@ -44,6 +61,24 @@ function setupNotificationsForVault(vaultPath: string, context: vscode.Extension
       tickIntervalSeconds,
     }, () => {
       notesViewProvider.updateBadge(service.getPendingCount())
+    }, (sourceFile, sourceId, currentDueAt, interval) => {
+      const vaultPath = notesService.getStoragePath()
+      if (!vaultPath) return
+      const absPath = path.join(vaultPath, sourceFile)
+      if (!fs.existsSync(absPath)) return
+      try {
+        const raw = fs.readFileSync(absPath, 'utf-8')
+        const entries = JSON.parse(raw)
+        if (!Array.isArray(entries)) return
+        const idx = entries.findIndex((e: any) => String(e.id) === sourceId)
+        if (idx === -1) return
+        const entry = entries[idx]
+        if (!entry.interval) return
+        const nextDue = computeNextDue(entry.dueAt, entry.interval.unit, entry.interval.value)
+        if (!nextDue) return
+        entries[idx] = { ...entry, dueAt: nextDue, updatedAt: new Date().toISOString() }
+        fs.writeFileSync(absPath, JSON.stringify(entries, null, 2), 'utf-8')
+      } catch { /* ignore file errors */ }
     })
 
     notifScheduler.start()

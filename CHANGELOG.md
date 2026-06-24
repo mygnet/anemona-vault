@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.5 — 2026-06-18
+
+- **Fix: View state not reset on vault switch** — When switching between vaults (via Open folder or Recent folders), editors and panels no longer retain stale content from the previous vault. Fixed by clearing the webview state and persisted `getState()` before loading the new vault's data. Prevents confusion when both vaults share category names like "Dev".
+- **Fix: Sortable editor indices** — Sorting in Command, Key, and Snippet editors is now visual-only and no longer mutates/saves the underlying entry order. Menus and actions use the real entry index after sorting/filtering, preventing add/edit/delete/copy/insert from targeting the wrong item.
+- **Fixes: Common sections and notification UI** — Global Search and Notifications no longer inherit the selected category color; Notifications now support their own persisted color config under `.anemona/notifications/.config.json`, history delete is a compact right-aligned icon action, and notification cards/badges now use theme-controlled colors.
+- **Visual/theme improvements** — Unified NotesList, editor, Search, and Notification headers; standardized back icons; added custom color picker support; and expanded theme controls for modals, forms, local search fields, placeholders, status text contrast, breadcrumbs, badges, and section-specific intensities.
+
 ## 1.0.4 — 2026-06-18
 
 - **Notification system** — New local notification module for task reminders (due soon, overdue) and system messages. Persistent `.anemona/notifications/` storage with inbox/history/index structure. Badge counter on Activity Bar icon, bell icon in sidebar header with badge, and notification panel with Inbox/History tabs.

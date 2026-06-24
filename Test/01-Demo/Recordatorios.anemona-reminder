@@ -1,0 +1,62 @@
+[
+  {
+    "id": "36a2eea7-cf50-4be6-8972-4cb618e09248",
+    "title": "Salir mas tarde",
+    "text": "",
+    "dueAt": "",
+    "status": "pending",
+    "action": {
+      "type": "none",
+      "target": ""
+    },
+    "createdAt": "2026-06-23T19:34:26.073Z",
+    "updatedAt": "2026-06-23T20:15:26.243Z"
+  },
+  {
+    "id": "d8588b8a-4691-494d-80eb-06d86f55e3a0",
+    "title": "Llegar mas tarde",
+    "text": "despues revisar el problema..",
+    "dueAt": "2026-06-23T19:45:00.000Z",
+    "status": "pending",
+    "action": {
+      "type": "none",
+      "target": ""
+    },
+    "createdAt": "2026-06-23T19:34:46.606Z",
+    "updatedAt": "2026-06-23T20:15:26.243Z"
+  },
+  {
+    "id": "ebbcdb6c-323f-4dcd-8acb-6807c3f45762",
+    "title": "Cumpleaños de Ramon",
+    "text": "",
+    "dueAt": "2027-01-30T19:37:00.000Z",
+    "status": "pending",
+    "action": {
+      "type": "none",
+      "target": ""
+    },
+    "interval": {
+      "unit": "year",
+      "value": 1
+    },
+    "createdAt": "2026-06-23T19:35:36.523Z",
+    "updatedAt": "2026-06-23T20:15:26.243Z"
+  },
+  {
+    "id": "59491722-e129-437c-8bcc-70f425969758",
+    "title": "Revisa tarea",
+    "text": "",
+    "dueAt": "2026-06-23T20:37:00.000Z",
+    "status": "pending",
+    "action": {
+      "type": "file",
+      "target": "/Users/mygnet/Dev/rastrea/api/routes/api-temp.php"
+    },
+    "interval": {
+      "unit": "minute",
+      "value": 1
+    },
+    "createdAt": "2026-06-23T19:36:21.190Z",
+    "updatedAt": "2026-06-23T20:15:26.243Z"
+  }
+]

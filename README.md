@@ -83,7 +83,6 @@ Customize behavior in VS Code settings (`anemona-vault.*`):
 | Setting | Default | Description |
 |---------|---------|-------------|
 | `storagePath` | — | Path where vault data is stored |
-| `defaultCategories` | Onboarding, Administration, … | Default note categories for new vaults |
 | `notifications.enabled` | `true` | Enable notification system for task reminders |
 | `notifications.checkIntervalMinutes` | `15` | Interval (min) between scheduled events cache refreshes |
 | `notifications.dueSoonHours` | `24` | Hours before due date to trigger a "due soon" notification |

@@ -99,6 +99,11 @@ export interface AnemonaReminderAction {
   target: string
 }
 
+export interface ReminderInterval {
+  unit: 'minute' | 'hour' | 'day' | 'week' | 'month' | 'year'
+  value: number
+}
+
 export interface AnemonaReminder {
   id: string
   title?: string
@@ -106,6 +111,7 @@ export interface AnemonaReminder {
   dueAt: string
   status: 'pending' | 'completed'
   action: AnemonaReminderAction
+  interval?: ReminderInterval
   createdAt: string
   updatedAt: string
 }

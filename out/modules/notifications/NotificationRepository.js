@@ -44,6 +44,7 @@ class NotificationRepository {
         this.inbox = [];
         this.index = { version: INDEX_VERSION, lastCheckAt: null, generatedKeys: [] };
         this.historyIndex = { version: HISTORY_INDEX_VERSION, pageSize: PAGE_SIZE, currentPage: 0, currentFile: '', totalPages: 0, totalNotifications: 0, lastUpdatedAt: '' };
+        this.config = {};
         this.storagePath = storagePath;
         this.load();
         this.migrateFromLegacyHistory();
@@ -53,6 +54,7 @@ class NotificationRepository {
         this.inbox = [];
         this.index = { version: INDEX_VERSION, lastCheckAt: null, generatedKeys: [] };
         this.historyIndex = { version: HISTORY_INDEX_VERSION, pageSize: PAGE_SIZE, currentPage: 0, currentFile: '', totalPages: 0, totalNotifications: 0, lastUpdatedAt: '' };
+        this.config = {};
         this.load();
         this.migrateFromLegacyHistory();
     }
@@ -104,6 +106,9 @@ class NotificationRepository {
     writeFile(fileName, data) {
         this.ensureDir();
         fs.writeFileSync(path.join(this.baseDir, fileName), JSON.stringify(data, null, 2), 'utf-8');
+    }
+    writeConfig() {
+        this.writeFile('.config.json', this.config);
     }
     writeHistoryFile(fileName, data) {
         this.ensureHistoryDir();
@@ -158,8 +163,16 @@ class NotificationRepository {
             totalNotifications: 0,
             lastUpdatedAt: '',
         });
+        this.config = this.loadFile('.config.json', {});
         this.rebuildIndexAndRemoveDuplicates();
         this.normalizeHistoryPages();
+    }
+    getConfig() {
+        return { ...this.config };
+    }
+    updateConfig(config) {
+        this.config = { ...config };
+        this.writeConfig();
     }
     rebuildIndexAndRemoveDuplicates() {
         const seen = new Set();

@@ -15,6 +15,7 @@ export class NotificationScheduler {
     private notificationService: NotificationService,
     private config: { checkIntervalMinutes: number; dueSoonHours: number; tickIntervalSeconds?: number },
     private onNotificationsChanged?: () => void,
+    private onPeriodicReminder?: (sourceFile: string, sourceId: string, dueAt: string, interval: { unit: string; value: number }) => void,
   ) {
     this.refreshIntervalMs = config.checkIntervalMinutes * 60 * 1000
     this.tickIntervalMs = (config.tickIntervalSeconds || 5) * 1000
@@ -70,8 +71,17 @@ export class NotificationScheduler {
       const nowMinute = Math.floor(now.getTime() / 60000) * 60000
       if (dueMinute > nowMinute) continue
 
+      const dueSoonMs = this.config.dueSoonHours * 60 * 60 * 1000
+      const notificationType = event.source === 'reminder'
+        ? 'reminder'
+        : dueDate.getTime() <= now.getTime()
+          ? 'task_overdue'
+          : dueDate.getTime() - now.getTime() <= dueSoonMs
+            ? 'task_due_soon'
+            : 'task_due'
+
       let created = this.notificationService.createAndShow(
-        event.source === 'reminder' ? 'reminder' : 'task_due',
+        notificationType,
         'normal',
         event.title || (event.source === 'reminder' ? 'Recordatorio' : 'Tarea pendiente'),
         event.message || '',
@@ -87,7 +97,7 @@ export class NotificationScheduler {
         this.notificationService.removeGeneratedKey(event.notificationKey)
         this.notificationService.removeFromInbox(event.notificationKey)
         created = this.notificationService.createAndShow(
-            event.source === 'reminder' ? 'reminder' : 'task_due',
+            notificationType,
             'normal',
             event.title || (event.source === 'reminder' ? 'Recordatorio' : 'Tarea pendiente'),
             event.message || '',
@@ -104,6 +114,9 @@ export class NotificationScheduler {
         event.status = 'notified'
         event.updatedAt = now.toISOString()
         changed = true
+        if (event.interval && this.onPeriodicReminder) {
+          this.onPeriodicReminder(event.sourceFile, event.sourceId, event.dueAt, event.interval)
+        }
       }
     }
 
