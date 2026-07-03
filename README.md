@@ -17,7 +17,7 @@ Organize everything you use every day in one place — notes, secrets, reminders
 |------|-----------|------|-------------|
 | Text | `.md` | 📄 | Free-form markdown notes with search |
 | Key | `.anemona-key` / `.anemona-lock` | 🔑 / 🔒 | Encrypted secrets, passwords, API tokens |
-| Command | `.anemona-command` | ⌘ | Reusable shell commands with copy |
+| Command | `.anemona-command` | ⌘ | Reusable shell commands with copy and optional documentation |
 | Todo | `.anemona-todo` | ☑️ | Task tracking with progress, priorities, and due dates |
 | Snippet | `.anemona-snippet` | 📋 | Code snippets with language tagging and copy |
 | Reminder | `.anemona-reminder` | 🔔 | Timed reminders with due dates and actions |
@@ -45,7 +45,7 @@ Organize everything you use every day in one place — notes, secrets, reminders
 
 - **Markdown** — Full-text editing with search and highlight
 - **Keys** — Add/edit/delete credential entries with title, username, password, email, URL, host, port, token, and notes; copy values to clipboard; open external links
-- **Commands** — Store and copy shell commands; sort and filter; insert directly into the editor
+- **Commands** — Store shell commands with optional documentation/usage notes; copy, sort, filter, export, and insert directly into the editor
 - **Todos** — Track progress (0–100%), set priority (low/medium/high) and due dates, mark as done/cancelled
 - **Snippets** — Store code with language selection (30+ languages), copy code to clipboard, filter and sort; insert directly into the editor
 - **Reminders** — Add/edit/delete reminders with due date picker (hours/days/weeks/months/specific date), mark as completed, filter by status (All/Pending/Completed), attach actions; automatically sorted — pending first, then by most recent

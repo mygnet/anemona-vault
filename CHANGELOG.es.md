@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.6 — 2026-06-24
+- **Fix: Recordatorios recurrentes se desfasaban en meses cortos** — Los recordatorios mensuales/anuales ahora se ajustan al último día válido del mes destino en lugar de desbordar (ej: 31 Ene + 1 mes → 28 Feb, no 3 Mar). Misma corrección para 29 Feb en años no bisiestos. Aplica tanto al planificador como al editor de recordatorios.
+- **Documentación en comandos** — Las entradas de comandos ahora soportan documentación/notas de uso opcionales, con edición, vista expandible, filtrado/búsqueda y exportación a texto/markdown.
+
 ## 1.0.5 — 2026-06-18
 
 - **Fix: Estado de vistas no se reiniciaba al cambiar de bóveda** — Al cambiar entre bóvedas (abrir carpeta o recientes), los editores y paneles ya no mantienen contenido obsoleto de la bóveda anterior. Se solucionó limpiando el estado del webview y el `getState()` persistido antes de cargar los datos de la nueva bóveda. Evita confusiones cuando ambas bóvedas comparten nombres de categoría como "Dev".

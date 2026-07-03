@@ -20,6 +20,7 @@
     host?: string;
     port?: string;
     token?: string;
+    command?: string;
   };
 
   export let entries: Entry[] = [];
@@ -53,6 +54,7 @@
     { key: "username", labelKey: "keyEditor.userLabel" },
     { key: "host", labelKey: "keyEditor.hostLabel" },
     { key: "port", labelKey: "keyEditor.portLabel" },
+    { key: "command", labelKey: "keyEditor.commandLabel" },
     { key: "note", labelKey: "keyEditor.noteLabel" },
     { key: "token", labelKey: "keyEditor.tokenLabel" },
   ] as const;
@@ -75,6 +77,7 @@
   let modalHost = "";
   let modalPort = "";
   let modalToken = "";
+  let modalCommand = "";
   let modalNote = "";
   let keyTitleError = false;
   let keyPassError = false;
@@ -142,6 +145,7 @@
                 e.username,
                 e.host,
                 e.port,
+                e.command,
                 e.token,
               ].some((value) =>
                 String(value || "")
@@ -161,6 +165,7 @@
               e.username,
               e.host,
               e.port,
+              e.command,
               e.token,
             ].some((value) =>
               String(value || "")
@@ -237,6 +242,8 @@
         return "icon-folder";
       case "port":
         return "icon-terminal";
+      case "command":
+        return "icon-terminal";
       case "token":
         return "icon-token-security";
       case "note":
@@ -259,6 +266,7 @@
     modalHost = "";
     modalPort = "";
     modalToken = "";
+    modalCommand = "";
     modalNote = "";
     await tick();
     modalTitleInput?.focus();
@@ -277,6 +285,7 @@
     modalHost = e.host || "";
     modalPort = e.port || "";
     modalToken = e.token || "";
+    modalCommand = e.command || "";
     modalNote = e.note || "";
   }
 
@@ -290,6 +299,7 @@
     host?: string;
     port?: string;
     token?: string;
+    command?: string;
   } {
     const e: any = { title: modalTitle.trim(), password: modalPassword.trim() };
     if (modalUrl.trim()) e.url = modalUrl.trim();
@@ -298,6 +308,7 @@
     if (modalHost.trim()) e.host = modalHost.trim();
     if (modalPort.trim()) e.port = modalPort.trim();
     if (modalToken.trim()) e.token = modalToken.trim();
+    if (modalCommand.trim()) e.command = modalCommand.trim();
     if (modalNote.trim()) e.note = modalNote.trim();
     return e;
   }
@@ -332,6 +343,7 @@
     modalUsername = "";
     modalHost = "";
     modalPort = "";
+    modalCommand = "";
     keyTitleError = false;
     keyPassError = false;
     modalToken = "";
@@ -695,6 +707,12 @@
       type="text"
       placeholder={$t("keyEditor.tokenPlaceholder")}
       bind:value={modalToken}
+    />
+    <input
+      class="modal-field"
+      type="text"
+      placeholder={$t("keyEditor.commandPlaceholder")}
+      bind:value={modalCommand}
     />
     <input
       class="modal-field"

@@ -31,11 +31,13 @@ export interface KeyEntry {
   host?: string
   port?: string
   token?: string
+  command?: string
 }
 
 export interface CommandEntry {
   title: string
   command: string
+  documentation?: string
 }
 
 export interface TodoEntry {

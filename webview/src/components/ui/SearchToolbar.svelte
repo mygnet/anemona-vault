@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte'
+  import { createEventDispatcher, onMount } from 'svelte'
   import type { SortDirection } from '../../utils/sortUtils'
 
   export let value = ''
@@ -8,8 +8,17 @@
   export let showSort = false
   export let sortTitleAsc = ''
   export let sortTitleDesc = ''
+  export let autofocus = false
+
+  let inputEl: HTMLInputElement
 
   const dispatch = createEventDispatcher<{ input: string; toggleSort: void; clear: void }>()
+
+  onMount(() => {
+    if (autofocus) {
+      inputEl?.focus()
+    }
+  })
 
   function handleInput(e: Event) {
     value = (e.target as HTMLInputElement).value
@@ -31,6 +40,7 @@
       type="text"
       {placeholder}
       {value}
+      bind:this={inputEl}
       on:input={handleInput}
     />
     {#if value}

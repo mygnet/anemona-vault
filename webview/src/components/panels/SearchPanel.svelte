@@ -74,6 +74,7 @@
       showSort={true}
       sortTitleAsc={$t('searchPanel.sortAscending')}
       sortTitleDesc={$t('searchPanel.sortDescending')}
+      autofocus={true}
       on:input={(e) => scheduleSearch(e.detail)}
       on:toggleSort={toggleSort}
     />

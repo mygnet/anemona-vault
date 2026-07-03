@@ -210,6 +210,7 @@
     "hostPlaceholder": "Host (opcional)",
     "portPlaceholder": "Puerto (opcional)",
     "tokenPlaceholder": "Token (opcional)",
+    "commandPlaceholder": "Comando (opcional)",
     "notePlaceholder": "Nota (opcional)",
     "cancel": "Cancelar",
     "add": "Agregar",
@@ -222,6 +223,7 @@
     "hostLabel": "Host",
     "portLabel": "Puerto",
     "noteLabel": "Nota",
+    "commandLabel": "Comando",
     "tokenLabel": "Token"
   },
   "commandEditor": {
@@ -239,6 +241,10 @@
     "editCommandTitle": "Editar comando",
     "titlePlaceholder": "Título",
     "commandPlaceholder": "Comando",
+    "documentationPlaceholder": "Documentación, parámetros o instrucciones (opcional)",
+    "documentationLabel": "Documentación",
+    "expandDocumentation": "Mostrar documentación",
+    "collapseDocumentation": "Ocultar documentación",
     "cancel": "Cancelar",
     "add": "Agregar",
     "save": "Guardar",

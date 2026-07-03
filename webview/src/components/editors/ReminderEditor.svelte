@@ -203,11 +203,10 @@
           now.getTime() + editingDueValue * 7 * 24 * 60 * 60 * 1000,
         ).toISOString();
       case "months":
-        return new Date(
-          now.getFullYear(),
-          now.getMonth() + editingDueValue,
-          now.getDate(),
-        ).toISOString();
+        const d = new Date(now)
+        d.setMonth(d.getMonth() + editingDueValue)
+        if (d.getDate() !== now.getDate()) d.setDate(0)
+        return d.toISOString()
       case "specific":
         return editingDueDate
           ? floorToMinute(new Date(editingDueDate)).toISOString()

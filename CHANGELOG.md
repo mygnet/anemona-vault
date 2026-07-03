@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.6 — 2026-06-24
+
+- **Fix: Recurring reminders overflow on short months** — Monthly/yearly reminders now clamp to the last valid day of the target month instead of overflowing (e.g. Jan 31 + 1 month → Feb 28, not Mar 3). Same fix for Feb 29 in non-leap years. Applies to both the scheduler and the reminder editor.
+- **Command documentation** — Command entries now support optional documentation/usage notes, including editing, expand/collapse display, filtering/search, and text/markdown export.
+
 ## 1.0.5 — 2026-06-18
 
 - **Fix: View state not reset on vault switch** — When switching between vaults (via Open folder or Recent folders), editors and panels no longer retain stale content from the previous vault. Fixed by clearing the webview state and persisted `getState()` before loading the new vault's data. Prevents confusion when both vaults share category names like "Dev".

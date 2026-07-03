@@ -39,13 +39,20 @@ export function floorToMinute(date: Date): Date {
 export function computeNextDue(dueAt: string, unit: string, value: number): string | null {
   const date = new Date(dueAt)
   if (isNaN(date.getTime())) return null
+  const originalDay = date.getDate()
   switch (unit) {
     case 'minute': date.setMinutes(date.getMinutes() + value); break
     case 'hour': date.setHours(date.getHours() + value); break
     case 'day': date.setDate(date.getDate() + value); break
     case 'week': date.setDate(date.getDate() + value * 7); break
-    case 'month': date.setMonth(date.getMonth() + value); break
-    case 'year': date.setFullYear(date.getFullYear() + value); break
+    case 'month':
+      date.setMonth(date.getMonth() + value)
+      if (date.getDate() !== originalDay) date.setDate(0)
+      break
+    case 'year':
+      date.setFullYear(date.getFullYear() + value)
+      if (date.getDate() !== originalDay) date.setDate(0)
+      break
     default: return null
   }
   return date.toISOString()

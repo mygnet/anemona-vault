@@ -52,6 +52,7 @@ function computeNextDue(dueAt, unit, value) {
     const date = new Date(dueAt);
     if (isNaN(date.getTime()))
         return null;
+    const originalDay = date.getDate();
     switch (unit) {
         case 'minute':
             date.setMinutes(date.getMinutes() + value);
@@ -67,9 +68,13 @@ function computeNextDue(dueAt, unit, value) {
             break;
         case 'month':
             date.setMonth(date.getMonth() + value);
+            if (date.getDate() !== originalDay)
+                date.setDate(0);
             break;
         case 'year':
             date.setFullYear(date.getFullYear() + value);
+            if (date.getDate() !== originalDay)
+                date.setDate(0);
             break;
         default: return null;
     }

@@ -5,7 +5,8 @@
   },
   {
     "title": "Git commit",
-    "command": "git add -A && git commit -m \"\""
+    "command": "git add -A && git commit -m \"\"",
+    "documentation": "ssss\ndd\nd\nd\n\n*dd"
   },
   {
     "title": "Git push",

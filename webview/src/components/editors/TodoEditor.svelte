@@ -12,10 +12,9 @@
     getDueTone as computeDueTone,
     getRelativeDue,
   } from "../../utils/timeUtils";
-  import { deriveTitle } from "../../utils/titleUtils";
 
   type TodoEntry = {
-    title: string;
+    title?: string;
     text?: string;
     progress: number;
     status: "open" | "done" | "cancelled";
@@ -58,7 +57,6 @@
   let editingTaskPriority: TodoEntry["priority"] = "medium";
   let taskTitleInput: HTMLInputElement;
   let taskTitleError = false;
-  let taskTextError = false;
   let entriesContainerElem: HTMLDivElement;
   let deleteTaskPrompt: { index: number; title: string } | null = null;
   let lastAppliedInitialFilter = "";
@@ -117,13 +115,15 @@
     });
 
   function getTodoText(entry: TodoEntry): string {
-    return (entry.text || entry.title || "").trim();
+    return (entry.text || "").trim();
   }
 
   function getTodoTitle(entry: TodoEntry): string {
-    return entry.text && entry.title
-      ? entry.title.trim()
-      : deriveTitle(getTodoText(entry));
+    return (entry.title || "").trim() || getTodoText(entry);
+  }
+
+  function getTodoBodyText(entry: TodoEntry): string {
+    return (entry.title || "").trim() && entry.text ? entry.text.trim() : "";
   }
 
   $: filterCounts = {
@@ -228,7 +228,7 @@
       localEntries
         .map((entry) => ({
           id: entry.id,
-          title: entry.title.trim(),
+          title: (entry.title || "").trim(),
           ...(entry.text ? { text: entry.text.trim() } : {}),
           progress: Math.max(0, Math.min(100, Number(entry.progress) || 0)),
           status:
@@ -255,7 +255,6 @@
     editingTaskDueAt = "";
     editingTaskPriority = "medium";
     taskTitleError = false;
-    taskTextError = false;
     await tick();
     taskTitleInput?.focus();
   }
@@ -303,12 +302,11 @@
     activeMenuIndex = null;
     taskModalMode = "edit";
     editingTaskIndex = index;
-    editingTaskTitle = getTodoTitle(localEntries[index]);
-    editingTaskText = getTodoText(localEntries[index]);
+    editingTaskTitle = (localEntries[index].title || "").trim();
+    editingTaskText = (localEntries[index].text || "").trim();
     editingTaskDueAt = localEntries[index].dueAt || "";
     editingTaskPriority = localEntries[index].priority || "medium";
     taskTitleError = false;
-    taskTextError = false;
   }
 
   function setProgress(index: number, progress: number) {
@@ -368,7 +366,6 @@
     editingTaskDueAt = "";
     editingTaskPriority = "medium";
     taskTitleError = false;
-    taskTextError = false;
     activeSelectionRequestId = 0;
     filledFromSuggestion = false;
   }
@@ -376,21 +373,19 @@
   function saveTaskEdit() {
     const title = editingTaskTitle.trim();
     const text = editingTaskText.trim();
-    taskTitleError = !title;
-    taskTextError = !text;
-    if (!title || !text) {
+    taskTitleError = !title && !text;
+    if (!title && !text) {
       return;
     }
 
     taskTitleError = false;
-    taskTextError = false;
 
     if (taskModalMode === "add") {
       localEntries = [
         ...localEntries,
         {
           title,
-          text,
+          ...(text ? { text } : {}),
           progress: 0,
           status: "open",
           priority: editingTaskPriority,
@@ -406,7 +401,7 @@
       localEntries[editingTaskIndex] = {
         ...localEntries[editingTaskIndex],
         title,
-        text,
+        text: text || undefined,
         dueAt: normalizeDueAt(editingTaskDueAt),
       };
       localEntries = localEntries;
@@ -551,6 +546,7 @@
           class:todo-card--priority-high={entry.priority === "high"}
           class:todo-card--priority-medium={entry.priority === "medium"}
           class:todo-card--priority-low={entry.priority === "low"}
+          class:todo-card--single-content={!getTodoBodyText(entry)}
           class:todo-card--menu-open={activeMenuIndex === index}
           class:todo-card--moving={movingTaskIndex === index}
           class:todo-card--move-target={movingTaskIndex !== null &&
@@ -630,7 +626,9 @@
               </svelte:fragment>
             </EntryTitleBar>
             <div class="todo-card__body">
-              <div class="todo-card__text">{getTodoText(entry)}</div>
+              {#if getTodoBodyText(entry)}
+                <div class="todo-card__text">{getTodoBodyText(entry)}</div>
+              {/if}
               <div class="todo-card__meta">
                 <span class="todo-card__progress">{entry.progress}%</span>
                 <span class="todo-card__status">{getStatusLabel(entry)}</span>
@@ -696,7 +694,6 @@
       />
       <textarea
         class="form-input form-textarea tall"
-        class:field-error={taskTextError}
         bind:value={editingTaskText}
         rows="5"
         placeholder={$t("todoEditor.taskPlaceholder")}
@@ -1013,6 +1010,16 @@
     min-width: 0;
     white-space: pre-wrap;
     word-break: break-word;
+  }
+
+  :global(.todo-card.todo-card--single-content .entry-title-bar__title-group),
+  :global(.todo-card.todo-card--single-content .entry-title) {
+    overflow: visible;
+  }
+
+  :global(.todo-card.todo-card--single-content .entry-title) {
+    text-overflow: clip;
+    white-space: pre-wrap;
   }
 
   :global(.todo-card.todo-card--done .entry-title) {

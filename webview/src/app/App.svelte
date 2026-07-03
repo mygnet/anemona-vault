@@ -101,9 +101,11 @@
     username?: string;
     host?: string;
     port?: string;
+    token?: string;
+    command?: string;
   }[] = [];
   let keyLocked = false;
-  let commandEntries: { title: string; command: string }[] = [];
+  let commandEntries: { title: string; command: string; documentation?: string }[] = [];
   let todoEntries: {
     title: string;
     progress: number;
@@ -1487,7 +1489,6 @@
           <NoteEditor
             {noteContent}
             {selectedNote}
-            searchText={activeEditorSearchText}
             onSave={handleSaveNote}
             onBack={handleBack}
             onRenameNote={() => selectedNote && handleRenameNote(selectedNote)}

@@ -1,10 +1,9 @@
 <script lang="ts">
   import { t } from '../../i18n'
   import EditorHeader from '../layout/EditorHeader.svelte'
-  import { filterPreviewContent, renderMarkdown } from '../../utils/markdown'
+  import { renderMarkdown } from '../../utils/markdown'
   export let noteContent = "";
   export let selectedNote: { name: string; filePath: string };
-  export let searchText = "";
   export let onSave: (content: string) => void;
   export let onBack: () => void;
   export let onRenameNote: (() => void) | null = null;
@@ -38,8 +37,7 @@
     editing = false;
   }
 
-  $: previewContent = filterPreviewContent(noteContent, searchText, $t('noteEditor.noVisibleMatches', { query: searchText }));
-  $: renderedContent = renderMarkdown(previewContent, `<p class="note-editor__empty-render">${$t('noteEditor.selectNote')}</p>`);
+  $: renderedContent = renderMarkdown(noteContent, `<p class="note-editor__empty-render">${$t('noteEditor.selectNote')}</p>`);
 </script>
 
 <div class="note-editor">

@@ -11,7 +11,7 @@
   import { parseCommandSuggestion } from '../../utils/selectionParser'
   import { nextSortDirection, sortAndFilterEntries, type SortDirection } from '../../utils/sortUtils'
 
-export let entries: { title: string; command: string }[] = []
+export let entries: { title: string; command: string; documentation?: string }[] = []
 export let selectedNote: { name: string; filePath: string }
 export let initialFilterText = ''
 export let selectionSuggestion: { title?: string; type?: string; text?: string; requestId?: number } | null = null
@@ -36,6 +36,7 @@ export let onDeleteNote: (() => void) | null = null
   let cmdModalMode: 'add' | 'edit' | null = null
   let modalTitle = ''
   let modalCommand = ''
+  let modalDocumentation = ''
   let titleError = false
   let cmdError = false
   let modalTitleInput: HTMLInputElement
@@ -47,6 +48,7 @@ export let onDeleteNote: (() => void) | null = null
   let entriesContainerElem: HTMLDivElement
   let filledFromSuggestion = false
   let activeSelectionRequestId = 0
+  let expanded: Set<number> = new Set()
 
 $: if (initialFilterText !== lastAppliedInitialFilter) {
   const next = applyInitialFilter(filterText, initialFilterText, lastAppliedInitialFilter)
@@ -58,7 +60,7 @@ $: if (initialFilterText !== lastAppliedInitialFilter) {
     localEntries,
     sortDirection,
     filterText,
-    (entry) => [entry.title, entry.command],
+    (entry) => [entry.title, entry.command, entry.documentation],
   )
 
 let _prevEntries = entries
@@ -85,6 +87,7 @@ $: if (selectionSuggestion?.text && selectionSuggestion.requestId === activeSele
     filledFromSuggestion = false
     modalTitle = ''
     modalCommand = ''
+    modalDocumentation = ''
     await tick()
     modalTitleInput?.focus()
   }
@@ -94,6 +97,7 @@ $: if (selectionSuggestion?.text && selectionSuggestion.requestId === activeSele
     editingCmdIndex = index
     modalTitle = localEntries[index].title
     modalCommand = localEntries[index].command
+    modalDocumentation = localEntries[index].documentation || ''
   }
 
   function saveModal() {
@@ -102,13 +106,18 @@ $: if (selectionSuggestion?.text && selectionSuggestion.requestId === activeSele
     titleError = !titleOk
     cmdError = !cmdOk
     if (!titleOk || !cmdOk) return
+    const entry = {
+      title: modalTitle.trim(),
+      command: modalCommand.trim(),
+      ...(modalDocumentation.trim() ? { documentation: modalDocumentation.trim() } : {}),
+    }
     if (cmdModalMode === 'add') {
-      localEntries = appendEntry(localEntries, { title: modalTitle.trim(), command: modalCommand.trim() })
+      localEntries = appendEntry(localEntries, entry)
       tick().then(() => {
         if (entriesContainerElem) entriesContainerElem.scrollTop = entriesContainerElem.scrollHeight
       })
     } else if (editingCmdIndex !== null) {
-      localEntries = replaceEntry(localEntries, editingCmdIndex, { title: modalTitle.trim(), command: modalCommand.trim() })
+      localEntries = replaceEntry(localEntries, editingCmdIndex, entry)
     }
     cancelModal()
     saveEntries()
@@ -119,6 +128,7 @@ $: if (selectionSuggestion?.text && selectionSuggestion.requestId === activeSele
     editingCmdIndex = null
     modalTitle = ''
     modalCommand = ''
+    modalDocumentation = ''
     titleError = false
     cmdError = false
     activeSelectionRequestId = 0
@@ -193,6 +203,21 @@ $: if (selectionSuggestion?.text && selectionSuggestion.requestId === activeSele
   function closeEntryMenu() {
     openMenuIndex = null
   }
+
+  function toggleExpand(index: number) {
+    if (expanded.has(index)) {
+      expanded.delete(index)
+    } else {
+      expanded.add(index)
+    }
+    expanded = expanded
+  }
+
+  function handleExpandKeydown(event: KeyboardEvent, index: number) {
+    if (event.key !== 'Enter' && event.key !== ' ') return
+    event.preventDefault()
+    toggleExpand(index)
+  }
 </script>
 
 <div class="command-editor editor-shell">
@@ -255,6 +280,16 @@ $: if (selectionSuggestion?.text && selectionSuggestion.requestId === activeSele
               >
                 <span class="anemona icon-code-insert"></span>
               </button>
+              {#if entry.documentation}
+                <button
+                  class="icon-action"
+                  on:click|stopPropagation={() => toggleExpand(realIndex)}
+                  on:keydown={(event) => handleExpandKeydown(event, realIndex)}
+                  title={expanded.has(realIndex) ? $t('commandEditor.collapseDocumentation') : $t('commandEditor.expandDocumentation')}
+                >
+                  <span class={`anemona ${expanded.has(realIndex) ? 'icon-chevron-up' : 'icon-chevron-down'}`}></span>
+                </button>
+              {/if}
           </EntryTitleBar>
           <div
             class="command-editor__entry-info entry-list__info"
@@ -266,6 +301,12 @@ $: if (selectionSuggestion?.text && selectionSuggestion.requestId === activeSele
             <code class="command-editor__preview entry-list__preview">{entry.command}</code>
           </div>
         </div>
+        {#if entry.documentation && expanded.has(realIndex)}
+          <div class="command-editor__documentation">
+            <div class="command-editor__documentation-label">{$t('commandEditor.documentationLabel')}</div>
+            <div class="command-editor__documentation-text">{entry.documentation}</div>
+          </div>
+        {/if}
       </div>
     {/each}
     <button class="command-editor__add-entry add-entry-btn" class:no-entries={localEntries.length === 0} on:click={openAddModal}><span class="anemona icon-plus"></span> {$t('commandEditor.addCommand')}</button>
@@ -288,6 +329,7 @@ $: if (selectionSuggestion?.text && selectionSuggestion.requestId === activeSele
   >
     <input class="modal-field" class:field-error={titleError} type="text" placeholder={$t('commandEditor.titlePlaceholder')} bind:this={modalTitleInput} bind:value={modalTitle} />
     <textarea class="modal-field command-editor__modal-field" class:field-error={cmdError} placeholder={$t('commandEditor.commandPlaceholder')} bind:value={modalCommand} rows="3"></textarea>
+    <textarea class="modal-field command-editor__documentation-field" placeholder={$t('commandEditor.documentationPlaceholder')} bind:value={modalDocumentation} rows="5"></textarea>
     <svelte:fragment slot="actions">
       <button class="btn" on:click={cancelModal}>{$t('commandEditor.cancel')}</button>
       <button class="btn primary" on:click={saveModal}>{cmdModalMode === 'add' ? $t('commandEditor.add') : $t('commandEditor.save')}</button>
@@ -299,6 +341,35 @@ $: if (selectionSuggestion?.text && selectionSuggestion.requestId === activeSele
   .command-editor__modal-field {
     font-family: var(--vscode-editor-font-family, monospace);
     resize: none;
+  }
+
+  .command-editor__documentation-field {
+    resize: vertical;
+  }
+
+  .command-editor__documentation {
+    margin: 0 var(--ui-card-pad-x) var(--ui-card-pad-y) var(--ui-card-pad-x);
+    padding: 0.38rem 0.46rem;
+    border-radius: var(--ui-radius-sm);
+    background: var(--theme-accent-surface);
+  }
+
+  .command-editor__documentation-label {
+    margin-bottom: 0.16rem;
+    color: var(--vscode-descriptionForeground);
+    font-weight: 400;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-size: 0.68em;
+    line-height: 1;
+  }
+
+  .command-editor__documentation-text {
+    color: var(--vscode-sideBarTitle-foreground);
+    font-size: var(--ui-font-xs);
+    line-height: 1.35;
+    white-space: pre-wrap;
+    word-break: break-word;
   }
 
 </style>

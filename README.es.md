@@ -17,7 +17,7 @@ Organizá todo lo que usás a diario en un solo lugar — notas, secretos, recor
 |------|-----------|-------|-------------|
 | Texto | `.md` | 📄 | Notas markdown con búsqueda |
 | Clave | `.anemona-key` / `.anemona-lock` | 🔑 / 🔒 | Secretos cifrados, contraseñas, tokens API |
-| Comando | `.anemona-command` | ⌘ | Comandos reutilizables con copia |
+| Comando | `.anemona-command` | ⌘ | Comandos reutilizables con copia y documentación opcional |
 | Tarea | `.anemona-todo` | ☑️ | Seguimiento de tareas con progreso, prioridad y fechas |
 | Fragmento | `.anemona-snippet` | 📋 | Fragmentos de código con lenguaje y copia |
 | Recordatorio | `.anemona-reminder` | 🔔 | Recordatorios con fecha y acciones |
@@ -45,7 +45,7 @@ Organizá todo lo que usás a diario en un solo lugar — notas, secretos, recor
 
 - **Markdown** — Edición de texto completo con búsqueda y resaltado
 - **Claves** — Agregar/editar/eliminar entradas con título, usuario, contraseña, email, URL, host, puerto, token y notas; copiar valores; abrir enlaces externos
-- **Comandos** — Guardar y copiar comandos; ordenar y filtrar; insertar directamente en el editor
+- **Comandos** — Guardar comandos con documentación/notas de uso opcionales; copiar, ordenar, filtrar, exportar e insertar directamente en el editor
 - **Tareas** — Progreso (0–100%), prioridad (baja/media/alta), fechas, marcar como completada/cancelada
 - **Fragmentos** — Guardar código con selector de lenguaje (30+), copiar al portapapeles, filtrar y ordenar; insertar en el editor
 - **Recordatorios** — Agregar/editar/eliminar con selector de fecha (horas/días/semanas/meses/fecha específica), marcar como completado, filtrar por estado; ordenados automáticamente — pendientes primero, luego por fecha más reciente

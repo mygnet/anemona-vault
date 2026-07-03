@@ -435,11 +435,22 @@ export class NotesService {
   async readCommandEntries(notePath: string): Promise<CommandEntry[]> {
     const raw = await this.readNote(notePath)
     const data = JSON.parse(raw)
-    return Array.isArray(data) ? data : []
+    if (!Array.isArray(data)) return []
+
+    return data.map((entry) => ({
+      title: String(entry?.title || '').trim(),
+      command: String(entry?.command || '').trim(),
+      documentation: String(entry?.documentation || '').trim() || undefined,
+    }))
   }
 
   async saveCommandEntries(notePath: string, entries: CommandEntry[]): Promise<void> {
-    fs.writeFileSync(notePath, JSON.stringify(entries, null, 2), 'utf-8')
+    const normalized = entries.map((entry) => ({
+      title: String(entry.title || '').trim(),
+      command: String(entry.command || '').trim(),
+      documentation: String(entry.documentation || '').trim() || undefined,
+    }))
+    fs.writeFileSync(notePath, JSON.stringify(normalized, null, 2), 'utf-8')
   }
 
   async readTodoEntries(notePath: string): Promise<TodoEntry[]> {
@@ -607,14 +618,14 @@ export class NotesService {
     if (note.fileType === 'command') {
       const entries = await this.readCommandEntries(note.filePath)
       const match = entries.find((entry) =>
-        [entry.title, entry.command].some((value) =>
+        [entry.title, entry.command, entry.documentation].some((value) =>
           String(value || '').toLowerCase().includes(normalizedQuery),
         ),
       )
 
       if (!match) return null
 
-      return this.toSearchResult(categoryName, note, match.title || 'Command', match.command || match.title)
+      return this.toSearchResult(categoryName, note, match.title || 'Command', match.command || match.documentation || match.title)
     }
 
     if (note.fileType === 'todo') {
@@ -760,8 +771,14 @@ export class NotesService {
       return notePath
     }
 
-    if (fs.existsSync(newPath)) {
-      throw new Error(`Note "${trimmed}" already exists`)
+    const targetFileName = path.basename(newPath).toLowerCase()
+    const collision = fs.readdirSync(dirPath).some((fileName) => {
+      const filePath = path.join(dirPath, fileName)
+      return fileName.toLowerCase() === targetFileName && filePath !== notePath
+    })
+
+    if (collision) {
+      throw new Error(`Note "${trimmed}" already exists in this folder`)
     }
 
     fs.renameSync(notePath, newPath)
@@ -825,11 +842,11 @@ export class NotesService {
     if (fileType === 'command') {
       const entries = await this.readCommandEntries(notePath)
       if (format === 'texto') {
-        const lines = entries.map((e, i) => `${i + 1}. ${e.title}\n   $ ${e.command}`)
+        const lines = entries.map((e, i) => `${i + 1}. ${e.title}\n   $ ${e.command}${e.documentation ? `\n   ${e.documentation}` : ''}`)
         return { content: lines.join('\n'), language: 'plaintext' }
       }
       if (format === 'markdown') {
-        const md = entries.map(e => `### ${e.title}\n\n\`\`\`bash\n${e.command}\n\`\`\``).join('\n\n')
+        const md = entries.map(e => `### ${e.title}\n\n\`\`\`bash\n${e.command}\n\`\`\`${e.documentation ? `\n\n${e.documentation}` : ''}`).join('\n\n')
         return { content: `# ${displayName}\n\n${md}`, language: 'markdown' }
       }
       const content = await this.readNote(notePath)
@@ -1060,7 +1077,13 @@ export class NotesService {
       return folderPath
     }
 
-    if (fs.existsSync(newPath)) {
+    const targetName = path.basename(newPath).toLowerCase()
+    const collision = fs.readdirSync(parentPath).some((entryName) => {
+      const entryPath = path.join(parentPath, entryName)
+      return entryName.toLowerCase() === targetName && entryPath !== folderPath
+    })
+
+    if (collision) {
       throw new Error(`Folder "${trimmed}" already exists`)
     }
 
