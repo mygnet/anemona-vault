@@ -3,6 +3,8 @@
 .git/**
 .gitignore
 
+Temp/**
+
 README.es.md
 CHANGELOG.es.md
 
