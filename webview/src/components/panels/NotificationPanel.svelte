@@ -93,7 +93,7 @@
 <div class="notification-panel">
   <div class="notification-panel__header">
     <button class="icon-btn back-btn" on:click={() => dispatch('close')} title={$t('notificationPanel.back')}
-      ><span class="anemona icon-chevron-left"></span></button
+      ><span class="anemona icon-arrow-back"></span></button
     >
     <span class="notification-panel__title">{$t('notificationPanel.title')}</span>
     <div class="notification-panel__actions">

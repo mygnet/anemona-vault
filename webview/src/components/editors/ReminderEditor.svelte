@@ -4,7 +4,6 @@
   import EditorHeader from "../layout/EditorHeader.svelte";
   import EntryTitleBar from "../layout/EntryTitleBar.svelte";
   import SearchToolbar from "../ui/SearchToolbar.svelte";
-  import DeleteConfirmModal from "../ui/DeleteConfirmModal.svelte";
   import FilterChips from "../ui/FilterChips.svelte";
   import {
     formatDate,
@@ -563,6 +562,7 @@
     </div>
   </EditorHeader>
 
+{#if localEntries.length > 0}
   <SearchToolbar
     value={filterText}
     placeholder={$t("reminderEditor.searchPlaceholder")}
@@ -577,6 +577,7 @@
     value={filterStatus}
     on:change={handleStatusFilterChange}
   />
+{/if}
 
   <div class="reminder-editor__list">
     {#if visibleEntries.length === 0}
@@ -682,7 +683,7 @@
                       })}
                     title={entry.action.target}
                   >
-                    <span class="anemona icon-globe"></span>
+                    <span class="anemona icon-external-link"></span>
                   </button>
                 {:else if entry.action.type === "file"}
                   <button
@@ -980,13 +981,17 @@
     </div>
   {/if}
 
-  <DeleteConfirmModal
-    show={deletePrompt !== null}
-    title={$t("reminderEditor.deleteReminderTitle")}
-    itemName={deletePrompt ? deletePrompt.title : ""}
-    on:confirm={confirmDeletePrompt}
-    on:cancel={cancelDeletePrompt}
-  />
+  {#if deletePrompt}
+    <button class="modal-backdrop" on:click={cancelDeletePrompt} aria-label="Close"></button>
+    <div class="delete-modal">
+      <h3>{$t("reminderEditor.deleteReminderTitle")}</h3>
+      <p>{$t("reminderEditor.deleteReminderBody", { title: deletePrompt.title })}</p>
+      <div class="form-actions">
+        <button class="btn" on:click={cancelDeletePrompt}>{$t('common.cancel')}</button>
+        <button class="btn danger" on:click={confirmDeletePrompt}>{$t('common.delete')}</button>
+      </div>
+    </div>
+  {/if}
 
   {#if stopRepeatPrompt}
     <button

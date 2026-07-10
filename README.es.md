@@ -18,9 +18,11 @@ Organizá todo lo que usás a diario en un solo lugar — notas, secretos, recor
 | Texto | `.md` | 📄 | Notas markdown con búsqueda |
 | Clave | `.anemona-key` / `.anemona-lock` | 🔑 / 🔒 | Secretos cifrados, contraseñas, tokens API |
 | Comando | `.anemona-command` | ⌘ | Comandos reutilizables con copia y documentación opcional |
+| Enlace | `.anemona-link` | 🔗 | Gestor de marcadores con verificación de estado, favicon y auto-completado |
 | Tarea | `.anemona-todo` | ☑️ | Seguimiento de tareas con progreso, prioridad y fechas |
 | Fragmento | `.anemona-snippet` | 📋 | Fragmentos de código con lenguaje y copia |
 | Recordatorio | `.anemona-reminder` | 🔔 | Recordatorios con fecha y acciones |
+| Galería | `.anemona-shot` | 📷 | Galería visual para capturas, imágenes y screenshots |
 
 ### Gestión de la bóveda
 
@@ -46,6 +48,7 @@ Organizá todo lo que usás a diario en un solo lugar — notas, secretos, recor
 - **Markdown** — Edición de texto completo con búsqueda y resaltado
 - **Claves** — Agregar/editar/eliminar entradas con título, usuario, contraseña, email, URL, host, puerto, token y notas; copiar valores; abrir enlaces externos
 - **Comandos** — Guardar comandos con documentación/notas de uso opcionales; copiar, ordenar, filtrar, exportar e insertar directamente en el editor
+- **Enlaces** — Guardar y organizar enlaces con título, URL y descripción. Importar CSV (`url | título`) o JSON, exportar como texto/markdown/JSON, abrir URLs directamente. Cada entrada muestra indicador de estado (verde/gris/rojo). Sincronizá para obtener título, descripción y favicon. La sincronización se puede cancelar y hace scroll mientras procesa.
 - **Tareas** — Progreso (0–100%), prioridad (baja/media/alta), fechas, marcar como completada/cancelada
 - **Fragmentos** — Guardar código con selector de lenguaje (30+), copiar al portapapeles, filtrar y ordenar; insertar en el editor
 - **Recordatorios** — Agregar/editar/eliminar con selector de fecha (horas/días/semanas/meses/fecha específica), marcar como completado, filtrar por estado; ordenados automáticamente — pendientes primero, luego por fecha más reciente
@@ -146,6 +149,19 @@ Personalizá el comportamiento en los ajustes de VS Code (`anemona-vault.*`):
       <em>Recordatorios y notificaciones — fechas, acciones y alertas</em>
     </td>
   </tr>
+  <tr>
+    <td width="50%">
+        <img src="screenshot/links.gif" alt="Links" width="100%">
+        <br>
+        <em>📷 Gestor de enlaces — agregar, sincronizar, indicadores de estado</em>
+    </td>
+    <td width="50%">
+        <img src="screenshot/gallery.gif" alt="Links" width="100%">
+        <br>
+        <em>📷 Galería Shot — vista previa y metadatos de imagen</em>
+      </p>
+    </td>
+  </tr>
 </table>
 
 ## Almacenamiento
@@ -160,8 +176,14 @@ vault/
 │   ├── reuniones.md
 │   ├── apis.anemona-key
 │   ├── deploy.anemona-command
+│   ├── marcadores.anemona-link
 │   ├── ideas.anemona-snippet
 │   ├── semanal.anemona-reminder
+│   ├── capturas.anemona-shot/
+│   │   ├── anemona-shot.json          # metadatos (lista de entradas)
+│   │   └── images/
+│   │       ├── capture-01.png
+│   │       └── capture-02.png
 │   └── subcarpeta/
 │       └── referencias.md
 └── Proyectos/

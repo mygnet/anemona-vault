@@ -1,7 +1,14 @@
 # Changelog
 
+## 1.0.7 — 2026-07-09
+- **Gestor de enlaces (Anémona Link)** — Nuevo tipo de nota `.anemona-link` para guardar y organizar enlaces. Cada entrada guarda título, URL y descripción opcional. Importá enlaces desde CSV (`url | título`) o JSON, exportá como texto, markdown o JSON, y abre las URLs directamente desde el editor. Incluye editor dedicado y filtros.
+- **Verificador de estado y auto-completado** — Cada enlace muestra si el sitio está disponible (indicador verde/gris/rojo). Hacé clic en el botón de sincronizar en cualquier entrada (o usá "Verificar todos") para obtener el título, la descripción y el icono de la página — el formulario se auto-completa al agregar nuevos enlaces. La sincronización procesa uno por uno, se puede cancelar a medio camino, y hace scroll a la entrada activa mientras avanza. Si la página está bloqueada por Cloudflare o similar, verás una explicación clara en lugar de un error genérico.
+- **Confirmación de eliminación más simple** — Eliminar una entrada de cualquier editor (enlaces, comandos, claves, tareas, fragmentos, recordatorios) ahora usa un diálogo simple de "Cancelar / Eliminar" sin tener que tipear un código. La confirmación por código se mantiene para eliminar archivos enteros, carpetas y categorías, donde el riesgo es mayor.
+- **Galería visual (Anémona Shot)** — Nuevo tipo de nota `.anemona-shot` para almacenar capturas e imágenes como notas visuales. Crea galerías pegando o importando imágenes. Estructura basada en carpeta con metadatos `anemona-shot.json` y directorio `images/`. Soporta pegado con arrastrar y soltar, importación de archivos, vista previa de imagen, copia al portapapeles, edición de metadatos (título, descripción, URL de origen, etiquetas), búsqueda/filtro, ordenamiento, y estilo compatible con el tema.
+- **Fix: Eliminar carpeta navega al padre** — Al eliminar la carpeta en la que te encuentras, la vista ahora vuelve automáticamente a la carpeta padre en lugar de quedarse en la carpeta eliminada.
+
 ## 1.0.6 — 2026-06-24
-- **Fix: Recordatorios recurrentes se desfasaban en meses cortos** — Los recordatorios mensuales/anuales ahora se ajustan al último día válido del mes destino en lugar de desbordar (ej: 31 Ene + 1 mes → 28 Feb, no 3 Mar). Misma corrección para 29 Feb en años no bisiestos. Aplica tanto al planificador como al editor de recordatorios.
+- **Fix: Recordatorios recurrentes se desfasaban en meses cortos** — Los recordatorios mensuales/anuales ahora se ajustan al último día válido del mes destino en lugar de desbordar (ej: 31 Ene + 1 mes → 28 Feb, no 3 Mar). Misma corrección para 29 Feb en años no bisiestos. Aplica tanto al planificador (`computeNextDue` en `extension.ts` y `utils.ts`) como al editor de recordatorios (`computeDueIso` en `ReminderEditor.svelte`).
 - **Documentación en comandos** — Las entradas de comandos ahora soportan documentación/notas de uso opcionales, con edición, vista expandible, filtrado/búsqueda y exportación a texto/markdown.
 
 ## 1.0.5 — 2026-06-18

@@ -33,7 +33,7 @@
   <div class="title-row">
     {#if canGoBack}
       <button class="icon-btn back-btn" on:click={() => dispatch('back')} title={$t('common.back')}>
-        <span class="anemona icon-chevron-left"></span>
+        <span class="anemona icon-arrow-back"></span>
       </button>
     {/if}
     <span class="title">{title}</span>

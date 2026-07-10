@@ -1,5 +1,41 @@
 [
   {
+    "id": "9a823969-8407-4ab4-821d-c6e83f2e2e5b",
+    "key": "reminder:59491722-e129-437c-8bcc-70f425969758",
+    "type": "reminder",
+    "title": "Revisa tarea",
+    "message": "",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "59491722-e129-437c-8bcc-70f425969758",
+    "relatedItemType": "reminder",
+    "action": {
+      "type": "file",
+      "target": "01-Demo/Remind.anemona-reminder"
+    },
+    "createdAt": "2026-07-10T01:21:26.647Z",
+    "readAt": "2026-07-10T01:47:40.431Z"
+  },
+  {
+    "id": "cb6855a5-9b48-48c9-83ff-b8caed78508f",
+    "key": "reminder:d8588b8a-4691-494d-80eb-06d86f55e3a0",
+    "type": "reminder",
+    "title": "Llegar mas tarde",
+    "message": "despues revisar el problema..",
+    "source": "local",
+    "status": "read",
+    "priority": "normal",
+    "relatedItemId": "d8588b8a-4691-494d-80eb-06d86f55e3a0",
+    "relatedItemType": "reminder",
+    "action": {
+      "type": "file",
+      "target": "01-Demo/Remind.anemona-reminder"
+    },
+    "createdAt": "2026-07-10T01:16:41.016Z",
+    "readAt": "2026-07-10T01:47:41.542Z"
+  },
+  {
     "id": "146d8f5d-a208-4648-8da6-c67b34f28c3a",
     "key": "reminder:59491722-e129-437c-8bcc-70f425969758",
     "type": "reminder",

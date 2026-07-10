@@ -4,7 +4,6 @@
   import EditorHeader from "../layout/EditorHeader.svelte";
   import EntryTitleBar from "../layout/EntryTitleBar.svelte";
   import SearchToolbar from "../ui/SearchToolbar.svelte";
-  import DeleteConfirmModal from "../ui/DeleteConfirmModal.svelte";
   import FilterChips from "../ui/FilterChips.svelte";
   import { moveEntry, removeEntry } from "../../utils/editorState";
   import { parseTodoSuggestion } from "../../utils/selectionParser";
@@ -483,6 +482,7 @@
     </div>
   </EditorHeader>
 
+{#if localEntries.length > 0}
   <div class="todo-editor__summary">
     <div class="todo-editor__summary-copy">
       <span class="todo-editor__summary-label">{$t("todoEditor.progress")}</span
@@ -519,6 +519,7 @@
     value={activeFilter}
     on:change={handleStatusFilterChange}
   />
+{/if}
 
   {#if movingTaskIndex !== null}
     <div class="todo-editor__move-hint">
@@ -716,13 +717,17 @@
     </div>
   {/if}
 
-  <DeleteConfirmModal
-    show={deleteTaskPrompt !== null}
-    title={$t("todoEditor.deleteTaskTitle")}
-    itemName={deleteTaskPrompt ? deleteTaskPrompt.title : ""}
-    on:confirm={confirmDeletePrompt}
-    on:cancel={cancelDeletePrompt}
-  />
+  {#if deleteTaskPrompt}
+    <button class="modal-backdrop" on:click={cancelDeletePrompt} aria-label="Close"></button>
+    <div class="delete-modal">
+      <h3>{$t("todoEditor.deleteTaskTitle")}</h3>
+      <p>{$t("todoEditor.deleteTaskBody", { title: deleteTaskPrompt.title })}</p>
+      <div class="form-actions">
+        <button class="btn" on:click={cancelDeletePrompt}>{$t('common.cancel')}</button>
+        <button class="btn danger" on:click={confirmDeletePrompt}>{$t('common.delete')}</button>
+      </div>
+    </div>
+  {/if}
 </div>
 
 <style>

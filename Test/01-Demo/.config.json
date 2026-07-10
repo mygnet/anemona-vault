@@ -2,6 +2,12 @@
   "file": {
     "tareas.anemona-todo": {
       "progress": 0
+    },
+    "x-todo.anemona-todo": {
+      "progress": 0
+    },
+    "Todo.anemona-todo": {
+      "progress": 37
     }
   }
 }

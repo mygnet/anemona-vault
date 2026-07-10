@@ -4,7 +4,6 @@
   import EditorHeader from '../layout/EditorHeader.svelte'
   import EntryTitleBar from '../layout/EntryTitleBar.svelte'
   import SearchToolbar from '../ui/SearchToolbar.svelte'
-  import DeleteConfirmModal from '../ui/DeleteConfirmModal.svelte'
   import FormModal from '../ui/FormModal.svelte'
   import { COPY_FEEDBACK_MS, copyText } from '../../utils/clipboard'
   import { appendEntry, applyInitialFilter, cloneEntries, removeEntry, replaceEntry, shouldSyncEntries } from '../../utils/editorState'
@@ -259,7 +258,7 @@ $: if (selectionSuggestion?.text && selectionSuggestion.requestId === activeSele
             title={entry.title}
             menuOpen={openMenuIndex === realIndex}
             menuTitle={$t('commandEditor.entryOptions')}
-            editLabel={$t('commandEditor.rename')}
+            editLabel={$t('common.edit')}
             deleteLabel={$t('commandEditor.delete')}
             on:toggleMenu={() => toggleEntryMenu(realIndex)}
             on:closeMenu={closeEntryMenu}
@@ -313,13 +312,19 @@ $: if (selectionSuggestion?.text && selectionSuggestion.requestId === activeSele
   </div>
 </div>
 
-<DeleteConfirmModal
-    show={deletePrompt !== null}
+{#if deletePrompt}
+  <FormModal
+    modalClass="delete-modal"
     title={$t('commandEditor.deleteCommandTitle')}
-    itemName={deletePrompt ? deletePrompt.title : ''}
-    on:confirm={confirmDeletePrompt}
-    on:cancel={cancelDeletePrompt}
-  />
+    on:close={cancelDeletePrompt}
+  >
+    <p>{$t('commandEditor.deleteCommandBody', { title: deletePrompt.title })}</p>
+    <svelte:fragment slot="actions">
+      <button class="btn" on:click={cancelDeletePrompt}>{$t('common.cancel')}</button>
+      <button class="btn danger" on:click={confirmDeletePrompt}>{$t('common.delete')}</button>
+    </svelte:fragment>
+  </FormModal>
+{/if}
 
 {#if cmdModalMode}
   <FormModal

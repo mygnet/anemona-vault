@@ -59,6 +59,23 @@ export function parseCommandSuggestion(text: string): { title: string; command: 
   }
 }
 
+export function parseLinkSuggestion(text: string): { title: string; url: string } {
+  const obj = parseJsonLikeObject(text)
+  if (obj) {
+    return {
+      title: stringField(obj, ['title', 'name']),
+      url: stringField(obj, ['url', 'uri', 'link']),
+    }
+  }
+
+  const fields = parseKeyValueLines(text)
+  const urlMatch = text.match(/(https?:\/\/[^\s\n]+)/)
+  return {
+    title: fields.title || fields.name || firstNonEmptyLine(text).slice(0, 60),
+    url: fields.url || fields.uri || fields.link || (urlMatch ? urlMatch[1] : cleanJsonLikeText(text)),
+  }
+}
+
 export function parseSnippetSuggestion(
   text: string,
   languageId?: string,

@@ -1,15 +1,19 @@
 import * as crypto from 'crypto'
 import * as fs from 'fs'
+import * as http from 'http'
+import * as https from 'https'
 import * as path from 'path'
 import * as ZipService from './ZipService'
 import { ConfigService } from './ConfigService'
 import { CryptoService } from './CryptoService'
-  import type { Category, CategoryConfig, FileType, KeyEntry, CommandEntry, TodoEntry, SnippetEntry, AnemonaReminder, Note, GlobalSearchResult, FolderBrief, FolderTreeNode } from '../types/notes'
+import type { Category, CategoryConfig, FileType, KeyEntry, CommandEntry, TodoEntry, SnippetEntry, AnemonaReminder, Note, GlobalSearchResult, FolderBrief, FolderTreeNode, ShotEntry, LinkEntry, LinkStatus } from '../types/notes'
 
 export class NotesService {
   private storagePath: string | undefined
   private _crypto: CryptoService | null = null
   private readonly defaultCategoryColor = 'vscode-soft'
+  private _cancelSyncAll = false
+  private _isSyncingAll = false
 
   constructor() {
     this.storagePath = ConfigService.getStoragePath()
@@ -57,6 +61,8 @@ export class NotesService {
     if (fileName.endsWith('.anemona-todo')) return 'todo'
     if (fileName.endsWith('.anemona-snippet')) return 'snippet'
     if (fileName.endsWith('.anemona-reminder')) return 'reminder'
+    if (fileName.endsWith('.anemona-shot')) return 'shot'
+    if (fileName.endsWith('.anemona-link')) return 'link'
     return 'md'
   }
 
@@ -69,6 +75,8 @@ export class NotesService {
       case 'todo': return '☑️'
       case 'snippet': return '📋'
       case 'reminder': return '🔔'
+      case 'shot': return '📷'
+      case 'link': return '🔗'
       default: return '📄'
     }
   }
@@ -81,6 +89,8 @@ export class NotesService {
       .replace(/\.anemona-todo$/, '')
       .replace(/\.anemona-snippet$/, '')
       .replace(/\.anemona-reminder$/, '')
+      .replace(/\.anemona-shot$/, '')
+      .replace(/\.anemona-link$/, '')
       .replace(/\.md$/, '')
   }
 
@@ -248,13 +258,23 @@ export class NotesService {
       for (const entry of entries) {
         if (entry.isFile() && !entry.name.startsWith('.')) {
           const ext = path.extname(entry.name)
-          if (ext === '.md' || ext === '.anemona-key' || ext === '.anemona-command' || ext === '.anemona-lock' || ext === '.anemona-todo' || ext === '.anemona-snippet' || ext === '.anemona-reminder') {
+          if (ext === '.md' || ext === '.anemona-key' || ext === '.anemona-command' || ext === '.anemona-lock' || ext === '.anemona-todo' || ext === '.anemona-snippet' || ext === '.anemona-reminder' || ext === '.anemona-link') {
             const filePath = path.join(categoryPath, entry.name)
             notes.push({
               name: entry.name,
               filePath,
               content: '',
               fileType: this.getFileType(entry.name),
+            })
+          }
+        } else if (entry.isDirectory() && entry.name.endsWith('.anemona-shot')) {
+          const shotFolderPath = path.join(categoryPath, entry.name)
+          if (this.isValidShotFolder(shotFolderPath)) {
+            notes.push({
+              name: entry.name,
+              filePath: shotFolderPath,
+              content: '',
+              fileType: 'shot',
             })
           }
         }
@@ -286,17 +306,26 @@ export class NotesService {
         const fullPath = path.join(targetPath, entry.name)
 
         if (entry.isDirectory()) {
-          const config = this.readCategoryConfigSync(fullPath)
-          const isEmpty = this._isFolderEmpty(fullPath)
-          folders.push({
-            name: entry.name,
-            path: fullPath,
-            color: config?.color,
-            isEmpty,
-          })
+          if (entry.name.endsWith('.anemona-shot') && this.isValidShotFolder(fullPath)) {
+            notes.push({
+              name: entry.name,
+              filePath: fullPath,
+              content: '',
+              fileType: 'shot',
+            })
+          } else {
+            const config = this.readCategoryConfigSync(fullPath)
+            const isEmpty = this._isFolderEmpty(fullPath)
+            folders.push({
+              name: entry.name,
+              path: fullPath,
+              color: config?.color,
+              isEmpty,
+            })
+          }
         } else if (entry.isFile()) {
           const ext = path.extname(entry.name)
-          if (ext === '.md' || ext === '.anemona-key' || ext === '.anemona-command' || ext === '.anemona-lock' || ext === '.anemona-todo' || ext === '.anemona-snippet' || ext === '.anemona-reminder') {
+          if (ext === '.md' || ext === '.anemona-key' || ext === '.anemona-command' || ext === '.anemona-lock' || ext === '.anemona-todo' || ext === '.anemona-snippet' || ext === '.anemona-reminder' || ext === '.anemona-link') {
             notes.push({
               name: entry.name,
               filePath: fullPath,
@@ -317,6 +346,10 @@ export class NotesService {
   }
 
   async createNote(categoryName: string, title: string, fileType: FileType = 'md', parentFolderPath?: string): Promise<Note> {
+    if (fileType === 'shot') {
+      return this.createShot(categoryName, title, parentFolderPath)
+    }
+
     const rootPath = this.ensureStoragePath()
     const categoryPath = parentFolderPath
       ? parentFolderPath
@@ -336,7 +369,9 @@ export class NotesService {
             ? '.anemona-snippet'
             : fileType === 'reminder'
               ? '.anemona-reminder'
-              : '.md'
+              : fileType === 'link'
+                ? '.anemona-link'
+                : '.md'
     const fileName = this.sanitizePathName(title) + ext
     const filePath = path.join(categoryPath, fileName)
 
@@ -352,6 +387,8 @@ export class NotesService {
     } else if (fileType === 'todo') {
       content = JSON.stringify([], null, 2)
     } else if (fileType === 'reminder') {
+      content = JSON.stringify([], null, 2)
+    } else if (fileType === 'link') {
       content = JSON.stringify([], null, 2)
     } else {
       content = `# ${title}\n\n`
@@ -451,6 +488,378 @@ export class NotesService {
       documentation: String(entry.documentation || '').trim() || undefined,
     }))
     fs.writeFileSync(notePath, JSON.stringify(normalized, null, 2), 'utf-8')
+  }
+
+  async readLinkEntries(notePath: string): Promise<LinkEntry[]> {
+    const raw = await this.readNote(notePath)
+    const data = JSON.parse(raw)
+    if (!Array.isArray(data)) return []
+
+    return data.map((entry) => ({
+      title: String(entry?.title || '').trim(),
+      url: String(entry?.url || '').trim(),
+      description: String(entry?.description || '').trim() || undefined,
+      status: (['unknown', 'ok', 'error'] as LinkStatus[]).includes(entry?.status) ? entry.status : undefined,
+      favicon: String(entry?.favicon || '').trim() || undefined,
+      lastCheckedAt: String(entry?.lastCheckedAt || '').trim() || undefined,
+    }))
+  }
+
+  async saveLinkEntries(notePath: string, entries: LinkEntry[]): Promise<void> {
+    const normalized = entries.map((entry) => ({
+      title: String(entry.title || '').trim(),
+      url: String(entry.url || '').trim(),
+      description: String(entry.description || '').trim() || undefined,
+      status: entry.status !== 'unknown' ? entry.status : undefined,
+      favicon: String(entry.favicon || '').trim() || undefined,
+      lastCheckedAt: String(entry.lastCheckedAt || '').trim() || undefined,
+    }))
+    fs.writeFileSync(notePath, JSON.stringify(normalized, null, 2), 'utf-8')
+  }
+
+  private readonly _browserHeaders = {
+    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+    'Accept-Language': 'en-US,en;q=0.9,es;q=0.8',
+  }
+
+  private _fetchUrl(targetUrl: string, timeout = 8000): Promise<{ body: string; contentType: string; statusCode: number }> {
+    return new Promise((resolve, reject) => {
+      try {
+        const parsed = new URL(targetUrl)
+        const mod = parsed.protocol === 'https:' ? https : http
+        const req = mod.get(targetUrl, { timeout, headers: this._browserHeaders }, (res) => {
+          if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+            res.resume()
+            return resolve(this._fetchUrl(new URL(res.headers.location, targetUrl).href, timeout))
+          }
+          const code = res.statusCode || 0
+          const chunks: Buffer[] = []
+          res.on('data', (chunk: Buffer) => chunks.push(chunk))
+          res.on('end', () => {
+            const body = Buffer.concat(chunks).toString('utf-8')
+            if (code >= 500) return reject(new Error(`HTTP ${code}`))
+            resolve({ body, contentType: res.headers['content-type'] || '', statusCode: code })
+          })
+        })
+        req.on('error', reject)
+        req.on('timeout', () => { req.destroy(); reject(new Error('Timeout')) })
+        const timer = setTimeout(() => {
+          req.destroy(new Error('Timeout'))
+          reject(new Error('Timeout'))
+        }, timeout)
+        req.on('response', () => clearTimeout(timer))
+        req.on('error', () => clearTimeout(timer))
+      } catch (err) {
+        reject(err)
+      }
+    })
+  }
+
+  private _fetchBinary(targetUrl: string, timeout = 8000): Promise<{ data: Buffer; contentType: string }> {
+    return new Promise((resolve, reject) => {
+      try {
+        const parsed = new URL(targetUrl)
+        const mod = parsed.protocol === 'https:' ? https : http
+        const req = mod.get(targetUrl, { timeout, headers: this._browserHeaders }, (res) => {
+          if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+            res.resume()
+            return resolve(this._fetchBinary(new URL(res.headers.location, targetUrl).href, timeout))
+          }
+          if (!res.statusCode || res.statusCode >= 400) {
+            res.resume()
+            return reject(new Error(`HTTP ${res.statusCode}`))
+          }
+          const chunks: Buffer[] = []
+          res.on('data', (chunk: Buffer) => chunks.push(chunk))
+          res.on('end', () => resolve({ data: Buffer.concat(chunks), contentType: res.headers['content-type'] || '' }))
+        })
+        req.on('error', reject)
+        req.on('timeout', () => { req.destroy(); reject(new Error('Timeout')) })
+        const timer = setTimeout(() => {
+          req.destroy(new Error('Timeout'))
+          reject(new Error('Timeout'))
+        }, timeout)
+        req.on('response', () => clearTimeout(timer))
+        req.on('error', () => clearTimeout(timer))
+      } catch (err) {
+        reject(err)
+      }
+    })
+  }
+
+  private _extractHtmlTitle(html: string): string | null {
+    const match = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)
+    if (!match) return null
+    return match[1].replace(/\s+/g, ' ').trim() || null
+  }
+
+  private _extractFaviconUrl(html: string, baseUrl: string): string | null {
+    const linkTagPattern = /<link[\s>][\s\S]*?\/?>/gi
+    const attrRe = /(\w+(?:-\w+)*)\s*=\s*["']([^"']*)["']/gi
+    let match: RegExpExecArray | null
+
+    while ((match = linkTagPattern.exec(html)) !== null) {
+      const tag = match[0]
+      let rel: string | null = null
+      let href: string | null = null
+
+      attrRe.lastIndex = 0
+      let attrMatch: RegExpExecArray | null
+      while ((attrMatch = attrRe.exec(tag)) !== null) {
+        const name = attrMatch[1].toLowerCase()
+        const value = attrMatch[2]
+        if (name === 'rel') rel = value.toLowerCase()
+        if (name === 'href') href = value
+      }
+
+      if (rel && href && /^(?:apple-touch-)?icon$|^shortcut icon$/.test(rel)) {
+        try {
+          return new URL(href, baseUrl).href
+        } catch {
+          return href
+        }
+      }
+    }
+
+    // Last resort: try /favicon.ico at the domain root
+    try {
+      const parsed = new URL(baseUrl)
+      const origin = `${parsed.protocol}//${parsed.hostname}${parsed.port ? `:${parsed.port}` : ''}`
+      return `${origin}/favicon.ico`
+    } catch {
+      return null
+    }
+  }
+
+  private _imageExtFromContentType(contentType: string): string {
+    const map: Record<string, string> = {
+      'image/png': 'png',
+      'image/x-icon': 'ico',
+      'image/vnd.microsoft.icon': 'ico',
+      'image/jpeg': 'jpg',
+      'image/jpg': 'jpg',
+      'image/gif': 'gif',
+      'image/svg+xml': 'svg',
+      'image/webp': 'webp',
+    }
+    const ct = contentType.split(';')[0].trim().toLowerCase()
+    return map[ct] || 'png'
+  }
+
+  async syncLinkEntry(entry: LinkEntry): Promise<{ entry: LinkEntry; message?: string }> {
+    const now = new Date().toISOString()
+
+    try {
+      const { body, statusCode } = await this._fetchUrl(entry.url)
+
+      if (statusCode === 404 || statusCode === 410) {
+        return {
+          entry: { ...entry, status: 'error', lastCheckedAt: now },
+          message: this._describeFetchError(entry.url, statusCode, body),
+        }
+      }
+
+      if (statusCode >= 400) {
+        return {
+          entry: { ...entry, lastCheckedAt: now },
+          message: this._describeFetchError(entry.url, statusCode, body),
+        }
+      }
+
+      const updated: LinkEntry = {
+        ...entry,
+        status: 'ok',
+        lastCheckedAt: now,
+      }
+
+      const pageTitle = this._extractHtmlTitle(body)
+      if (pageTitle && !entry.title.startsWith('http')) {
+        updated.title = pageTitle
+      } else if (!entry.title) {
+        updated.title = pageTitle || entry.title
+      }
+
+      const favicon = await this._fetchFaviconOnly(body, entry.url)
+      if (favicon) updated.favicon = favicon
+
+      // fallback: if no favicon or title, try the root domain
+      if (!updated.favicon || !updated.title) {
+        const origin = this._getOrigin(entry.url)
+        if (origin) {
+          try {
+            const { body: originBody, statusCode: originCode } = await this._fetchUrl(origin)
+            if (originCode < 400) {
+              if (!updated.title) {
+                const originTitle = this._extractHtmlTitle(originBody)
+                if (originTitle && !entry.title.startsWith('http')) {
+                  updated.title = originTitle
+                } else if (!entry.title) {
+                  updated.title = originTitle || entry.title
+                }
+              }
+              if (!updated.favicon) {
+                const originFavicon = await this._fetchFaviconOnly(originBody, origin)
+                if (originFavicon) updated.favicon = originFavicon
+              }
+            }
+          } catch {
+            // fallback failed silently
+          }
+        }
+      }
+
+      return { entry: updated }
+    } catch (err) {
+      return {
+        entry: { ...entry, lastCheckedAt: now },
+        message: this._describeFetchError(entry.url, undefined, undefined, err),
+      }
+    }
+  }
+
+  cancelSyncAll(): void {
+    this._cancelSyncAll = true
+  }
+
+  isSyncAllCancelled(): boolean {
+    return this._cancelSyncAll
+  }
+
+  resetSyncAllCancel(): void {
+    this._cancelSyncAll = false
+  }
+
+  async syncLinkEntries(notePath: string, entries: LinkEntry[]): Promise<{ entries: LinkEntry[]; messages: string[]; cancelled: boolean }> {
+    if (this._isSyncingAll) {
+      return { entries, messages: ['Ya hay una sincronización en curso'], cancelled: false }
+    }
+    this._isSyncingAll = true
+    this._cancelSyncAll = false
+    const results: LinkEntry[] = []
+    const messages: string[] = []
+    try {
+      for (const entry of entries) {
+        if (this._cancelSyncAll) break
+        const { entry: synced, message } = await this.syncLinkEntry(entry)
+        results.push(synced)
+        if (message) messages.push(message)
+      }
+      await this.saveLinkEntries(notePath, results)
+    } finally {
+      this._isSyncingAll = false
+    }
+    return { entries: results, messages, cancelled: this._cancelSyncAll }
+  }
+
+  private _describeFetchError(url: string, statusCode?: number, body?: string, caught?: unknown): string {
+    if (caught) {
+      const msg = String(caught)
+      if (msg.includes('ENOTFOUND') || msg.includes('EAI_AGAIN')) return `No se pudo resolver el dominio de "${url}". Verifica que la URL sea correcta.`
+      if (msg.includes('ECONNREFUSED')) return `Conexión rechazada por "${url}". El servidor puede estar caído.`
+      if (msg.includes('ECONNRESET') || msg.includes('EPIPE')) return `La conexión con "${url}" fue interrumpida.`
+      if (msg.includes('Timeout')) return `El sitio "${url}" no respondió a tiempo.`
+      if (msg.includes('certificate') || msg.includes('CERT') || msg.includes('SSL')) return `Error de certificado SSL en "${url}".`
+      return `Error de conexión al intentar acceder a "${url}".`
+    }
+
+    if (statusCode === 403) {
+      if (body && (body.includes('cf-mitigated') || body.includes('challenges.cloudflare.com'))) {
+        return `"${url}" está protegido por Cloudflare y requiere JavaScript. No se puede obtener el contenido automáticamente.`
+      }
+      return `Acceso denegado (HTTP 403) a "${url}".`
+    }
+    if (statusCode === 404) return `Página no encontrada (HTTP 404) para "${url}".`
+    if (statusCode === 410) return `La página "${url}" ya no existe (HTTP 410).`
+    if (statusCode === 429) return `Demasiadas solicitudes (HTTP 429) a "${url}". Intenta más tarde.`
+    if (statusCode && statusCode >= 400) return `El sitio respondió con código HTTP ${statusCode} para "${url}".`
+
+    return ''
+  }
+
+  async previewLink(url: string): Promise<{ title: string; favicon?: string; description?: string; message?: string }> {
+    const result: { title: string; favicon?: string; description?: string; message?: string } = { title: '' }
+
+    try {
+      const { body, statusCode } = await this._fetchUrl(url)
+
+      if (statusCode >= 400) {
+        result.message = this._describeFetchError(url, statusCode, body)
+        return result
+      }
+
+      const pageTitle = this._extractHtmlTitle(body)
+      if (pageTitle) result.title = pageTitle
+
+      const metaDesc = this._extractMetaDescription(body)
+      if (metaDesc) result.description = metaDesc
+
+      const favicon = await this._fetchFaviconOnly(body, url)
+      if (favicon) result.favicon = favicon
+
+      // fallback: if no favicon or title, try the root domain
+      if (!result.favicon || !result.title) {
+        const origin = this._getOrigin(url)
+        if (origin) {
+          try {
+            const { body: originBody, statusCode: originCode } = await this._fetchUrl(origin)
+            if (originCode < 400) {
+              if (!result.title) {
+                const originTitle = this._extractHtmlTitle(originBody)
+                if (originTitle) result.title = originTitle
+              }
+              if (!result.favicon) {
+                const originFavicon = await this._fetchFaviconOnly(originBody, origin)
+                if (originFavicon) result.favicon = originFavicon
+              }
+            }
+          } catch {
+            // fallback failed silently
+          }
+        }
+      }
+    } catch (err) {
+      result.message = this._describeFetchError(url, undefined, undefined, err)
+    }
+
+    return result
+  }
+
+  private _getOrigin(url: string): string | null {
+    try {
+      const parsed = new URL(url)
+      const origin = `${parsed.protocol}//${parsed.hostname}${parsed.port ? `:${parsed.port}` : ''}`
+      if (origin === url || !parsed.pathname || parsed.pathname === '/' || parsed.pathname === '') return null
+      return origin
+    } catch {
+      return null
+    }
+  }
+
+  private async _fetchFaviconOnly(html: string, pageUrl: string): Promise<string | undefined> {
+    const faviconUrl = this._extractFaviconUrl(html, pageUrl)
+    if (!faviconUrl) return undefined
+    try {
+      const { data, contentType } = await this._fetchBinary(faviconUrl)
+      return `data:${contentType.split(';')[0].trim() || 'image/png'};base64,${data.toString('base64')}`
+    } catch {
+      return undefined
+    }
+  }
+
+  private _extractMetaDescription(html: string): string | null {
+    const patterns = [
+      /<meta[^>]*name=["']description["'][^>]*content=["']([^"']*)["'][^>]*>/i,
+      /<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']*)["'][^>]*>/i,
+      /<meta[^>]*content=["']([^"']*)["'][^>]*name=["']description["'][^>]*>/i,
+    ]
+    for (const pattern of patterns) {
+      const match = html.match(pattern)
+      if (match && match[1].trim()) {
+        return match[1].trim()
+      }
+    }
+    return null
   }
 
   async readTodoEntries(notePath: string): Promise<TodoEntry[]> {
@@ -571,6 +980,258 @@ export class NotesService {
     fs.writeFileSync(notePath, JSON.stringify(normalized, null, 2), 'utf-8')
   }
 
+  isValidShotFolder(folderPath: string): boolean {
+    try {
+      return fs.existsSync(path.join(folderPath, 'anemona-shot.json'))
+    } catch {
+      return false
+    }
+  }
+
+  private ensureShotStructure(folderPath: string): string {
+    const imagesDir = path.join(folderPath, 'images')
+    const metaPath = path.join(folderPath, 'anemona-shot.json')
+
+    fs.mkdirSync(imagesDir, { recursive: true })
+
+    if (!fs.existsSync(metaPath)) {
+      fs.writeFileSync(metaPath, JSON.stringify([], null, 2), 'utf-8')
+    }
+
+    return metaPath
+  }
+
+  private detectImageType(filePath: string): { ext: string; mimeType: string } | null {
+    if (!fs.existsSync(filePath)) return null
+    const buffer = fs.readFileSync(filePath)
+    const header = buffer.subarray(0, 16)
+    const textHeader = header.toString('utf-8').trimStart().toLowerCase()
+
+    if (header.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) {
+      return { ext: '.png', mimeType: 'image/png' }
+    }
+    if (header[0] === 0xff && header[1] === 0xd8 && header[2] === 0xff) {
+      return { ext: '.jpg', mimeType: 'image/jpeg' }
+    }
+    if (header.subarray(0, 4).toString('ascii') === 'RIFF' && header.subarray(8, 12).toString('ascii') === 'WEBP') {
+      return { ext: '.webp', mimeType: 'image/webp' }
+    }
+    if (header.subarray(0, 3).toString('ascii') === 'GIF') {
+      return { ext: '.gif', mimeType: 'image/gif' }
+    }
+    if (textHeader.startsWith('<svg') || textHeader.startsWith('<?xml')) {
+      return { ext: '.svg', mimeType: 'image/svg+xml' }
+    }
+
+    return null
+  }
+
+  private repairShotEntries(folderPath: string, entries: ShotEntry[]): { entries: ShotEntry[]; changed: boolean } {
+    let changed = false
+    const repaired = entries.map((entry) => {
+      const filePath = path.join(folderPath, 'images', entry.filename)
+      const shouldRepairName = entry.filename.endsWith('.undefined') || path.extname(entry.filename) === ''
+      const shouldRepairMime = !entry.mimeType || entry.mimeType === 'image/'
+
+      if (!shouldRepairName && !shouldRepairMime) return entry
+
+      const detected = this.detectImageType(filePath)
+      if (!detected) return entry
+
+      let filename = entry.filename
+      if (shouldRepairName) {
+        const baseName = entry.filename.endsWith('.undefined')
+          ? entry.filename.slice(0, -'.undefined'.length)
+          : entry.filename
+        filename = `${baseName}${detected.ext}`
+        const nextPath = path.join(folderPath, 'images', filename)
+        if (fs.existsSync(filePath) && !fs.existsSync(nextPath)) {
+          fs.renameSync(filePath, nextPath)
+        }
+      }
+
+      changed = true
+      return {
+        ...entry,
+        filename,
+        path: `images/${filename}`,
+        mimeType: detected.mimeType,
+      }
+    })
+
+    return { entries: repaired, changed }
+  }
+
+  async createShot(categoryName: string, title: string, parentFolderPath?: string): Promise<Note> {
+    const rootPath = this.ensureStoragePath()
+    const categoryPath = parentFolderPath
+      ? parentFolderPath
+      : path.join(rootPath, this.sanitizePathName(categoryName))
+
+    const folderName = this.sanitizePathName(title) + '.anemona-shot'
+    const folderPath = path.join(categoryPath, folderName)
+
+    if (fs.existsSync(folderPath)) {
+      throw new Error(`Shot "${title}" already exists`)
+    }
+
+    this.ensureShotStructure(folderPath)
+
+    return {
+      name: folderName,
+      filePath: folderPath,
+      content: '',
+      fileType: 'shot',
+    }
+  }
+
+  async readShotEntries(folderPath: string): Promise<ShotEntry[]> {
+    try {
+      const metaPath = this.ensureShotStructure(folderPath)
+      const raw = fs.readFileSync(metaPath, 'utf-8').trim()
+      if (!raw) return []
+      const parsed = JSON.parse(raw)
+      if (!Array.isArray(parsed)) {
+        throw new Error('Invalid Anémona Shot metadata. Expected a JSON array.')
+      }
+      const entries = parsed.map((e: any) => {
+        const filename = String(e.filename || '')
+        const imagePath = filename ? path.join(folderPath, 'images', filename) : ''
+        const fileSize = imagePath && fs.existsSync(imagePath) ? fs.statSync(imagePath).size : undefined
+        return {
+        id: String(e.id || ''),
+        filename,
+        path: String(e.path || ''),
+        mimeType: String(e.mimeType || ''),
+        fileSize,
+        createdAt: String(e.createdAt || ''),
+        updatedAt: String(e.updatedAt || ''),
+        title: String(e.title || '').trim() || undefined,
+        description: String(e.description || '').trim() || undefined,
+        url: String(e.url || '').trim() || undefined,
+        tags: Array.isArray(e.tags) ? e.tags.map(String) : undefined,
+        }
+      })
+      const repaired = this.repairShotEntries(folderPath, entries)
+      if (repaired.changed) {
+        await this.saveShotEntries(folderPath, repaired.entries)
+      }
+      return repaired.entries
+    } catch (err) {
+      if (err instanceof SyntaxError) {
+        throw new Error('Invalid Anémona Shot metadata. Check anemona-shot.json.')
+      }
+      throw err
+    }
+  }
+
+  async saveShotEntries(folderPath: string, entries: ShotEntry[]): Promise<void> {
+    const now = new Date().toISOString()
+    const normalized = entries.map((entry) => ({
+      id: entry.id,
+      filename: entry.filename,
+      path: entry.path,
+      mimeType: entry.mimeType,
+      createdAt: entry.createdAt || now,
+      updatedAt: now,
+      title: String(entry.title || '').trim() || undefined,
+      description: String(entry.description || '').trim() || undefined,
+      url: String(entry.url || '').trim() || undefined,
+      tags: Array.isArray(entry.tags) && entry.tags.length > 0
+        ? entry.tags.map((t) => String(t).trim()).filter(Boolean)
+        : undefined,
+    }))
+
+    const metaPath = this.ensureShotStructure(folderPath)
+    fs.writeFileSync(metaPath, JSON.stringify(normalized, null, 2), 'utf-8')
+  }
+
+  async deleteShot(folderPath: string): Promise<void> {
+    if (!fs.existsSync(folderPath)) {
+      throw new Error('Shot folder not found')
+    }
+    if (!folderPath.endsWith('.anemona-shot')) {
+      throw new Error('Not a shot folder')
+    }
+    fs.rmSync(folderPath, { recursive: true, force: true })
+  }
+
+  async exportShot(folderPath: string, outputPath: string): Promise<void> {
+    if (!folderPath.endsWith('.anemona-shot') || !this.isValidShotFolder(folderPath)) {
+      throw new Error('Not a valid Anémona Shot folder')
+    }
+    this.ensureShotStructure(folderPath)
+    await ZipService.createArchive(folderPath, outputPath)
+  }
+
+  async importShot(folderPath: string, zipPath: string): Promise<void> {
+    if (!folderPath.endsWith('.anemona-shot')) {
+      throw new Error('Not an Anémona Shot folder')
+    }
+
+    const tmpDir = path.join(path.dirname(folderPath), `.shot-import-tmp-${Date.now()}`)
+    fs.mkdirSync(tmpDir, { recursive: true })
+
+    try {
+      await ZipService.extractArchive(zipPath, tmpDir)
+      const sourceDir = this.findShotImportRoot(tmpDir)
+      if (!sourceDir) {
+        throw new Error('ZIP does not contain a valid Anémona Shot structure')
+      }
+
+      this.clearDirectory(folderPath)
+      this.copyDirectory(sourceDir, folderPath)
+      this.ensureShotStructure(folderPath)
+    } finally {
+      this._rmRecursive(tmpDir)
+    }
+  }
+
+  private findShotImportRoot(dir: string): string | null {
+    if (this.isValidShotFolder(dir)) return dir
+
+    const entries = fs.readdirSync(dir, { withFileTypes: true })
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue
+      const found = this.findShotImportRoot(path.join(dir, entry.name))
+      if (found) return found
+    }
+
+    return null
+  }
+
+  private clearDirectory(dir: string): void {
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true })
+      return
+    }
+
+    const entries = fs.readdirSync(dir, { withFileTypes: true })
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name)
+      if (entry.isDirectory()) {
+        this._rmRecursive(fullPath)
+      } else {
+        fs.unlinkSync(fullPath)
+      }
+    }
+  }
+
+  private copyDirectory(srcDir: string, destDir: string): void {
+    fs.mkdirSync(destDir, { recursive: true })
+    const entries = fs.readdirSync(srcDir, { withFileTypes: true })
+    for (const entry of entries) {
+      const src = path.join(srcDir, entry.name)
+      const dest = path.join(destDir, entry.name)
+      if (entry.isDirectory()) {
+        this.copyDirectory(src, dest)
+      } else {
+        fs.mkdirSync(path.dirname(dest), { recursive: true })
+        fs.copyFileSync(src, dest)
+      }
+    }
+  }
+
   async updateCategoryFileProgress(folderPath: string, fileName: string, progress: number): Promise<void> {
     const current = this.readCategoryConfigSync(folderPath) ?? {}
     this.writeCategoryConfigSync(folderPath, {
@@ -626,6 +1287,19 @@ export class NotesService {
       if (!match) return null
 
       return this.toSearchResult(categoryName, note, match.title || 'Command', match.command || match.documentation || match.title)
+    }
+
+    if (note.fileType === 'link') {
+      const entries = await this.readLinkEntries(note.filePath)
+      const match = entries.find((entry) =>
+        [entry.title, entry.url, entry.description].some((value) =>
+          String(value || '').toLowerCase().includes(normalizedQuery),
+        ),
+      )
+
+      if (!match) return null
+
+      return this.toSearchResult(categoryName, note, match.title || 'Link', match.url || match.description || match.title)
     }
 
     if (note.fileType === 'todo') {
@@ -695,6 +1369,19 @@ export class NotesService {
       return this.toSearchResult(categoryName, note, match.title || match.text || 'Reminder', `${match.title ? match.title + ' — ' : ''}${match.text}`)
     }
 
+    if (note.fileType === 'shot') {
+      const entries = await this.readShotEntries(note.filePath)
+      const match = entries.find((entry) =>
+        [entry.title, entry.description, entry.filename, entry.url, ...(entry.tags || [])].some((value) =>
+          String(value || '').toLowerCase().includes(normalizedQuery),
+        ),
+      )
+
+      if (!match) return null
+
+      return this.toSearchResult(categoryName, note, match.title || match.filename || 'Image', match.description || match.filename)
+    }
+
     const content = await this.readNote(note.filePath)
     const matchLine = content
       .replace(/\r\n/g, '\n')
@@ -749,6 +1436,9 @@ export class NotesService {
   async deleteNote(notePath: string): Promise<void> {
     if (!fs.existsSync(notePath)) {
       throw new Error('Note file not found')
+    }
+    if (notePath.endsWith('.anemona-shot')) {
+      return this.deleteShot(notePath)
     }
     fs.unlinkSync(notePath)
   }
@@ -853,6 +1543,20 @@ export class NotesService {
       return { content, language: 'json' }
     }
 
+    if (fileType === 'link') {
+      const entries = await this.readLinkEntries(notePath)
+      if (format === 'texto') {
+        const lines = entries.map((e, i) => `${i + 1}. ${e.title}\n   ${e.url}${e.description ? `\n   ${e.description}` : ''}`)
+        return { content: lines.join('\n'), language: 'plaintext' }
+      }
+      if (format === 'markdown') {
+        const md = entries.map(e => `### ${e.title}\n\n[${e.url}](${e.url})${e.description ? `\n\n${e.description}` : ''}`).join('\n\n')
+        return { content: `# ${displayName}\n\n${md}`, language: 'markdown' }
+      }
+      const content = await this.readNote(notePath)
+      return { content, language: 'json' }
+    }
+
     if (fileType === 'todo') {
       const entries = await this.readTodoEntries(notePath)
       if (format === 'default') {
@@ -907,6 +1611,15 @@ export class NotesService {
         return { content: `# ${displayName}\n\n${md}`, language: 'markdown' }
       }
       return { content: JSON.stringify(entries, null, 2), language: 'json' }
+    }
+
+    if (fileType === 'shot') {
+      const entries = await this.readShotEntries(notePath)
+      const lines = entries.map(e => {
+        const tags = e.tags?.length ? ` [${e.tags.join(', ')}]` : ''
+        return `- ${e.filename}: ${e.title || ''}${e.description ? ' — ' + e.description : ''}${tags}${e.url ? ' (url: ' + e.url + ')' : ''}`
+      })
+      return { content: `# ${displayName}\n\n${lines.join('\n')}`, language: 'markdown' }
     }
 
     const content = await this.readNote(notePath)
@@ -1137,6 +1850,18 @@ export class NotesService {
         await this.saveCommandEntries(notePath, merged)
         break
       }
+      case 'link': {
+        const current = await this.readLinkEntries(notePath)
+        const existingUrls = new Set(current.map((e) => e.url))
+        const cleanNew = newEntries.map((e: any) => ({
+          title: String(e.title || '').trim(),
+          url: String(e.url || '').trim(),
+          description: String(e.description || '').trim() || undefined,
+        }))
+        const merged = [...current, ...cleanNew.filter((e: any) => !existingUrls.has(e.url))]
+        await this.saveLinkEntries(notePath, merged)
+        break
+      }
       case 'todo': {
         const current = await this.readTodoEntries(notePath)
         const merged = await this._mergeWithDuplicateCheck(current, newEntries, 'id', onDuplicate)
@@ -1307,6 +2032,45 @@ export class NotesService {
       return result
     }
 
+    if (fileType === 'link') {
+      const csvLine = /^(.+?)\s*\|\s*(.+?)(?:\s*\|\s*(.*))?$/
+      const hasPipe = lines.some((l) => l.includes('|'))
+      if (hasPipe) {
+        const csvResult: any[] = []
+        for (const line of lines) {
+          const m = line.match(csvLine)
+          if (m) {
+            csvResult.push({
+              url: m[1].trim(),
+              title: m[2].trim(),
+              description: m[3]?.trim() || undefined,
+            })
+          } else if (/^https?:\/\//.test(line.trim())) {
+            csvResult.push({
+              url: line.trim(),
+              title: '',
+            })
+          }
+        }
+        if (csvResult.length > 0) return csvResult
+      }
+      const knownFields: Record<string, string> = {
+        title: 'title', name: 'title', url: 'url', uri: 'url', link: 'url', description: 'description', desc: 'description', note: 'description',
+      }
+      const result = this._parseKeyValueLines(lines, knownFields, 'url')
+      if (result.length === 0) {
+        const singleUrl = lines.find((l) => /^https?:\/\//.test(l.trim()))
+        if (singleUrl) {
+          return [{ url: singleUrl.trim(), title: '' }]
+        }
+        const single: Record<string, string> = {}
+        single.title = this._extractTitle(lines.join(' ')) || 'Imported link'
+        single.url = lines.join('\n')
+        return [single]
+      }
+      return result
+    }
+
     if (fileType === 'todo') {
       const entries: any[] = []
       let current: Record<string, any> = {}
@@ -1440,6 +2204,9 @@ export class NotesService {
       entry.title = entry.title || (entry.code || '').split('\n')[0]?.slice(0, 60) || 'Imported snippet'
     } else if (fileType === 'reminder') {
       entry.title = entry.text || entry.title || 'Reminder'
+    } else if (fileType === 'link') {
+      const u = (entry.url || '').split('\n')[0]
+      entry.title = entry.title || u?.slice(0, 60) || 'Imported link'
     }
 
     return entry
@@ -1605,10 +2372,19 @@ export class NotesService {
       const fullPath = path.join(dirPath, entry.name)
 
       if (entry.isDirectory()) {
-        result.push(...this.getNotesRecursive(fullPath))
+        if (entry.name.endsWith('.anemona-shot') && this.isValidShotFolder(fullPath)) {
+          result.push({
+            name: entry.name,
+            filePath: fullPath,
+            content: '',
+            fileType: 'shot',
+          })
+        } else {
+          result.push(...this.getNotesRecursive(fullPath))
+        }
       } else if (entry.isFile()) {
         const ext = path.extname(entry.name)
-        if (ext === '.md' || ext === '.anemona-key' || ext === '.anemona-command' || ext === '.anemona-lock' || ext === '.anemona-todo' || ext === '.anemona-snippet' || ext === '.anemona-reminder') {
+        if (ext === '.md' || ext === '.anemona-key' || ext === '.anemona-command' || ext === '.anemona-lock' || ext === '.anemona-todo' || ext === '.anemona-snippet' || ext === '.anemona-reminder' || ext === '.anemona-link') {
           result.push({
             name: entry.name,
             filePath: fullPath,
@@ -1740,6 +2516,8 @@ export class NotesService {
     if (fileName.endsWith('.anemona-todo')) return '.anemona-todo'
     if (fileName.endsWith('.anemona-snippet')) return '.anemona-snippet'
     if (fileName.endsWith('.anemona-reminder')) return '.anemona-reminder'
+    if (fileName.endsWith('.anemona-shot')) return '.anemona-shot'
+    if (fileName.endsWith('.anemona-link')) return '.anemona-link'
     if (fileName.endsWith('.md')) return '.md'
     return path.extname(fileName)
   }

@@ -6,7 +6,6 @@
   import EntryTitleBar from "../layout/EntryTitleBar.svelte";
   import KeyPasswordRow from "../ui/KeyPasswordRow.svelte";
   import SearchToolbar from "../ui/SearchToolbar.svelte";
-  import DeleteConfirmModal from "../ui/DeleteConfirmModal.svelte";
   import { COPY_FEEDBACK_MS, copyText } from "../../utils/clipboard";
   import { parseKeySuggestion } from "../../utils/selectionParser";
 
@@ -233,7 +232,7 @@
   function getPropertyIcon(key: string): string {
     switch (key) {
       case "url":
-        return "icon-globe";
+        return "icon-external-link";
       case "email":
         return "icon-envelope";
       case "username":
@@ -532,18 +531,20 @@
       </div>
     </div>
   {:else}
-    <SearchToolbar
-      value={filterText}
-      placeholder={$t("keyEditor.filterPlaceholder")}
-      {sortDirection}
-      showSort={true}
-      sortTitleAsc={$t("keyEditor.sortAscending")}
-      sortTitleDesc={$t("keyEditor.sortDescending")}
-      on:input={(e) => {
-        filterText = e.detail;
-      }}
-      on:toggleSort={toggleSort}
-    />
+    {#if localEntries.length > 0}
+      <SearchToolbar
+        value={filterText}
+        placeholder={$t("keyEditor.filterPlaceholder")}
+        {sortDirection}
+        showSort={true}
+        sortTitleAsc={$t("keyEditor.sortAscending")}
+        sortTitleDesc={$t("keyEditor.sortDescending")}
+        on:input={(e) => {
+          filterText = e.detail;
+        }}
+        on:toggleSort={toggleSort}
+      />
+    {/if}
     <div class="key-editor__entries entry-list" bind:this={entriesContainerElem}>
       {#each filteredEntries as entry, i}
         {@const realIndex = localEntries.indexOf(entry)}
@@ -640,13 +641,17 @@
   {/if}
 </div>
 
-<DeleteConfirmModal
-  show={deletePrompt !== null}
-  title={$t("keyEditor.deleteEntryTitle")}
-  itemName={deletePrompt ? deletePrompt.title : ""}
-  on:confirm={confirmDeletePrompt}
-  on:cancel={cancelDeletePrompt}
-/>
+{#if deletePrompt}
+  <button class="modal-backdrop" on:click={cancelDeletePrompt} aria-label="Close"></button>
+  <div class="delete-modal">
+    <h3>{$t("keyEditor.deleteEntryTitle")}</h3>
+    <p>{$t("keyEditor.deleteEntryBody", { title: deletePrompt.title })}</p>
+    <div class="form-actions">
+      <button class="btn" on:click={cancelDeletePrompt}>{$t('common.cancel')}</button>
+      <button class="btn danger" on:click={confirmDeletePrompt}>{$t('common.delete')}</button>
+    </div>
+  </div>
+{/if}
 
 {#if keyModalMode}
   <button class="modal-backdrop" on:click={cancelModal} aria-label="Close"

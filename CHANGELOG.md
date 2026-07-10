@@ -1,8 +1,16 @@
 # Changelog
 
+## 1.0.7 — 2026-07-09
+
+- **Link manager (Anémona Link)** — New `.anemona-link` note type to save and organize links. Each entry stores a title, URL, and optional description. Import links from CSV (`url | title`) or JSON, export as text, markdown, or JSON, and open URLs directly from the editor. Comes with a dedicated editor, sorting, filtering.
+- **Link status checker & auto-fill** — Every link entry now shows whether the site is reachable (green/gray/red indicator). Click the sync button on any entry (or use "Check all") to fetch the page title, description, and favicon — the form auto-fills when adding new links. Sync runs one at a time, can be cancelled mid-way, and scrolls to the current entry as it progresses. If the page is blocked by Cloudflare or similar, you'll see a friendly explanation instead of a generic error.
+- **Simpler delete confirmation** — Removing an entry from any editor (links, commands, keys, tasks, snippets, reminders) now uses a simple "Cancel / Delete" dialog instead of typing a random code. The code-based confirmation is kept for deleting entire files, folders, and categories, where the stakes are higher.
+- **Visual gallery (Anémona Shot)** — New `.anemona-shot` note type for storing images as visual notes. Create galleries by pasting or importing images. Folder-based structure with `anemona-shot.json` metadata and `images/` directory. Supports drag-and-drop paste, file import, image preview, clipboard copy, metadata editing (title, description, source URL, tags), search/filter, sorting, and theme-compatible styling.
+- **Fix: Folder delete navigates to parent** — When deleting the folder you're currently inside, the view now automatically returns to the parent folder instead of staying on the deleted folder.
+
 ## 1.0.6 — 2026-06-24
 
-- **Fix: Recurring reminders overflow on short months** — Monthly/yearly reminders now clamp to the last valid day of the target month instead of overflowing (e.g. Jan 31 + 1 month → Feb 28, not Mar 3). Same fix for Feb 29 in non-leap years. Applies to both the scheduler and the reminder editor.
+- **Fix: Recurring reminders overflow on short months** — Monthly/yearly reminders now clamp to the last valid day of the target month instead of overflowing (e.g. Jan 31 + 1 month → Feb 28, not Mar 3). Same fix for Feb 29 in non-leap years. Applies to both the scheduler (`computeNextDue` in `extension.ts` and `utils.ts`) and the reminder editor (`computeDueIso` in `ReminderEditor.svelte`).
 - **Command documentation** — Command entries now support optional documentation/usage notes, including editing, expand/collapse display, filtering/search, and text/markdown export.
 
 ## 1.0.5 — 2026-06-18

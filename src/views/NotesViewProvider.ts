@@ -117,13 +117,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider {
     this._view = webviewView
     this._updateBadgeFromNotifications()
 
-    webviewView.webview.options = {
-      enableScripts: true,
-      localResourceRoots: [
-        vscode.Uri.joinPath(this._extensionUri, 'webview', 'dist'),
-        vscode.Uri.joinPath(this._extensionUri, 'media', 'icons'),
-      ],
-    }
+    this._updateWebviewResourceRoots()
 
     webviewView.webview.html = this._getHtmlContent(webviewView.webview)
 
@@ -132,6 +126,22 @@ export class NotesViewProvider implements vscode.WebviewViewProvider {
         await this._handleMessage(message)
       },
     )
+  }
+
+  private _updateWebviewResourceRoots(): void {
+    if (!this._view) return
+    const roots = [
+      vscode.Uri.joinPath(this._extensionUri, 'webview', 'dist'),
+      vscode.Uri.joinPath(this._extensionUri, 'media', 'icons'),
+    ]
+    const storagePath = this._notesService.getStoragePath()
+    if (storagePath) {
+      roots.push(vscode.Uri.file(storagePath))
+    }
+    this._view.webview.options = {
+      enableScripts: true,
+      localResourceRoots: roots,
+    }
   }
 
   postSetLocale(locale: string): void {
@@ -259,6 +269,14 @@ export class NotesViewProvider implements vscode.WebviewViewProvider {
         )
         break
 
+      case 'exportShot':
+        await this._exportShot(message.notePath as string)
+        break
+
+      case 'importShot':
+        await this._importShot(message.notePath as string)
+        break
+
       case 'createCategory':
         await this._createCategory(message.name as string)
         break
@@ -312,6 +330,37 @@ export class NotesViewProvider implements vscode.WebviewViewProvider {
         )
         break
 
+      case 'saveLinkEntries':
+        await this._saveLinkEntries(
+          message.notePath as string,
+          message.entries as any[],
+        )
+        break
+
+      case 'syncLinkEntry':
+        await this._syncLinkEntry(
+          message.notePath as string,
+          message.entries as any[],
+          message.index as number,
+        )
+        break
+
+      case 'syncLinkEntries':
+        await this._syncLinkEntries(
+          message.notePath as string,
+          message.entries as any[],
+          message.startIndex as number | undefined,
+        )
+        break
+
+      case 'cancelSyncAll':
+        this._notesService.cancelSyncAll()
+        break
+
+      case 'previewLink':
+        await this._previewLink(message.url as string)
+        break
+
       case 'saveTodoEntries':
         await this._saveTodoEntries(
           message.notePath as string,
@@ -330,6 +379,50 @@ export class NotesViewProvider implements vscode.WebviewViewProvider {
         await this._saveReminderEntries(
           message.notePath as string,
           message.entries as any[],
+        )
+        break
+
+      case 'saveShotEntries':
+        await this._saveShotEntries(
+          message.notePath as string,
+          message.entries as any[],
+        )
+        break
+
+      case 'saveShotImage':
+        await this._saveShotImage(
+          message.notePath as string,
+          message.filename as string,
+          message.data as string,
+        )
+        break
+
+      case 'saveShot':
+        await this._saveShot(
+          message.notePath as string,
+          message.entries as any[],
+          message.image as { filename: string; data: string } | null,
+        )
+        break
+
+      case 'openShotImage':
+        await this._openShotImage(
+          message.notePath as string,
+          message.filename as string,
+        )
+        break
+
+      case 'deleteShotImage':
+        await this._deleteShotImage(
+          message.notePath as string,
+          message.filename as string,
+        )
+        break
+
+      case 'copyShotImage':
+        await this._copyShotImage(
+          message.notePath as string,
+          message.filename as string,
         )
         break
 
@@ -573,6 +666,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider {
     this._resetViewState()
     await ConfigService.setStoragePath(folderPath)
     this._notesService.setStoragePath(folderPath)
+    this._updateWebviewResourceRoots()
     this._addRecentFolder(folderPath)
     this._onVaultSwitch?.(folderPath)
     this._updateViewTitle()
@@ -692,6 +786,12 @@ export class NotesViewProvider implements vscode.WebviewViewProvider {
           fileType: 'command',
           entries,
         })
+      } else if (fileType === 'link') {
+        const entries = await this._notesService.readLinkEntries(note.filePath)
+        postNoteContent({
+          fileType: 'link',
+          entries,
+        })
       } else if (fileType === 'todo') {
         const entries = await this._notesService.readTodoEntries(note.filePath)
         postNoteContent({
@@ -709,6 +809,18 @@ export class NotesViewProvider implements vscode.WebviewViewProvider {
         postNoteContent({
           fileType: 'reminder',
           entries,
+        })
+      } else if (fileType === 'shot') {
+        const entries = await this._notesService.readShotEntries(note.filePath)
+        const imagesUri = note.filePath.endsWith('.anemona-shot')
+          ? this._view?.webview.asWebviewUri(
+              vscode.Uri.file(path.join(note.filePath, 'images')),
+            ).toString() || ''
+          : ''
+        postNoteContent({
+          fileType: 'shot',
+          entries,
+          shotImagesUri: imagesUri,
         })
       } else {
         const content = await this._notesService.readNote(note.filePath)
@@ -804,6 +916,101 @@ export class NotesViewProvider implements vscode.WebviewViewProvider {
     }
   }
 
+  private async _saveLinkEntries(
+    notePath: string,
+    entries: any[],
+  ): Promise<void> {
+    try {
+      await this._notesService.saveLinkEntries(notePath, entries)
+      this._postMessage({ command: 'noteSaved' })
+    } catch (err) {
+      this._postMessage({
+        command: 'error',
+        message: err instanceof Error ? err.message : 'Failed to save entries',
+      })
+    }
+  }
+
+  private async _syncLinkEntry(
+    notePath: string,
+    entries: any[],
+    index: number,
+  ): Promise<void> {
+    try {
+      const entry = entries[index]
+      if (!entry) throw new Error('Entry not found at index ' + index)
+      const { entry: synced, message } = await this._notesService.syncLinkEntry(entry)
+      const updated = [...entries]
+      updated[index] = synced
+      await this._notesService.saveLinkEntries(notePath, updated)
+      this._postMessage({
+        command: 'linkEntriesSynced',
+        entries: updated,
+        syncMessage: message || undefined,
+      })
+    } catch (err) {
+      this._postMessage({
+        command: 'error',
+        message: err instanceof Error ? err.message : 'Failed to sync link entry',
+      })
+    }
+  }
+
+  private async _syncLinkEntries(
+    notePath: string,
+    entries: any[],
+    startIndex?: number,
+  ): Promise<void> {
+    try {
+      const messages: string[] = []
+      const offset = typeof startIndex === 'number' ? Math.max(0, startIndex) : 0
+      let lastSyncedIndex = -1
+      for (let i = offset; i < entries.length; i++) {
+        if (this._notesService.isSyncAllCancelled()) break
+        const { entry: synced, message } = await this._notesService.syncLinkEntry(entries[i])
+        entries[i] = synced
+        lastSyncedIndex = i
+        if (message) messages.push(message)
+        await this._notesService.saveLinkEntries(notePath, entries)
+        this._postMessage({
+          command: 'linkSyncProgress',
+          index: i,
+          entries: [...entries],
+        })
+      }
+      const cancelled = this._notesService.isSyncAllCancelled()
+      this._notesService.resetSyncAllCancel()
+      this._postMessage({
+        command: 'linkEntriesSynced',
+        entries,
+        syncMessage: messages.length > 0 ? messages.join('\n') : undefined,
+        syncCancelled: cancelled,
+        lastSyncedIndex: cancelled ? lastSyncedIndex : undefined,
+      })
+    } catch (err) {
+      this._postMessage({
+        command: 'error',
+        message: err instanceof Error ? err.message : 'Failed to sync link entries',
+      })
+    }
+  }
+
+  private async _previewLink(url: string): Promise<void> {
+    try {
+      const result = await this._notesService.previewLink(url)
+      this._postMessage({
+        command: 'linkPreviewReady',
+        url,
+        ...result,
+      })
+    } catch (err) {
+      this._postMessage({
+        command: 'error',
+        message: err instanceof Error ? err.message : 'Failed to preview link',
+      })
+    }
+  }
+
   private async _saveTodoEntries(
     notePath: string,
     entries: any[],
@@ -866,6 +1073,139 @@ export class NotesViewProvider implements vscode.WebviewViewProvider {
       this._postMessage({
         command: 'error',
         message: err instanceof Error ? err.message : 'Failed to save reminder entries',
+      })
+    }
+  }
+
+  private async _saveShotEntries(
+    notePath: string,
+    entries: any[],
+  ): Promise<void> {
+    try {
+      await this._notesService.saveShotEntries(notePath, entries)
+      this._postMessage({ command: 'noteSaved' })
+    } catch (err) {
+      this._postMessage({
+        command: 'error',
+        message: err instanceof Error ? err.message : 'Failed to save shot entries',
+      })
+    }
+  }
+
+  private async _saveShotImage(
+    notePath: string,
+    filename: string,
+    data: string,
+  ): Promise<void> {
+    try {
+      const base64 = data.includes(',') ? data.slice(data.indexOf(',') + 1) : data
+      const buffer = Buffer.from(base64, 'base64')
+      const imagesDir = path.join(notePath, 'images')
+
+      if (!fs.existsSync(imagesDir)) {
+        fs.mkdirSync(imagesDir, { recursive: true })
+      }
+
+      const filePath = path.join(imagesDir, filename)
+      fs.writeFileSync(filePath, buffer)
+
+      this._postMessage({ command: 'noteSaved' })
+    } catch (err) {
+      this._postMessage({
+        command: 'error',
+        message: err instanceof Error ? err.message : 'Failed to save image',
+      })
+    }
+  }
+
+  private async _saveShot(
+    notePath: string,
+    entries: any[],
+    image: { filename: string; data: string } | null,
+  ): Promise<void> {
+    try {
+      if (image) {
+        const base64 = image.data.includes(',') ? image.data.slice(image.data.indexOf(',') + 1) : image.data
+        const buffer = Buffer.from(base64, 'base64')
+        const imagesDir = path.join(notePath, 'images')
+
+        if (!fs.existsSync(imagesDir)) {
+          fs.mkdirSync(imagesDir, { recursive: true })
+        }
+
+        fs.writeFileSync(path.join(imagesDir, image.filename), buffer)
+      }
+
+      await this._notesService.saveShotEntries(notePath, entries)
+      this._postMessage({ command: 'noteSaved' })
+    } catch (err) {
+      this._postMessage({
+        command: 'error',
+        message: err instanceof Error ? err.message : 'Failed to save shot',
+      })
+    }
+  }
+
+  private async _deleteShotImage(
+    notePath: string,
+    filename: string,
+  ): Promise<void> {
+    try {
+      const filePath = path.join(notePath, 'images', filename)
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath)
+      }
+      this._postMessage({ command: 'noteSaved' })
+    } catch (err) {
+      this._postMessage({
+        command: 'error',
+        message: err instanceof Error ? err.message : 'Failed to delete image',
+      })
+    }
+  }
+
+  private async _openShotImage(notePath: string, filename: string): Promise<void> {
+    try {
+      const imagePath = path.join(notePath, 'images', filename)
+      if (!fs.existsSync(imagePath)) {
+        throw new Error('Image file not found')
+      }
+      await vscode.commands.executeCommand('vscode.open', vscode.Uri.file(imagePath))
+    } catch (err) {
+      this._postMessage({
+        command: 'error',
+        message: err instanceof Error ? err.message : 'Failed to open image',
+      })
+    }
+  }
+
+  private async _copyShotImage(
+    notePath: string,
+    filename: string,
+  ): Promise<void> {
+    try {
+      const filePath = path.join(notePath, 'images', filename)
+      if (!fs.existsSync(filePath)) return
+
+      const ext = path.extname(filename).toLowerCase()
+      const mimeMap: Record<string, string> = {
+        '.png': 'image/png',
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.webp': 'image/webp',
+        '.gif': 'image/gif',
+        '.svg': 'image/svg+xml',
+      }
+      const mime = mimeMap[ext] || 'image/png'
+      const buffer = fs.readFileSync(filePath)
+      const base64 = buffer.toString('base64')
+      const dataUrl = `data:${mime};base64,${base64}`
+
+      await vscode.env.clipboard.writeText(dataUrl)
+    } catch (err) {
+      this._postMessage({
+        command: 'error',
+        message: err instanceof Error ? err.message : 'Failed to copy image',
       })
     }
   }
@@ -989,9 +1329,18 @@ export class NotesViewProvider implements vscode.WebviewViewProvider {
 
   private async _deleteFolder(folderPath: string): Promise<void> {
     try {
+      const rel = this._getRelativeParts(folderPath)
       await this._notesService.deleteFolder(folderPath)
       this._scheduledEventsCache?.rebuild()
       const category = this._getCategoryFromNotePath(folderPath) || this._currentCategory
+      if (rel && this._currentFolderPath) {
+        const deletedRel = rel.folderPath
+        if (deletedRel && (this._currentFolderPath === deletedRel || this._currentFolderPath.startsWith(deletedRel + '/'))) {
+          const parentParts = deletedRel.split('/')
+          parentParts.pop()
+          this._currentFolderPath = parentParts.join('/')
+        }
+      }
       if (category) {
         this._loadNotes(category, this._currentFolderPath)
       }
@@ -1149,7 +1498,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider {
           openLabel: 'Import file',
           filters: {
             'All Files': ['*'],
-            'Anemona Vault': ['*anemona-key', '*anemona-lock', '*anemona-command', '*anemona-todo', '*anemona-snippet', '*anemona-reminder', '*.md'],
+            'Anemona Vault': ['*anemona-key', '*anemona-lock', '*anemona-command', '*anemona-todo', '*anemona-snippet', '*anemona-reminder', '*anemona-link', '*.md'],
           },
         })
         if (!files || files.length === 0) return
@@ -1269,6 +1618,49 @@ export class NotesViewProvider implements vscode.WebviewViewProvider {
       this._postMessage({
         command: 'error',
         message: err instanceof Error ? err.message : 'Failed to export note',
+      })
+    }
+  }
+
+  private async _exportShot(notePath: string): Promise<void> {
+    try {
+      const defaultName = `${path.basename(notePath)}.zip`
+      const uri = await vscode.window.showSaveDialog({
+        defaultUri: vscode.Uri.file(path.join(path.dirname(notePath), defaultName)),
+        filters: { 'ZIP Archive': ['zip'] },
+      })
+      if (!uri) return
+
+      await this._notesService.exportShot(notePath, uri.fsPath)
+    } catch (err) {
+      this._postMessage({
+        command: 'error',
+        message: err instanceof Error ? err.message : 'Failed to export shot gallery',
+      })
+    }
+  }
+
+  private async _importShot(notePath: string): Promise<void> {
+    try {
+      const files = await vscode.window.showOpenDialog({
+        canSelectFiles: true,
+        canSelectFolders: false,
+        canSelectMany: false,
+        openLabel: 'Import gallery ZIP',
+        filters: { 'ZIP Archive': ['zip'] },
+      })
+      if (!files || files.length === 0) return
+
+      await this._notesService.importShot(notePath, files[0].fsPath)
+      const category = this._getCategoryFromNotePath(notePath) || this._currentCategory
+      if (category) {
+        this._loadNotes(category, this._currentFolderPath)
+        await this._loadNoteContent(category, path.basename(notePath), notePath)
+      }
+    } catch (err) {
+      this._postMessage({
+        command: 'error',
+        message: err instanceof Error ? err.message : 'Failed to import shot gallery',
       })
     }
   }
@@ -1471,6 +1863,10 @@ export class NotesViewProvider implements vscode.WebviewViewProvider {
     if (this._currentCategory) {
       this._loadNotes(this._currentCategory, this._currentFolderPath)
     }
+    if (this._currentNotePath && this._currentCategory) {
+      const noteName = path.basename(this._currentNotePath)
+      this._loadNoteContent(this._currentCategory, noteName, this._currentNotePath)
+    }
     this._notificationService?.reload()
     this._sendNotifications()
   }
@@ -1554,6 +1950,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider {
       this._resetViewState()
       await ConfigService.setStoragePath(folderPath)
       this._notesService.setStoragePath(folderPath)
+      this._updateWebviewResourceRoots()
       this._addRecentFolder(folderPath)
       this._onVaultSwitch?.(folderPath)
       this._updateViewTitle()

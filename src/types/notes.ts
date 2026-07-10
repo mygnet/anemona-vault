@@ -5,7 +5,7 @@ export interface Note {
   fileType: FileType
 }
 
-export type FileType = 'md' | 'key' | 'command' | 'todo' | 'snippet' | 'reminder'
+export type FileType = 'md' | 'key' | 'command' | 'todo' | 'snippet' | 'reminder' | 'shot' | 'link'
 
 export interface CategoryConfig {
   color?: string
@@ -56,6 +56,17 @@ export interface SnippetEntry {
   code: string
 }
 
+export type LinkStatus = 'unknown' | 'ok' | 'error'
+
+export interface LinkEntry {
+  title: string
+  url: string
+  description?: string
+  status?: LinkStatus
+  favicon?: string
+  lastCheckedAt?: string
+}
+
 export interface GlobalSearchResult {
   category: string
   noteName: string
@@ -94,6 +105,20 @@ export interface RecentFolderData {
   name: string
   icon?: string
   lastOpened: string
+}
+
+export interface ShotEntry {
+  id: string
+  filename: string
+  path: string
+  mimeType: string
+  fileSize?: number
+  createdAt: string
+  updatedAt: string
+  title?: string
+  description?: string
+  url?: string
+  tags?: string[]
 }
 
 export interface AnemonaReminderAction {

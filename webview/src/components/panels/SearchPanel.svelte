@@ -56,13 +56,14 @@
     if (fileType === 'key') return $t('searchPanel.typeKeys')
     if (fileType === 'command') return $t('searchPanel.typeCommands')
     if (fileType === 'todo') return $t('searchPanel.typeTasks')
+    if (fileType === 'link') return $t('searchPanel.typeLinks')
     return $t('searchPanel.typeDocument')
   }
 </script>
 
 <div class="search-panel">
   <div class="search-panel__header ui-card">
-    <button class="icon-btn" on:click={() => dispatch('close')} title={$t('searchPanel.back')}><span class="anemona icon-chevron-left"></span></button>
+    <button class="icon-btn" on:click={() => dispatch('close')} title={$t('searchPanel.back')}><span class="anemona icon-arrow-back"></span></button>
     <span class="search-panel__title">{$t('searchPanel.title')}</span>
   </div>
 

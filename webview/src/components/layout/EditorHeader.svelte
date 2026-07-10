@@ -27,7 +27,7 @@
 
 <div class="editor-header">
   <button class="icon-btn" on:click={() => dispatch('back')} title={$t('common.back')}
-    ><span class="anemona icon-chevron-left"></span></button
+    ><span class="anemona icon-arrow-back"></span></button
   >
   <span class="editor-header__title"><span class="editor-header__icon anemona {iconClass}"></span>{displayName}</span>
   <div class="editor-header__actions">

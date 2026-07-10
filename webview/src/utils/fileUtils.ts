@@ -12,7 +12,7 @@ export function resolveColorValue(color?: string, fallback?: string): string {
 }
 
 export function getDisplayName(name: string): string {
-  return name.replace(/\.(anemona-(lock|key|command|todo|snippet|reminder)|md)$/, '')
+  return name.replace(/\.(anemona-(lock|key|command|todo|snippet|reminder|shot|link)|md)$/, '')
 }
 
 export function getFileIconClass(name: string): string {
@@ -22,6 +22,8 @@ export function getFileIconClass(name: string): string {
   if (name.endsWith('.anemona-todo')) return 'icon-list-todo'
   if (name.endsWith('.anemona-snippet')) return 'icon-code-xml'
   if (name.endsWith('.anemona-reminder')) return 'icon-alarm-clock'
+  if (name.endsWith('.anemona-shot')) return 'icon-image'
+  if (name.endsWith('.anemona-link')) return 'icon-link'
   return 'icon-file-text'
 }
 
@@ -32,6 +34,8 @@ export function getFileTypeIconClass(fileType?: string, name?: string): string {
   if (fileType === 'todo') return 'icon-list-todo'
   if (fileType === 'snippet') return 'icon-code-xml'
   if (fileType === 'reminder') return 'icon-alarm-clock'
+  if (fileType === 'shot') return 'icon-image'
+  if (fileType === 'link') return 'icon-link'
   return name ? getFileIconClass(name) : 'icon-file-text'
 }
 

@@ -2,21 +2,21 @@
   {
     "id": "f2753672-49b7-4f66-8506-533a74681a05",
     "title": "Objetivo\nConstruir el núcleo mínimo funcional.",
-    "progress": 0,
+    "progress": 90,
     "status": "open",
-    "priority": "low"
+    "priority": "medium"
   },
   {
     "id": "d404296f-67a3-45bd-8afb-b112ef5b79bb",
     "title": "Paso 1. Infraestructura Base\n* Docker Compose.\n* PostgreSQL.\n* pgvector.\n* Redis.\n* Laravel.",
-    "progress": 0,
+    "progress": 95,
     "status": "open",
     "priority": "high"
   },
   {
     "id": "0d680571-8c95-4869-80d0-1c0640441457",
     "title": "Paso 2. Core API\n* Usuarios.\n* Organizaciones.\n* Equipos.\n* Proyectos.",
-    "progress": 0,
+    "progress": 75,
     "status": "open",
     "priority": "medium"
   },

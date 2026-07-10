@@ -129,17 +129,27 @@ class NotesViewProvider {
     resolveWebviewView(webviewView, _context, _token) {
         this._view = webviewView;
         this._updateBadgeFromNotifications();
-        webviewView.webview.options = {
-            enableScripts: true,
-            localResourceRoots: [
-                vscode.Uri.joinPath(this._extensionUri, 'webview', 'dist'),
-                vscode.Uri.joinPath(this._extensionUri, 'media', 'icons'),
-            ],
-        };
+        this._updateWebviewResourceRoots();
         webviewView.webview.html = this._getHtmlContent(webviewView.webview);
         webviewView.webview.onDidReceiveMessage(async (message) => {
             await this._handleMessage(message);
         });
+    }
+    _updateWebviewResourceRoots() {
+        if (!this._view)
+            return;
+        const roots = [
+            vscode.Uri.joinPath(this._extensionUri, 'webview', 'dist'),
+            vscode.Uri.joinPath(this._extensionUri, 'media', 'icons'),
+        ];
+        const storagePath = this._notesService.getStoragePath();
+        if (storagePath) {
+            roots.push(vscode.Uri.file(storagePath));
+        }
+        this._view.webview.options = {
+            enableScripts: true,
+            localResourceRoots: roots,
+        };
     }
     postSetLocale(locale) {
         this._postMessage({ command: 'setLocale', locale });
@@ -223,6 +233,12 @@ class NotesViewProvider {
             case 'exportNote':
                 await this._exportNote(message.notePath, message.format);
                 break;
+            case 'exportShot':
+                await this._exportShot(message.notePath);
+                break;
+            case 'importShot':
+                await this._importShot(message.notePath);
+                break;
             case 'createCategory':
                 await this._createCategory(message.name);
                 break;
@@ -253,6 +269,21 @@ class NotesViewProvider {
             case 'saveCommandEntries':
                 await this._saveCommandEntries(message.notePath, message.entries);
                 break;
+            case 'saveLinkEntries':
+                await this._saveLinkEntries(message.notePath, message.entries);
+                break;
+            case 'syncLinkEntry':
+                await this._syncLinkEntry(message.notePath, message.entries, message.index);
+                break;
+            case 'syncLinkEntries':
+                await this._syncLinkEntries(message.notePath, message.entries, message.startIndex);
+                break;
+            case 'cancelSyncAll':
+                this._notesService.cancelSyncAll();
+                break;
+            case 'previewLink':
+                await this._previewLink(message.url);
+                break;
             case 'saveTodoEntries':
                 await this._saveTodoEntries(message.notePath, message.entries);
                 break;
@@ -261,6 +292,24 @@ class NotesViewProvider {
                 break;
             case 'saveReminderEntries':
                 await this._saveReminderEntries(message.notePath, message.entries);
+                break;
+            case 'saveShotEntries':
+                await this._saveShotEntries(message.notePath, message.entries);
+                break;
+            case 'saveShotImage':
+                await this._saveShotImage(message.notePath, message.filename, message.data);
+                break;
+            case 'saveShot':
+                await this._saveShot(message.notePath, message.entries, message.image);
+                break;
+            case 'openShotImage':
+                await this._openShotImage(message.notePath, message.filename);
+                break;
+            case 'deleteShotImage':
+                await this._deleteShotImage(message.notePath, message.filename);
+                break;
+            case 'copyShotImage':
+                await this._copyShotImage(message.notePath, message.filename);
                 break;
             case 'searchGlobal':
                 await this._searchGlobal(String(message.query || ''));
@@ -477,6 +526,7 @@ class NotesViewProvider {
         this._resetViewState();
         await ConfigService_1.ConfigService.setStoragePath(folderPath);
         this._notesService.setStoragePath(folderPath);
+        this._updateWebviewResourceRoots();
         this._addRecentFolder(folderPath);
         this._onVaultSwitch?.(folderPath);
         this._updateViewTitle();
@@ -587,6 +637,13 @@ class NotesViewProvider {
                     entries,
                 });
             }
+            else if (fileType === 'link') {
+                const entries = await this._notesService.readLinkEntries(note.filePath);
+                postNoteContent({
+                    fileType: 'link',
+                    entries,
+                });
+            }
             else if (fileType === 'todo') {
                 const entries = await this._notesService.readTodoEntries(note.filePath);
                 postNoteContent({
@@ -606,6 +663,17 @@ class NotesViewProvider {
                 postNoteContent({
                     fileType: 'reminder',
                     entries,
+                });
+            }
+            else if (fileType === 'shot') {
+                const entries = await this._notesService.readShotEntries(note.filePath);
+                const imagesUri = note.filePath.endsWith('.anemona-shot')
+                    ? this._view?.webview.asWebviewUri(vscode.Uri.file(path.join(note.filePath, 'images'))).toString() || ''
+                    : '';
+                postNoteContent({
+                    fileType: 'shot',
+                    entries,
+                    shotImagesUri: imagesUri,
                 });
             }
             else {
@@ -689,6 +757,93 @@ class NotesViewProvider {
             });
         }
     }
+    async _saveLinkEntries(notePath, entries) {
+        try {
+            await this._notesService.saveLinkEntries(notePath, entries);
+            this._postMessage({ command: 'noteSaved' });
+        }
+        catch (err) {
+            this._postMessage({
+                command: 'error',
+                message: err instanceof Error ? err.message : 'Failed to save entries',
+            });
+        }
+    }
+    async _syncLinkEntry(notePath, entries, index) {
+        try {
+            const entry = entries[index];
+            if (!entry)
+                throw new Error('Entry not found at index ' + index);
+            const { entry: synced, message } = await this._notesService.syncLinkEntry(entry);
+            const updated = [...entries];
+            updated[index] = synced;
+            await this._notesService.saveLinkEntries(notePath, updated);
+            this._postMessage({
+                command: 'linkEntriesSynced',
+                entries: updated,
+                syncMessage: message || undefined,
+            });
+        }
+        catch (err) {
+            this._postMessage({
+                command: 'error',
+                message: err instanceof Error ? err.message : 'Failed to sync link entry',
+            });
+        }
+    }
+    async _syncLinkEntries(notePath, entries, startIndex) {
+        try {
+            const messages = [];
+            const offset = typeof startIndex === 'number' ? Math.max(0, startIndex) : 0;
+            let lastSyncedIndex = -1;
+            for (let i = offset; i < entries.length; i++) {
+                if (this._notesService.isSyncAllCancelled())
+                    break;
+                const { entry: synced, message } = await this._notesService.syncLinkEntry(entries[i]);
+                entries[i] = synced;
+                lastSyncedIndex = i;
+                if (message)
+                    messages.push(message);
+                await this._notesService.saveLinkEntries(notePath, entries);
+                this._postMessage({
+                    command: 'linkSyncProgress',
+                    index: i,
+                    entries: [...entries],
+                });
+            }
+            const cancelled = this._notesService.isSyncAllCancelled();
+            this._notesService.resetSyncAllCancel();
+            this._postMessage({
+                command: 'linkEntriesSynced',
+                entries,
+                syncMessage: messages.length > 0 ? messages.join('\n') : undefined,
+                syncCancelled: cancelled,
+                lastSyncedIndex: cancelled ? lastSyncedIndex : undefined,
+            });
+        }
+        catch (err) {
+            this._postMessage({
+                command: 'error',
+                message: err instanceof Error ? err.message : 'Failed to sync link entries',
+            });
+        }
+    }
+    async _previewLink(url) {
+        try {
+            const result = await this._notesService.previewLink(url);
+            this._postMessage({
+                command: 'linkPreviewReady',
+                url,
+                ...result,
+            });
+        }
+        catch (err) {
+            this._postMessage({
+                command: 'error',
+                message: err instanceof Error ? err.message : 'Failed to preview link',
+            });
+        }
+    }
     async _saveTodoEntries(notePath, entries) {
         try {
             await this._notesService.saveTodoEntries(notePath, entries);
@@ -735,6 +890,115 @@ class NotesViewProvider {
             this._postMessage({
                 command: 'error',
                 message: err instanceof Error ? err.message : 'Failed to save reminder entries',
+            });
+        }
+    }
+    async _saveShotEntries(notePath, entries) {
+        try {
+            await this._notesService.saveShotEntries(notePath, entries);
+            this._postMessage({ command: 'noteSaved' });
+        }
+        catch (err) {
+            this._postMessage({
+                command: 'error',
+                message: err instanceof Error ? err.message : 'Failed to save shot entries',
+            });
+        }
+    }
+    async _saveShotImage(notePath, filename, data) {
+        try {
+            const base64 = data.includes(',') ? data.slice(data.indexOf(',') + 1) : data;
+            const buffer = Buffer.from(base64, 'base64');
+            const imagesDir = path.join(notePath, 'images');
+            if (!fs.existsSync(imagesDir)) {
+                fs.mkdirSync(imagesDir, { recursive: true });
+            }
+            const filePath = path.join(imagesDir, filename);
+            fs.writeFileSync(filePath, buffer);
+            this._postMessage({ command: 'noteSaved' });
+        }
+        catch (err) {
+            this._postMessage({
+                command: 'error',
+                message: err instanceof Error ? err.message : 'Failed to save image',
+            });
+        }
+    }
+    async _saveShot(notePath, entries, image) {
+        try {
+            if (image) {
+                const base64 = image.data.includes(',') ? image.data.slice(image.data.indexOf(',') + 1) : image.data;
+                const buffer = Buffer.from(base64, 'base64');
+                const imagesDir = path.join(notePath, 'images');
+                if (!fs.existsSync(imagesDir)) {
+                    fs.mkdirSync(imagesDir, { recursive: true });
+                }
+                fs.writeFileSync(path.join(imagesDir, image.filename), buffer);
+            }
+            await this._notesService.saveShotEntries(notePath, entries);
+            this._postMessage({ command: 'noteSaved' });
+        }
+        catch (err) {
+            this._postMessage({
+                command: 'error',
+                message: err instanceof Error ? err.message : 'Failed to save shot',
+            });
+        }
+    }
+    async _deleteShotImage(notePath, filename) {
+        try {
+            const filePath = path.join(notePath, 'images', filename);
+            if (fs.existsSync(filePath)) {
+                fs.unlinkSync(filePath);
+            }
+            this._postMessage({ command: 'noteSaved' });
+        }
+        catch (err) {
+            this._postMessage({
+                command: 'error',
+                message: err instanceof Error ? err.message : 'Failed to delete image',
+            });
+        }
+    }
+    async _openShotImage(notePath, filename) {
+        try {
+            const imagePath = path.join(notePath, 'images', filename);
+            if (!fs.existsSync(imagePath)) {
+                throw new Error('Image file not found');
+            }
+            await vscode.commands.executeCommand('vscode.open', vscode.Uri.file(imagePath));
+        }
+        catch (err) {
+            this._postMessage({
+                command: 'error',
+                message: err instanceof Error ? err.message : 'Failed to open image',
+            });
+        }
+    }
+    async _copyShotImage(notePath, filename) {
+        try {
+            const filePath = path.join(notePath, 'images', filename);
+            if (!fs.existsSync(filePath))
+                return;
+            const ext = path.extname(filename).toLowerCase();
+            const mimeMap = {
+                '.png': 'image/png',
+                '.jpg': 'image/jpeg',
+                '.jpeg': 'image/jpeg',
+                '.webp': 'image/webp',
+                '.gif': 'image/gif',
+                '.svg': 'image/svg+xml',
+            };
+            const mime = mimeMap[ext] || 'image/png';
+            const buffer = fs.readFileSync(filePath);
+            const base64 = buffer.toString('base64');
+            const dataUrl = `data:${mime};base64,${base64}`;
+            await vscode.env.clipboard.writeText(dataUrl);
+        }
+        catch (err) {
+            this._postMessage({
+                command: 'error',
+                message: err instanceof Error ? err.message : 'Failed to copy image',
             });
         }
     }
@@ -857,9 +1121,18 @@ class NotesViewProvider {
     }
     async _deleteFolder(folderPath) {
         try {
+            const rel = this._getRelativeParts(folderPath);
             await this._notesService.deleteFolder(folderPath);
             this._scheduledEventsCache?.rebuild();
             const category = this._getCategoryFromNotePath(folderPath) || this._currentCategory;
+            if (rel && this._currentFolderPath) {
+                const deletedRel = rel.folderPath;
+                if (deletedRel && (this._currentFolderPath === deletedRel || this._currentFolderPath.startsWith(deletedRel + '/'))) {
+                    const parentParts = deletedRel.split('/');
+                    parentParts.pop();
+                    this._currentFolderPath = parentParts.join('/');
+                }
+            }
             if (category) {
                 this._loadNotes(category, this._currentFolderPath);
             }
@@ -1015,7 +1288,7 @@ class NotesViewProvider {
                     openLabel: 'Import file',
                     filters: {
                         'All Files': ['*'],
-                        'Anemona Vault': ['*anemona-key', '*anemona-lock', '*anemona-command', '*anemona-todo', '*anemona-snippet', '*anemona-reminder', '*.md'],
+                        'Anemona Vault': ['*anemona-key', '*anemona-lock', '*anemona-command', '*anemona-todo', '*anemona-snippet', '*anemona-reminder', '*anemona-link', '*.md'],
                     },
                 });
                 if (!files || files.length === 0)
@@ -1138,6 +1411,49 @@ class NotesViewProvider {
             this._postMessage({
                 command: 'error',
                 message: err instanceof Error ? err.message : 'Failed to export note',
+            });
+        }
+    }
+    async _exportShot(notePath) {
+        try {
+            const defaultName = `${path.basename(notePath)}.zip`;
+            const uri = await vscode.window.showSaveDialog({
+                defaultUri: vscode.Uri.file(path.join(path.dirname(notePath), defaultName)),
+                filters: { 'ZIP Archive': ['zip'] },
+            });
+            if (!uri)
+                return;
+            await this._notesService.exportShot(notePath, uri.fsPath);
+        }
+        catch (err) {
+            this._postMessage({
+                command: 'error',
+                message: err instanceof Error ? err.message : 'Failed to export shot gallery',
+            });
+        }
+    }
+    async _importShot(notePath) {
+        try {
+            const files = await vscode.window.showOpenDialog({
+                canSelectFiles: true,
+                canSelectFolders: false,
+                canSelectMany: false,
+                openLabel: 'Import gallery ZIP',
+                filters: { 'ZIP Archive': ['zip'] },
+            });
+            if (!files || files.length === 0)
+                return;
+            await this._notesService.importShot(notePath, files[0].fsPath);
+            const category = this._getCategoryFromNotePath(notePath) || this._currentCategory;
+            if (category) {
+                this._loadNotes(category, this._currentFolderPath);
+                await this._loadNoteContent(category, path.basename(notePath), notePath);
+            }
+        }
+        catch (err) {
+            this._postMessage({
+                command: 'error',
+                message: err instanceof Error ? err.message : 'Failed to import shot gallery',
             });
         }
     }
@@ -1309,6 +1625,10 @@ class NotesViewProvider {
         if (this._currentCategory) {
             this._loadNotes(this._currentCategory, this._currentFolderPath);
         }
+        if (this._currentNotePath && this._currentCategory) {
+            const noteName = path.basename(this._currentNotePath);
+            this._loadNoteContent(this._currentCategory, noteName, this._currentNotePath);
+        }
         this._notificationService?.reload();
         this._sendNotifications();
     }
@@ -1382,6 +1702,7 @@ class NotesViewProvider {
             this._resetViewState();
             await ConfigService_1.ConfigService.setStoragePath(folderPath);
             this._notesService.setStoragePath(folderPath);
+            this._updateWebviewResourceRoots();
             this._addRecentFolder(folderPath);
             this._onVaultSwitch?.(folderPath);
             this._updateViewTitle();

@@ -1,0 +1,49 @@
+[
+  {
+    "id": "b41dcd70-abd2-4e0e-93af-5f388c67cae4",
+    "filename": "1783641535199.png",
+    "path": "images/1783641535199.png",
+    "mimeType": "image/png",
+    "createdAt": "2026-07-09T01:22:12.706Z",
+    "updatedAt": "2026-07-10T00:11:18.444Z",
+    "title": "codigo fino"
+  },
+  {
+    "id": "3fe05e93-c8bd-4791-bb53-ebeff4b46dd8",
+    "filename": "1783619430490.png",
+    "path": "images/1783619430490.png",
+    "mimeType": "image/png",
+    "createdAt": "2026-07-09T17:50:31.798Z",
+    "updatedAt": "2026-07-10T00:11:18.444Z",
+    "title": "primera guierra mundial",
+    "description": "Esta foto es la primera geurra mundia de ha emmuchot iempos...",
+    "url": "http://www.guerra.com",
+    "tags": [
+      "png  guerra"
+    ]
+  },
+  {
+    "id": "4d15d27b-abd0-4f4a-a046-b52023deb8e9",
+    "filename": "1783619445968.svg",
+    "path": "images/1783619445968.svg",
+    "mimeType": "image/svg+xml",
+    "createdAt": "2026-07-09T17:50:45.968Z",
+    "updatedAt": "2026-07-10T00:11:18.444Z"
+  },
+  {
+    "id": "13ddc10b-d32d-46db-b662-a426c5e55267",
+    "filename": "1783622373505.png",
+    "path": "images/1783622373505.png",
+    "mimeType": "image/png",
+    "createdAt": "2026-07-09T18:39:33.505Z",
+    "updatedAt": "2026-07-10T00:11:18.444Z"
+  },
+  {
+    "id": "8c1dec79-5e40-42ad-b4ab-b2644625c8db",
+    "filename": "1783623094586.png",
+    "path": "images/1783623094586.png",
+    "mimeType": "image/png",
+    "createdAt": "2026-07-09T18:51:34.586Z",
+    "updatedAt": "2026-07-10T00:11:18.444Z"
+  }
+]

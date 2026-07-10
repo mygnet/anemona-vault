@@ -20,6 +20,27 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 }
+.icon-hard-drive-upload:before {
+    content: "\f279";
+}
+.icon-square-arrow-right-enter:before {
+    content: "\f5df";
+}
+.icon-gallery-vertical:before {
+    content: "\f073";
+}
+.icon-link:before {
+    content: "\f416";
+}
+.icon-external-link:before {
+    content: "\f148";
+}
+.icon-layout-list:before {
+    content: "\f53d";
+}
+.icon-image:before {
+    content: "\f292";
+}
 .icon-circle-cancel:before {
     content: "\f088";
 }

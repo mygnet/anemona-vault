@@ -11,6 +11,8 @@
   import TodoEditor from "../components/editors/TodoEditor.svelte";
   import SnippetEditor from "../components/editors/SnippetEditor.svelte";
   import ReminderEditor from "../components/editors/ReminderEditor.svelte";
+  import ShotEditor from "../components/editors/ShotEditor.svelte";
+  import LinkEditor from "../components/editors/LinkEditor.svelte";
   import SearchPanel from "../components/panels/SearchPanel.svelte";
   import NotificationPanel from "../components/panels/NotificationPanel.svelte";
   import ColorPicker from "../components/ui/ColorPicker.svelte";
@@ -106,6 +108,17 @@
   }[] = [];
   let keyLocked = false;
   let commandEntries: { title: string; command: string; documentation?: string }[] = [];
+  let linkEntries: { title: string; url: string; description?: string; status?: string; favicon?: string; lastCheckedAt?: string }[] = [];
+  let linkPreviewData: { title?: string; favicon?: string; description?: string } | null = null;
+  let linkPreviewRequestId = 0;
+  let activeEntryIndex = -1;
+  let syncDoneId = 0;
+  let resumeOffset = 0;
+  function resetSyncState() {
+    resumeOffset = 0;
+    activeEntryIndex = -1;
+    vscode.postMessage({ command: "cancelSyncAll" });
+  }
   let todoEntries: {
     title: string;
     progress: number;
@@ -126,13 +139,26 @@
     createdAt: string;
     updatedAt: string;
   }[] = [];
+  let shotEntries: {
+    id: string;
+    filename: string;
+    path: string;
+    mimeType: string;
+    createdAt: string;
+    updatedAt: string;
+    title?: string;
+    description?: string;
+    url?: string;
+    tags?: string[];
+  }[] = [];
+  let shotImagesUri = "";
   let globalSearchQuery = "";
   let globalSearchLoading = false;
   let globalSearchResults: {
     category: string;
     noteName: string;
     filePath: string;
-    fileType: "md" | "key" | "command" | "todo" | "snippet";
+    fileType: "md" | "key" | "command" | "todo" | "snippet" | "reminder" | "shot";
     displayName: string;
     matchLabel: string;
     snippet: string;
@@ -247,9 +273,11 @@
         noteContent = "";
         keyEntries = [];
         commandEntries = [];
+      linkEntries = [];
         todoEntries = [];
         snippetEntries = [];
         reminderEntries = [];
+        shotEntries = [];
         currentFolderPath = String(message.folderPath || "");
         parentFolderPath = currentFolderPath
           ? currentFolderPath.split("/").slice(0, -1).join("/") || null
@@ -265,9 +293,11 @@
         noteContent = "";
         keyEntries = [];
         commandEntries = [];
+      linkEntries = [];
         todoEntries = [];
         snippetEntries = [];
         reminderEntries = [];
+        shotEntries = [];
         keyLocked = false;
         currentFolderPath = "";
         parentFolderPath = null;
@@ -345,6 +375,7 @@
               noteContent = "";
               keyEntries = [];
               commandEntries = [];
+      linkEntries = [];
               todoEntries = [];
               notes = [];
             }
@@ -410,6 +441,7 @@
           keyLocked = message.locked || false;
           noteContent = "";
           commandEntries = [];
+      linkEntries = [];
           todoEntries = [];
           snippetEntries = [];
           reminderEntries = [];
@@ -420,11 +452,20 @@
           todoEntries = [];
           snippetEntries = [];
           reminderEntries = [];
+        } else if (message.fileType === "link") {
+          linkEntries = message.entries || [];
+          noteContent = "";
+          keyEntries = [];
+          commandEntries = [];
+          todoEntries = [];
+          snippetEntries = [];
+          reminderEntries = [];
         } else if (message.fileType === "todo") {
           todoEntries = message.entries || [];
           noteContent = "";
           keyEntries = [];
           commandEntries = [];
+      linkEntries = [];
           snippetEntries = [];
           reminderEntries = [];
         } else if (message.fileType === "snippet") {
@@ -432,6 +473,7 @@
           noteContent = "";
           keyEntries = [];
           commandEntries = [];
+      linkEntries = [];
           todoEntries = [];
           reminderEntries = [];
         } else if (message.fileType === "reminder") {
@@ -439,12 +481,25 @@
           noteContent = "";
           keyEntries = [];
           commandEntries = [];
+      linkEntries = [];
           todoEntries = [];
           snippetEntries = [];
+          shotEntries = [];
+        } else if (message.fileType === "shot") {
+          shotEntries = message.entries || [];
+          shotImagesUri = message.shotImagesUri || "";
+          noteContent = "";
+          keyEntries = [];
+          commandEntries = [];
+      linkEntries = [];
+          todoEntries = [];
+          snippetEntries = [];
+          reminderEntries = [];
         } else {
           noteContent = message.content || "";
           keyEntries = [];
           commandEntries = [];
+      linkEntries = [];
           todoEntries = [];
           snippetEntries = [];
           reminderEntries = [];
@@ -465,11 +520,49 @@
           noteContent = "";
           keyEntries = [];
           commandEntries = [];
+      linkEntries = [];
           todoEntries = [];
           snippetEntries = [];
           reminderEntries = [];
+          shotEntries = [];
           persistUiState();
         }
+        break;
+
+      case "linkSyncProgress":
+        linkEntries = message.entries || [];
+        activeEntryIndex = message.index;
+        break;
+
+      case "linkEntriesSynced":
+        linkEntries = message.entries || [];
+        resumeOffset = message.syncCancelled ? (message.lastSyncedIndex != null ? message.lastSyncedIndex + 1 : 0) : 0;
+        activeEntryIndex = -1;
+        syncDoneId++;
+        if (message.syncCancelled) {
+          successMessage = "Sync cancelado";
+          if (successTimer) clearTimeout(successTimer);
+          successTimer = setTimeout(() => { successMessage = ""; }, 3000);
+        } else if (message.syncMessage) {
+          errorMessage = String(message.syncMessage);
+          if (errorTimer) clearTimeout(errorTimer);
+          errorTimer = setTimeout(() => { errorMessage = ""; }, 5000);
+        }
+        break;
+
+      case "linkPreviewReady":
+        if (message.message) {
+          errorMessage = String(message.message);
+          if (errorTimer) clearTimeout(errorTimer);
+          errorTimer = setTimeout(() => { errorMessage = ""; }, 5000);
+        }
+        linkPreviewData = {
+          url: message.url,
+          title: message.title,
+          favicon: message.favicon,
+          description: message.description,
+        };
+        linkPreviewRequestId++;
         break;
 
       case "noteRenamed":
@@ -498,9 +591,11 @@
         noteContent = "";
         keyEntries = [];
         commandEntries = [];
+      linkEntries = [];
         todoEntries = [];
         snippetEntries = [];
         reminderEntries = [];
+        shotEntries = [];
         break;
 
       case "categoryDeleted":
@@ -508,9 +603,11 @@
         noteContent = "";
         keyEntries = [];
         commandEntries = [];
+      linkEntries = [];
         todoEntries = [];
         snippetEntries = [];
         reminderEntries = [];
+        shotEntries = [];
         break;
 
       case "selectionAnalysis": {
@@ -606,11 +703,13 @@
   }
 
   function handleOpenNotifications() {
+    resetSyncState();
     activeSection = "notifications";
     selectedNote = null;
     noteContent = "";
     keyEntries = [];
     commandEntries = [];
+      linkEntries = [];
     todoEntries = [];
     snippetEntries = [];
     reminderEntries = [];
@@ -652,6 +751,7 @@
   }
 
   function handleSelectCategory(category: string) {
+    resetSyncState();
     activeSection = "notes";
     pendingGlobalFilter = null;
     selectedCategory = category;
@@ -659,6 +759,7 @@
     noteContent = "";
     keyEntries = [];
     commandEntries = [];
+      linkEntries = [];
     todoEntries = [];
     snippetEntries = [];
     reminderEntries = [];
@@ -685,11 +786,13 @@
   }
 
   function handleOpenSearch() {
+    resetSyncState();
     activeSection = "search";
     selectedNote = null;
     noteContent = "";
     keyEntries = [];
     commandEntries = [];
+      linkEntries = [];
     todoEntries = [];
     snippetEntries = [];
     reminderEntries = [];
@@ -861,6 +964,7 @@
     noteContent = "";
     keyEntries = [];
     commandEntries = [];
+      linkEntries = [];
     todoEntries = [];
     snippetEntries = [];
     reminderEntries = [];
@@ -987,8 +1091,8 @@
     }
   }
 
-  function handleImport(note: { name: string; filePath: string }) {
-    vscode.postMessage({ command: "importContent", notePath: note.filePath });
+  function handleImport(note: { name: string; filePath: string; fileType?: string }) {
+    vscode.postMessage({ command: note.fileType === "shot" ? "importShot" : "importContent", notePath: note.filePath });
   }
 
   function handleExportNote(note: {
@@ -997,6 +1101,10 @@
     fileType?: string;
   }) {
     const fileType = note.fileType || "md";
+    if (fileType === "shot") {
+      vscode.postMessage({ command: "exportShot", notePath: note.filePath });
+      return;
+    }
     let formats: { label: string; value: string }[];
     if (fileType === "key") {
       formats = [
@@ -1004,6 +1112,12 @@
         { label: $t("app.exportDecrypted"), value: "en-claro" },
       ];
     } else if (fileType === "command") {
+      formats = [
+        { label: $t("app.exportDefaultJson"), value: "default" },
+        { label: $t("app.exportText"), value: "texto" },
+        { label: $t("app.exportMarkdown"), value: "markdown" },
+      ];
+    } else if (fileType === "link") {
       formats = [
         { label: $t("app.exportDefaultJson"), value: "default" },
         { label: $t("app.exportText"), value: "texto" },
@@ -1045,13 +1159,16 @@
   }
 
   function handleBack() {
+    resetSyncState();
     selectedNote = null;
     noteContent = "";
     keyEntries = [];
     commandEntries = [];
+      linkEntries = [];
     todoEntries = [];
     snippetEntries = [];
     reminderEntries = [];
+    shotEntries = [];
     pendingGlobalFilter = null;
     persistUiState();
   }
@@ -1161,6 +1278,50 @@
     });
   }
 
+  function handleLinkSave(event: CustomEvent<typeof linkEntries>) {
+    if (!selectedNote) return;
+    linkEntries = event.detail;
+    vscode.postMessage({
+      command: "saveLinkEntries",
+      notePath: selectedNote.filePath,
+      entries: event.detail,
+    });
+  }
+
+  function handleLinkSync(event: CustomEvent<{ entries: typeof linkEntries; index: number }>) {
+    if (!selectedNote) return;
+    const { entries, index } = event.detail;
+    vscode.postMessage({
+      command: "syncLinkEntry",
+      notePath: selectedNote.filePath,
+      entries,
+      index,
+    });
+  }
+
+  function handleLinkSyncAll(event: CustomEvent<{ entries: typeof linkEntries; resumeOffset: number }>) {
+    if (!selectedNote) return;
+    const { entries, resumeOffset: startIndex } = event.detail;
+    vscode.postMessage({
+      command: "syncLinkEntries",
+      notePath: selectedNote.filePath,
+      entries,
+      startIndex,
+    });
+  }
+
+  function handleLinkPreview(event: CustomEvent<string>) {
+    linkPreviewData = null;
+    vscode.postMessage({
+      command: "previewLink",
+      url: event.detail,
+    });
+  }
+
+  function handleCancelSyncAll() {
+    vscode.postMessage({ command: "cancelSyncAll" });
+  }
+
   function handleTodoSave(event: CustomEvent<typeof todoEntries>) {
     if (!selectedNote) return;
     todoEntries = event.detail;
@@ -1186,6 +1347,16 @@
     reminderEntries = event.detail;
     vscode.postMessage({
       command: "saveReminderEntries",
+      notePath: selectedNote.filePath,
+      entries: event.detail,
+    });
+  }
+
+  function handleShotSave(event: CustomEvent<typeof shotEntries>) {
+    if (!selectedNote) return;
+    shotEntries = event.detail;
+    vscode.postMessage({
+      command: "saveShotEntries",
       notePath: selectedNote.filePath,
       entries: event.detail,
     });
@@ -1433,6 +1604,32 @@
             onExportNote={() => selectedNote && handleExportNote(selectedNote)}
             onDeleteNote={() => selectedNote && handleDeleteNote(selectedNote)}
           />
+        {:else if selectedNote && currentFileType === "link"}
+          <LinkEditor
+            entries={linkEntries}
+            {selectedNote}
+            initialFilterText={activeEditorSearchText}
+            {selectionSuggestion}
+            linkPreviewData={linkPreviewRequestId > 0 ? linkPreviewData : null}
+            {activeEntryIndex}
+            {syncDoneId}
+            {resumeOffset}
+            onRequestSelectionCheck={handleRequestSelectionCheck}
+            on:save={handleLinkSave}
+            on:syncEntry={handleLinkSync}
+            on:syncAll={handleLinkSyncAll}
+            on:cancelSyncAll={handleCancelSyncAll}
+            on:previewLink={handleLinkPreview}
+            on:back={handleBack}
+            on:openExternal={(e) => {
+              vscode.postMessage({ command: 'openExternal', ...e.detail })
+            }}
+            onRenameNote={() => selectedNote && handleRenameNote(selectedNote)}
+            onMoveNote={() => selectedNote && handleMoveNote(selectedNote)}
+            onImportNote={() => selectedNote && handleImport(selectedNote)}
+            onExportNote={() => selectedNote && handleExportNote(selectedNote)}
+            onDeleteNote={() => selectedNote && handleDeleteNote(selectedNote)}
+          />
         {:else if selectedNote && currentFileType === "todo"}
           <TodoEditor
             entries={todoEntries}
@@ -1484,6 +1681,40 @@
                 type: e.detail.type,
                 value: e.detail.target,
               })}
+          />
+        {:else if selectedNote && currentFileType === "shot"}
+          <ShotEditor
+            entries={shotEntries}
+            {selectedNote}
+            {shotImagesUri}
+            initialFilterText={activeEditorSearchText}
+            on:save={handleShotSave}
+            on:back={handleBack}
+            on:saveImage={(e) => {
+              vscode.postMessage({ command: 'saveShotImage', ...e.detail })
+            }}
+            on:saveShot={(e) => {
+              const { notePath, entries, image } = e.detail
+              shotEntries = entries
+              vscode.postMessage({ command: 'saveShot', notePath, entries, image })
+            }}
+            on:openExternal={(e) => {
+              vscode.postMessage({ command: 'openExternal', ...e.detail })
+            }}
+            on:openShotImage={(e) => {
+              vscode.postMessage({ command: 'openShotImage', ...e.detail })
+            }}
+            on:copyShotImage={(e) => {
+              vscode.postMessage({ command: 'copyShotImage', ...e.detail })
+            }}
+            on:deleteShotImage={(e) => {
+              vscode.postMessage({ command: 'deleteShotImage', ...e.detail })
+            }}
+            onRenameNote={() => selectedNote && handleRenameNote(selectedNote)}
+            onMoveNote={() => selectedNote && handleMoveNote(selectedNote)}
+            onImportNote={() => selectedNote && handleImport(selectedNote)}
+            onExportNote={() => selectedNote && handleExportNote(selectedNote)}
+            onDeleteNote={() => selectedNote && handleDeleteNote(selectedNote)}
           />
         {:else if selectedNote}
           <NoteEditor

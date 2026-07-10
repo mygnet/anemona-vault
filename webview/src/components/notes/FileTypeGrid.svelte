@@ -10,9 +10,11 @@
     { value: 'md', icon: 'icon-file-text', label: 'notesList.typeText' },
     { value: 'key', icon: 'icon-key-solid', label: 'notesList.typeKey' },
     { value: 'command', icon: 'icon-terminal', label: 'notesList.typeCmd' },
+    { value: 'link', icon: 'icon-link', label: 'notesList.typeLink' },
     { value: 'todo', icon: 'icon-list-todo', label: 'notesList.typeTodo' },
     { value: 'snippet', icon: 'icon-code-xml', label: 'notesList.typeSnip' },
     { value: 'reminder', icon: 'icon-alarm-clock', label: 'notesList.typeRemind' },
+    { value: 'shot', icon: 'icon-image', label: 'notesList.typeShot' },
     { value: 'folder', icon: 'icon-folder', label: 'notesList.typeFolder' },
   ]
 

@@ -18,9 +18,11 @@ Organize everything you use every day in one place — notes, secrets, reminders
 | Text | `.md` | 📄 | Free-form markdown notes with search |
 | Key | `.anemona-key` / `.anemona-lock` | 🔑 / 🔒 | Encrypted secrets, passwords, API tokens |
 | Command | `.anemona-command` | ⌘ | Reusable shell commands with copy and optional documentation |
+| Link | `.anemona-link` | 🔗 | Bookmark manager with status checker, favicon, and auto-fill |
 | Todo | `.anemona-todo` | ☑️ | Task tracking with progress, priorities, and due dates |
 | Snippet | `.anemona-snippet` | 📋 | Code snippets with language tagging and copy |
 | Reminder | `.anemona-reminder` | 🔔 | Timed reminders with due dates and actions |
+| Shot | `.anemona-shot` | 📷 | Visual gallery for images, screenshots, and captures |
 
 ### Vault management
 
@@ -46,9 +48,11 @@ Organize everything you use every day in one place — notes, secrets, reminders
 - **Markdown** — Full-text editing with search and highlight
 - **Keys** — Add/edit/delete credential entries with title, username, password, email, URL, host, port, token, and notes; copy values to clipboard; open external links
 - **Commands** — Store shell commands with optional documentation/usage notes; copy, sort, filter, export, and insert directly into the editor
-- **Todos** — Track progress (0–100%), set priority (low/medium/high) and due dates, mark as done/cancelled
-- **Snippets** — Store code with language selection (30+ languages), copy code to clipboard, filter and sort; insert directly into the editor
-- **Reminders** — Add/edit/delete reminders with due date picker (hours/days/weeks/months/specific date), mark as completed, filter by status (All/Pending/Completed), attach actions; automatically sorted — pending first, then by most recent
+- **Link** — Save and organize links with title, URL, and description. Import CSV (`url | title`) or JSON, export as text/markdown/JSON, open URLs directly. Each entry shows a reachability status indicator (green/gray/red). Click sync on any entry (or "Check all") to fetch the page title, description, and favicon. Sync can be cancelled mid-way and scrolls through entries as it processes.
+- **Todo** — Track progress (0–100%), set priority (low/medium/high) and due dates, mark as done/cancelled
+- **Snippet** — Store code with language selection (30+ languages), copy code to clipboard, filter and sort; insert directly into the editor
+- **Reminder** — Add/edit/delete reminders with due date picker (hours/days/weeks/months/specific date), mark as completed, filter by status (All/Pending/Completed), attach actions; automatically sorted — pending first, then by most recent
+- **Shot** — Visual gallery for images. Paste or import images, preview with metadata (title, description, source URL, tags), filter by tag, sort, copy to clipboard, and export as ZIP.
 
 ### Import & Export
 
@@ -65,7 +69,7 @@ Organize everything you use every day in one place — notes, secrets, reminders
 - **Drag-and-drop** — Move files and folders by dragging them onto a target folder or breadcrumb segment
 - **Breadcrumb navigation** — Navigate nested folder hierarchies with clickable breadcrumbs
 - **Inline filtering** — Filter entries within each note type editor with sort and priority filters; clear button (×) to reset search
-- **Confirmation dialogs** — Code-based delete confirmation to prevent accidental loss
+- **Confirmation dialogs** — Deleting individual entries uses a simple confirm dialog; deleting entire files, folders, and categories requires a code-based confirmation to prevent accidental loss
 - **More Actions menu** — Quick access to Recent folders, Search, Open folder, Reload, Notifications, Export/Import ZIP, Language, and Settings
 - **Reload overlay** — Animated spinner during vault reloads
 - **Version notification** — Toast notification when the extension updates, with a link to the changelog
@@ -95,7 +99,7 @@ Customize behavior in VS Code settings (`anemona-vault.*`):
 - **Folder colors** — Per-folder accent color override
 - **Subfolder config cascade** — Configs merge from vault → category → subfolder, preserving non-overlapping settings
 
-### Iteración 1 — Galería
+### Screenshots
 
 <table>
   <tr>
@@ -146,6 +150,18 @@ Customize behavior in VS Code settings (`anemona-vault.*`):
       <em>Reminders & notifications — due dates, actions, and alerts</em>
     </td>
   </tr>
+  <tr>
+    <td width="50%">
+        <img src="screenshot/links.gif" alt="Links" width="100%">
+        <br>
+        <em>📷 Link manager — add, sync, status indicators</em>
+    </td>
+    <td width="50%">
+        <img src="screenshot/gallery.gif" alt="Gallery" width="100%">
+        <br>
+        <em>📷 Shot gallery — image preview and metadata</em>
+    </td>
+  </tr>
 </table>
 
 ## Storage
@@ -160,8 +176,14 @@ vault/
 │   ├── meeting-notes.md
 │   ├── apis.anemona-key
 │   ├── deploy.anemona-command
+│   ├── bookmarks.anemona-link
 │   ├── ideas.anemona-snippet
 │   ├── weekly.anemona-reminder
+│   ├── screenshots.anemona-shot/
+│   │   ├── anemona-shot.json          # metadata (entries list)
+│   │   └── images/
+│   │       ├── capture-01.png
+│   │       └── capture-02.png
 │   └── subfolder/
 │       └── references.md
 └── Projects/
